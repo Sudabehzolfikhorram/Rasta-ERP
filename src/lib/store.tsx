@@ -3,11 +3,13 @@ import type { Unit } from "./utils";
 
 export type Concept = "calm" | "glass";
 export type Page = "dashboard" | "voucher";
+export type Theme = "light" | "dark";
 export type Pinned = { id: string; title: string; rows: [string, string][]; note: string };
 type Toast = { id: number; text: string; tone?: "success" | "ai" };
 
 type Ctx = {
   concept: Concept; setConcept: (c: Concept) => void;
+  theme: Theme; setTheme: (t: Theme) => void;
   page: Page; go: (p: Page) => void;
   unit: Unit; setUnit: (u: Unit) => void;
   paletteOpen: boolean; setPaletteOpen: (o: boolean) => void;
@@ -21,9 +23,12 @@ type Ctx = {
 const AppCtx = React.createContext<Ctx | null>(null);
 export const useApp = () => React.useContext(AppCtx)!;
 
-function readHash(): { concept: Concept; page: Page } {
+function readHash(): { concept: Concept; page: Page; theme: Theme } {
   const h = new URLSearchParams(location.hash.slice(1));
+  const sys = typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const t = h.get("theme");
   return {
+    theme: t === "dark" || t === "light" ? t : sys,
     concept: h.get("concept") === "glass" ? "glass" : "calm",
     page: h.get("page") === "voucher" ? "voucher" : "dashboard",
   };
@@ -33,6 +38,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const init = readHash();
   const [concept, setConcept] = React.useState<Concept>(init.concept);
   const [page, setPage] = React.useState<Page>(init.page);
+  const [theme, setTheme] = React.useState<Theme>(init.theme);
   const [unit, setUnit] = React.useState<Unit>("rial");
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [paletteSeed, setPaletteSeed] = React.useState("");
@@ -42,9 +48,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [voucherSeed, setVoucherSeed] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    document.documentElement.dataset.concept = concept;
-    history.replaceState(null, "", `#concept=${concept}&page=${page}`);
-  }, [concept, page]);
+    const el = document.documentElement;
+    el.dataset.concept = concept;
+    el.dataset.theme = theme;
+    el.style.colorScheme = theme;
+    history.replaceState(null, "", `#concept=${concept}&theme=${theme}&page=${page}`);
+  }, [concept, theme, page]);
 
   React.useEffect(() => {
     let seen = false;
@@ -60,6 +69,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value: Ctx = {
     concept, setConcept,
+    theme, setTheme,
     page, go: (p) => { setPage(p); window.scrollTo({ top: 0 }); },
     unit, setUnit,
     paletteOpen, setPaletteOpen,

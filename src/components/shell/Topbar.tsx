@@ -1,4 +1,4 @@
-import { CircleHelp, Search, Sparkles } from "lucide-react";
+import { CircleHelp, Moon, Search, Sparkles, Sun } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,7 +23,7 @@ function Segmented<T extends string>({ value, onChange, items, label }: { value:
 }
 
 export function Topbar() {
-  const { page, unit, setUnit, concept, setConcept, openPalette, setTour } = useApp();
+  const { page, unit, setUnit, concept, setConcept, theme, setTheme, openPalette, setTour } = useApp();
   return (
     <header className="flex flex-wrap items-center gap-3">
       <div className="min-w-[150px]">
@@ -47,6 +47,18 @@ export function Topbar() {
         <div data-tour="concept">
           <Segmented label="کانسپت طراحی" value={concept} onChange={setConcept} items={[["calm", "کانسپت آرام"], ["glass", "کانسپت شیشه"]]} />
         </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label={theme === "dark" ? "حالت روشن" : "حالت تیره"}
+              className="panel grid size-10 place-items-center rounded-full text-muted-foreground hover:text-foreground"
+            >
+              {theme === "dark" ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{theme === "dark" ? "حالت روشن" : "حالت تیره"}</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <button onClick={() => setTour(true)} aria-label="تور راهنما" className="panel grid size-10 place-items-center rounded-full text-muted-foreground hover:text-foreground">

@@ -14,32 +14,23 @@ function AgentMark({ className }: { className?: string }) {
 }
 
 function Brief() {
-  const { startVoucher, openPalette, concept } = useApp();
-  const glass = concept === "glass";
+  const { startVoucher, openPalette } = useApp();
   const Link = ({ children, q }: { children: React.ReactNode; q: string }) => (
     <button
       onClick={() => openPalette(q)}
-      className={cn(
-        "rounded-md px-1 font-bold underline decoration-2 underline-offset-[7px] transition-colors",
-        glass ? "bg-white/12 text-white decoration-white/55 hover:bg-white/20" : "bg-ai-soft/70 text-foreground decoration-ai/50 hover:bg-ai-soft",
-      )}
+      className="rounded-md bg-white/12 px-1 font-bold text-white underline decoration-white/55 decoration-2 underline-offset-[7px] transition-colors hover:bg-white/20"
     >
       {children}
     </button>
   );
+  // The lit gradient pane in both concepts; colours come from --hero-* per concept and theme.
   return (
-    <section data-tour="brief" className={cn("relative overflow-hidden p-6 lg:p-7", glass ? "hero-glass" : "panel")}>
-      {glass ? (
-        <>
-          <div className="pointer-events-none absolute -left-16 -top-24 size-80 rounded-full bg-white/15 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -bottom-28 right-10 size-72 rounded-full bg-emerald-300/25 blur-3xl" aria-hidden />
-        </>
-      ) : (
-        <div className="pointer-events-none absolute -left-24 -top-24 size-72 rounded-full bg-ai-soft blur-3xl" aria-hidden />
-      )}
+    <section data-tour="brief" className="hero-glass relative overflow-hidden p-6 lg:p-7">
+      <div className="pointer-events-none absolute -left-16 -top-24 size-80 rounded-full bg-white/15 blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute -bottom-28 right-10 size-72 rounded-full bg-[hsl(var(--hero-glow)/0.3)] blur-3xl" aria-hidden />
       <div className="relative">
-        <div className={cn("flex items-center gap-2 text-[12.5px] font-bold", glass ? "text-white/85" : "text-ai-ink")}>
-          <AgentMark className={glass ? "bg-none bg-white/20" : undefined} /> خلاصه‌ی امروز · از ایجنت تحلیل‌گر
+        <div className="flex items-center gap-2 text-[12.5px] font-bold text-white/85">
+          <AgentMark className="bg-none bg-white/20" /> خلاصه‌ی امروز · از ایجنت تحلیل‌گر
         </div>
         <p className="num mt-3 max-w-[60ch] text-[19px] font-medium leading-[2.15]">
           از دیروز <Link q="اسناد دیروز">۲۳ سند</Link> ثبت شده و <Link q="اسناد منتظر تأیید">۳ سند</Link> منتظر تأیید شماست.
@@ -47,12 +38,12 @@ function Brief() {
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Button
-            className={glass ? "bg-white text-[#16408F] hover:bg-white/90" : undefined}
+            className="bg-white text-[hsl(var(--hero-ink))] hover:bg-white/90"
             onClick={() => document.getElementById("inbox")?.scrollIntoView({ behavior: "smooth", block: "start" })}
           >
             از مهم‌ترین کار شروع کنید <ArrowLeft />
           </Button>
-          <Button variant="outline" className={glass ? "border-white/35 bg-white/10 text-white hover:bg-white/20" : undefined} onClick={() => startVoucher()}>
+          <Button variant="outline" className="border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={() => startVoucher()}>
             <Plus /> سند تازه
           </Button>
         </div>
