@@ -85,7 +85,7 @@ function DocAssistant({ doc, big }: { doc: Doc; big?: boolean }) {
   };
 
   return (
-    <section className={cn("panel flex flex-col", big ? "min-h-[460px] p-5" : "p-4")} aria-label="دستیار سند">
+    <section className={cn("panel edge-run flex flex-col", big ? "min-h-[460px] p-5" : "p-4")} aria-label="دستیار سند">
       <div className="mb-3 flex items-center gap-2.5">
         <Orb size={big ? 36 : 28} busy={busy} />
         <div className="min-w-0 flex-1">
@@ -97,7 +97,6 @@ function DocAssistant({ doc, big }: { doc: Doc; big?: boolean }) {
       <ol className={cn("flex flex-1 flex-col gap-3 overflow-y-auto pe-1", big ? "max-h-[420px]" : "max-h-[260px]")} aria-live="polite">
         {msgs.map((m, i) => (
           <li key={i} className={cn("flex items-start gap-2.5 animate-rise", m.who === "me" && "flex-row-reverse")}>
-            {m.who === "ai" && <Orb size={22} />}
             <div className={cn("num max-w-[88%] rounded-[calc(var(--r-field)+4px)] px-3.5 py-2.5 text-[13px] leading-7", m.who === "me" ? "bg-primary text-primary-foreground" : "border border-border bg-surface")}>
               {m.text}
               {m.p && m.state === "open" && (
@@ -111,7 +110,7 @@ function DocAssistant({ doc, big }: { doc: Doc; big?: boolean }) {
             </div>
           </li>
         ))}
-        {busy && <li className="flex items-center gap-2 text-[12.5px] text-muted-foreground"><Orb size={22} busy /> در حال بررسی…</li>}
+        {busy && <li className="shimmer-text text-[12.5px] font-semibold">در حال بررسی…</li>}
         <li ref={end} aria-hidden />
       </ol>
       {msgs.length < 2 && (
@@ -201,12 +200,18 @@ export function DocDetail() {
       {doc.status === "draft" && <Button onClick={() => { setDocStatus([doc.id], total > settings.approvalLimit ? "pending" : "posted", total > settings.approvalLimit ? "برای تأیید فرستاد" : "ثبت کرد"); toast(total > settings.approvalLimit ? `سند ${no} برای تأیید ارسال شد.` : `سند ${no} ثبت شد.`); }}><Send /> {total > settings.approvalLimit ? "ارسال برای تأیید" : "ثبت سند"}</Button>}
       <Button variant="outline" onClick={() => startVoucher({ doc })}><PencilLine /> ویرایش</Button>
       {doc.status === "pending" && <Button variant="ghost" onClick={() => { setDocStatus([doc.id], "draft", "برای اصلاح به پیش‌نویس برگرداند"); toast(`سند ${no} به پیش‌نویس برگشت.`); }}><Undo2 /> برگشت برای اصلاح</Button>}
-      <Button variant="ghost" size="icon" aria-label="چاپ سند" onClick={() => window.print()}><Printer /></Button>
+      <Button variant="outline" size="icon" aria-label="چاپ سند" onClick={() => window.print()}><Printer /></Button>
+    </div>
+  );
+  const toolbar = (
+    <div className="no-print flex flex-wrap items-center gap-3">
+      <button onClick={() => go("documents")} className="flex items-center gap-1 text-[13px] font-bold text-muted-foreground hover:text-foreground"><ArrowRight className="size-4" /> اسناد</button>
+      <span className="num text-[13px] text-muted-foreground" dir="ltr">{no}</span>
+      <div className="ms-auto">{actions}</div>
     </div>
   );
   const header = (
     <section className="panel p-5">
-      <button onClick={() => go("documents")} className="no-print mb-3 flex items-center gap-1 text-[12.5px] font-bold text-muted-foreground hover:text-foreground"><ArrowRight className="size-4" /> اسناد</button>
       <div className="flex flex-wrap items-start gap-4">
         <div className="min-w-0 flex-1">
           <div className="num flex items-center gap-2 text-[12.5px] text-muted-foreground"><span dir="ltr">{no}</span><Badge tone={statusTone[doc.status]}>{statusLabel[doc.status]}</Badge></div>
@@ -218,7 +223,6 @@ export function DocDetail() {
           <div className="num text-[24px] font-extrabold">{money(total, unit)} <span className="text-[12px] font-medium text-muted-foreground">{unitLabel(unit)}</span></div>
         </div>
       </div>
-      <div className="no-print mt-4 border-t border-border/70 pt-4">{actions}</div>
       {doc.status === "posted" && <p className="mt-3 text-[12px] text-muted-foreground">ویرایش سند تأییدشده در تاریخچه ثبت می‌شود و اگر مبلغ از سقف بیشتر شود، دوباره به تأیید نیاز دارد.</p>}
     </section>
   );
@@ -231,13 +235,14 @@ export function DocDetail() {
   if (concept === "bento") {
     return (
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex min-w-0 flex-col gap-4">{header}<Lines doc={doc} />{attachments}</div>
+        <div className="flex min-w-0 flex-col gap-4">{toolbar}{header}<Lines doc={doc} />{attachments}</div>
         <aside className="no-print flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start"><DocAssistant doc={doc} /><Timeline items={doc.history ?? []} /></aside>
       </div>
     );
   }
   return (
     <div className="flex flex-col gap-5">
+      {toolbar}
       {header}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="no-print min-w-0"><DocAssistant doc={doc} big /></div>

@@ -176,14 +176,16 @@ export function CashChart({ actual: a0, forecast: f0, todayDay = 17, scale = 1, 
 }
 
 /** Waterfall: how a total is built. Values in billions. Positive = primary, negative = muted slate, total = AI. */
-export function Waterfall({ items, total, unit }: { items: [string, number][]; total: string; unit: string }) {
+export function Waterfall({ items, total, unit, zoom }: { items: [string, number][]; total: string; unit: string; zoom?: boolean }) {
   const [ref, { w }] = useSize<HTMLDivElement>();
   const H = 260, top = 18, bottom = 46;
   let run = 0;
   const bars = items.map(([l, v]) => { const from = run; run += v; return { l, v, from, to: run }; });
   const all = [0, ...bars.flatMap((b) => [b.from, b.to])];
-  const max = Math.max(...all), min = Math.min(...all);
-  const y = (v: number) => top + (1 - (v - min) / (max - min || 1)) * (H - top - bottom);
+  const max = Math.max(...all);
+  // zoomed bridges (opening balance first) start the axis near the lowest running total, so small moves stay visible
+  const min = zoom ? Math.min(...bars.slice(1).flatMap((b) => [b.from, b.to]), run) * 0.94 : Math.min(...all);
+  const y = (v: number) => Math.min(H - bottom, top + (1 - (v - min) / (max - min || 1)) * (H - top - bottom));
   const cols = bars.length + 1;
   const bw = w / cols;
   const xAt = (i: number) => w - (i + 1) * bw; // RTL: first bar on the right
@@ -249,13 +251,13 @@ function squarify(values: number[], r: Rect): Rect[] {
   return out;
 }
 const TM = ["--ch-1", "--ch-2", "--ch-3", "--ch-4", "--ch-5", "--ch-6"];
-export function Treemap({ items, unit, onPick, height = 280 }: { items: [string, number][]; unit: string; onPick?: (l: string) => void; height?: number }) {
+export function Treemap({ items, unit, onPick, height = 280, legend = true }: { items: [string, number][]; unit: string; onPick?: (l: string) => void; height?: number; legend?: boolean }) {
   const [ref, { w }] = useSize<HTMLDivElement>();
   const sorted = [...items].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const total = sorted.reduce((s, [, v]) => s + v, 0);
   const rects = w > 0 ? squarify(sorted.map(([, v]) => v), { x: 0, y: 0, w, h: height }) : [];
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_220px]">
+    <div className={cn("grid gap-5", legend && "lg:grid-cols-[1fr_220px]")}>
       <div ref={ref} className="relative w-full" style={{ height }}>
         {rects.map((r, i) => {
           const [l, v] = sorted[i];
@@ -273,7 +275,7 @@ export function Treemap({ items, unit, onPick, height = 280 }: { items: [string,
           );
         })}
       </div>
-      <ul className="flex flex-col gap-1.5 self-center">
+      {legend && <ul className="flex flex-col gap-1.5 self-center">
         {sorted.map(([l, v], i) => (
           <li key={l} className="flex items-center gap-2 text-[12.5px]">
             <i className="size-2.5 shrink-0 rounded-[4px]" style={{ background: `hsl(var(${TM[i % TM.length]}))` }} />
@@ -281,7 +283,7 @@ export function Treemap({ items, unit, onPick, height = 280 }: { items: [string,
             <b className="num">{toFa(Math.round((v / total) * 100))}٪</b>
           </li>
         ))}
-      </ul>
+      </ul>}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import * as React from "react";
-import { ArrowRight, ArrowUp, Check, ChevronDown, Download, FileSpreadsheet, FileText, Filter, History, LayoutDashboard, MessageSquareText, Plus, Printer, Send, Trash2, X } from "@/components/icons";
+import { StatCard } from "@/components/ui/stat";
+import { ArrowRight, ArrowUp, CalendarDays, Check, ChevronDown, Download, FileSpreadsheet, FileText, Filter, History, LayoutDashboard, MessageSquareText, Plus, Printer, TaskSquare, Trash2, TrendUp, Wallet3, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { reports, reportGroups, type Report, type Row } from "@/data/reports";
 import { cashActual, cashForecast } from "@/data/demo";
@@ -43,38 +44,70 @@ function exportCsv(r: Report, rows: Row[], unit: string) {
 }
 
 /* ---------- side assistant: runs multi-step jobs ---------- */
-type Job = { id: string; ask: string; steps: string[]; report?: string; done: string; kind?: "send" | "export" };
+type Fmt = "xlsx" | "pdf" | "print";
+type Job = { id: string; ask: string; steps: string[]; report?: string; done: string; kind?: "download" | "export";
+  params: { report: string; range: string; people?: string[]; items: string[] } };
+const DEBTORS = ["پخش البرز", "پتروشیمی مارون", "سیمان تهران", "فولاد مبارکه"];
 const JOBS: { re: RegExp; make: (ask: string) => Job }[] = [
-  { re: /صورت.?حساب|بفرست|ارسال/, make: (ask) => ({ id: "send", ask, report: "statements", kind: "send", steps: ["پیدا کردن مشتری‌های بدهکار مهر", "ساختن صورت‌حساب مهر برای ۴ مشتری", "تطبیق مانده‌ها با دفتر معین", "آماده کردن پیام و فایل PDF"], done: "صورت‌حساب‌ها آماده است. پیش از ارسال، گیرنده‌ها را ببینید." }) },
-  { re: /مقایسه|مهر.*آبان|آبان.*مهر/, make: (ask) => ({ id: "cmp", ask, report: "expcmp", steps: ["جمع هزینه‌های مهر و آبان", "مقایسه‌ی سرفصل به سرفصل", "پیدا کردن بیشترین تغییر"], done: "هزینه‌های آبان ۴٪ بیشتر از مهر است. بیشترین افزایش در حمل‌ونقل است: ۱۸٪." }) },
-  { re: /اکسل|خروجی|تراز/, make: (ask) => ({ id: "xls", ask, report: "tb", kind: "export", steps: ["ساختن تراز آزمایشی آبان", "کنترل برابری گردش‌ها", "آماده کردن فایل اکسل"], done: "فایل تراز آزمایشی آبان دانلود شد." }) },
-  { re: /سود|چرا/, make: (ask) => ({ id: "pl", ask, report: "pl", steps: ["خواندن سود و زیان آبان", "مقایسه با مهر"], done: "سود آبان ۳٫۱۵ میلیارد ریال است؛ ۱۱٪ بیشتر از مهر، چون فروش بالا رفت. هزینه‌ی حمل هم ۱۸٪ بیشتر شد." }) },
-  { re: /معوق|۶۰|بدهکار|سنی/, make: (ask) => ({ id: "aging", ask, report: "aging", steps: ["خواندن مانده‌ی مشتری‌ها", "دسته‌بندی بر اساس عمر طلب"], done: "دو مشتری بیش از ۶۰ روز بدهکارند: سیمان تهران (۱٫۱ میلیارد) و پتروشیمی مارون (۰٫۳۸ میلیارد ریال)." }) },
+  { re: /صورت.?حساب|بفرست|ارسال/, make: (ask) => ({ id: "send", ask, report: "statements", kind: "download", params: { report: "صورت‌حساب مشتریان", range: "۱ تا ۳۰ مهر ۱۴۰۵", people: DEBTORS, items: ["مانده‌ی اول دوره", "گردش بدهکار و بستانکار", "مانده‌ی پایان دوره"] }, steps: ["پیدا کردن مشتری‌های بدهکار مهر", "ساختن صورت‌حساب برای هر مشتری", "تطبیق مانده‌ها با دفتر معین", "آماده کردن فایل‌ها"], done: "صورت‌حساب‌ها آماده است. فرمت دانلود را انتخاب کنید." }) },
+  { re: /مقایسه|مهر.*آبان|آبان.*مهر/, make: (ask) => ({ id: "cmp", ask, report: "expcmp", params: { report: "هزینه‌ها: آبان و مهر", range: "مهر و آبان ۱۴۰۵", items: ["همه‌ی سرفصل‌های هزینه"] }, steps: ["جمع هزینه‌های مهر و آبان", "مقایسه‌ی سرفصل به سرفصل", "پیدا کردن بیشترین تغییر"], done: "هزینه‌های آبان ۴٪ بیشتر از مهر است. بیشترین افزایش در حمل‌ونقل است: ۱۸٪." }) },
+  { re: /اکسل|خروجی|تراز/, make: (ask) => ({ id: "xls", ask, report: "tb", kind: "export", params: { report: "تراز آزمایشی", range: "۱ تا ۱۷ آبان ۱۴۰۵", items: ["حساب‌های کل", "گردش و مانده", "خروجی اکسل"] }, steps: ["ساختن تراز آزمایشی آبان", "کنترل برابری گردش‌ها", "آماده کردن فایل اکسل"], done: "فایل تراز آزمایشی آبان دانلود شد." }) },
+  { re: /سود|چرا/, make: (ask) => ({ id: "pl", ask, report: "pl", params: { report: "سود و زیان", range: "آبان ۱۴۰۵ در برابر مهر", items: ["فروش", "بهای تمام‌شده", "هزینه‌های عملیاتی"] }, steps: ["خواندن سود و زیان آبان", "مقایسه با مهر"], done: "سود آبان ۳٫۱۵ میلیارد ریال است؛ ۱۱٪ بیشتر از مهر، چون فروش بالا رفت. هزینه‌ی حمل هم ۱۸٪ بیشتر شد." }) },
+  { re: /معوق|۶۰|بدهکار|سنی/, make: (ask) => ({ id: "aging", ask, report: "aging", params: { report: "سنی مطالبات", range: "تا ۱۷ آبان ۱۴۰۵", people: DEBTORS, items: ["جاری", "۱ تا ۶۰ روز", "بیش از ۶۰ روز"] }, steps: ["خواندن مانده‌ی مشتری‌ها", "دسته‌بندی بر اساس عمر طلب"], done: "دو مشتری بیش از ۶۰ روز بدهکارند: سیمان تهران (۱٫۱ میلیارد) و پتروشیمی مارون (۰٫۳۸ میلیارد ریال)." }) },
 ];
-const SUGGEST = ["صورت‌حساب مهر را آماده کن و برای مشتری‌های بدهکار بفرست", "هزینه‌های آبان را با مهر مقایسه کن", "تراز آزمایشی آبان را اکسل بگیر", "کدام مشتری‌ها بیش از ۶۰ روز بدهکارند؟"];
+const SUGGEST = ["صورت‌حساب مهر مشتری‌های بدهکار را آماده کن", "هزینه‌های آبان را با مهر مقایسه کن", "تراز آزمایشی آبان را اکسل بگیر", "کدام مشتری‌ها بیش از ۶۰ روز بدهکارند؟"];
 
-function JobCard({ job, onFinish }: { job: Job; onFinish: (j: Job) => void }) {
-  const { toast } = useApp();
+function JobCard({ job, onFinish, onDownload }: { job: Job; onFinish: (j: Job) => void; onDownload: (f: Fmt, report: string, people: string[]) => void }) {
+  const [phase, setPhase] = React.useState<"confirm" | "run" | "cancel">("confirm");
   const [i, setI] = React.useState(0);
-  const [sent, setSent] = React.useState<"no" | "sending" | "yes">("no");
-  const [to, setTo] = React.useState(["پخش البرز", "پتروشیمی مارون", "سیمان تهران", "فولاد مبارکه"]);
-  const done = i >= job.steps.length;
+  const [people, setPeople] = React.useState<string[]>(job.params.people ?? []);
+  const [got, setGot] = React.useState<Fmt | null>(null);
+  const done = phase === "run" && i >= job.steps.length;
   React.useEffect(() => {
+    if (phase !== "run") return;
     if (done) { onFinish(job); return; }
     const t = setTimeout(() => setI(i + 1), 750);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [i]);
-  const all = ["پخش البرز", "پتروشیمی مارون", "سیمان تهران", "فولاد مبارکه"];
+  }, [i, phase]);
+
+  if (phase === "cancel") return <p className="rounded-field border border-border bg-surface p-3 text-[12.5px] text-muted-foreground">لغو شد. هر وقت خواستید دوباره بپرسید.</p>;
+  if (phase === "confirm") {
+    return (
+      <div className="rounded-field border border-border bg-surface p-3.5 animate-rise">
+        <p className="text-[13px] font-bold">این کار را با این تنظیمات انجام بدهم؟</p>
+        <dl className="mt-2.5 flex flex-col gap-2 text-[12.5px]">
+          <div className="flex gap-2"><dt className="w-20 shrink-0 text-muted-foreground">گزارش</dt><dd className="font-semibold">{job.params.report}</dd></div>
+          <div className="flex gap-2"><dt className="w-20 shrink-0 text-muted-foreground">بازه‌ی زمانی</dt><dd className="num font-semibold">{job.params.range}</dd></div>
+          <div className="flex gap-2"><dt className="w-20 shrink-0 text-muted-foreground">موارد</dt><dd className="flex flex-wrap gap-1">{job.params.items.map((x) => <span key={x} className="rounded-md bg-muted px-1.5 py-0.5 text-[11.5px]">{x}</span>)}</dd></div>
+          {job.params.people && (
+            <div className="flex gap-2"><dt className="w-20 shrink-0 pt-1 text-muted-foreground">اشخاص</dt>
+              <dd className="flex flex-1 flex-col gap-0.5">
+                {job.params.people.map((c) => (
+                  <label key={c} className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 hover:bg-muted">
+                    <Checkbox checked={people.includes(c)} onCheckedChange={() => setPeople((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))} />{c}
+                  </label>
+                ))}
+              </dd>
+            </div>
+          )}
+        </dl>
+        <div className="mt-3 flex gap-2">
+          <Button size="sm" className="flex-1" disabled={!!job.params.people && !people.length} onClick={() => setPhase("run")}><Check /> تأیید و اجرا</Button>
+          <Button size="sm" variant="outline" onClick={() => setPhase("cancel")}>انصراف</Button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="rounded-field border border-border bg-surface p-3.5 animate-rise">
       <ol className="flex flex-col gap-2">
         {job.steps.map((s, k) => (
           <li key={s} className={cn("flex items-center gap-2.5 text-[12.5px] transition-colors", k > i && "text-muted-foreground/70")}>
             <span className={cn("grid size-5 shrink-0 place-items-center rounded-full transition-colors duration-300", k < i ? "bg-ai text-white" : k === i ? "bg-ai-soft text-ai-ink" : "bg-muted")}>
-              {k < i ? <Check className="size-3" strokeWidth={3} /> : k === i ? <Orb size={14} busy /> : null}
+              {k < i ? <Check className="size-3" strokeWidth={3} /> : k === i ? <span className="size-3 animate-spin rounded-full border-2 border-ai border-t-transparent" /> : null}
             </span>
-            <span className={cn("flex-1", k === i && "font-bold")}>{s}</span>
+            <span className={cn("flex-1", k === i && "shimmer-text font-bold")}>{s}</span>
           </li>
         ))}
       </ol>
@@ -84,32 +117,24 @@ function JobCard({ job, onFinish }: { job: Job; onFinish: (j: Job) => void }) {
       {done && (
         <div className="mt-3 animate-rise">
           <p className="num text-[13px] leading-7">{job.done}</p>
-          {job.kind === "send" && sent !== "yes" && (
+          {job.kind === "download" && (
             <div className="mt-2">
-              <ul className="flex flex-col gap-1">
-                {all.map((c) => (
-                  <li key={c}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-[12.5px] hover:bg-muted">
-                      <Checkbox checked={to.includes(c)} onCheckedChange={() => setTo((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))} />
-                      <span className="flex-1">{c}</span>
-                      <span className="text-[11px] text-muted-foreground">ایمیل و پیامک</span>
-                    </label>
-                  </li>
+              <p className="num mb-1.5 text-[11.5px] text-muted-foreground">{toFa(people.length)} صورت‌حساب · {job.params.range}</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([["xlsx", "اکسل", FileSpreadsheet], ["pdf", "PDF", FileText], ["print", "چاپ", Printer]] as const).map(([f, l, I]) => (
+                  <Button key={f} size="sm" variant={f === "xlsx" ? "default" : "outline"} onClick={() => { setGot(f); onDownload(f, job.report ?? "statements", people); }}><I /> {l}</Button>
                 ))}
-              </ul>
-              <Button size="sm" className="mt-2 w-full" disabled={!to.length || sent === "sending"} onClick={() => { setSent("sending"); setTimeout(() => { setSent("yes"); toast(`صورت‌حساب مهر برای ${toFa(to.length)} مشتری فرستاده شد.`, "ai"); }, 1100); }}>
-                {sent === "sending" ? <Orb size={16} busy /> : <Send />} ارسال برای {toFa(to.length)} مشتری
-              </Button>
+              </div>
+              {got && <p className="mt-2 flex items-center gap-1.5 text-[12px] font-bold text-success"><Check className="size-3.5" /> {got === "print" ? "پنجره‌ی چاپ باز شد." : "دانلود شد."}</p>}
             </div>
           )}
-          {sent === "yes" && <p className="mt-2 flex items-center gap-1.5 text-[12.5px] font-bold text-success"><Check className="size-4" /> برای {toFa(to.length)} مشتری فرستاده شد.</p>}
         </div>
       )}
     </div>
   );
 }
 
-function Assistant({ onReport, onExport, close }: { onReport: (id: string) => void; onExport: () => void; close?: () => void }) {
+function Assistant({ onReport, onExport, onDownload, close }: { onReport: (id: string) => void; onExport: () => void; onDownload: (f: Fmt, report: string, people: string[]) => void; close?: () => void }) {
   const { chats, startChat, addMsg } = useApp();
   const [msgs, setMsgs] = React.useState<({ who: "me"; text: string } | { who: "ai"; job?: Job; text?: string; key: number })[]>([]);
   const [text, setText] = React.useState("");
@@ -169,7 +194,7 @@ function Assistant({ onReport, onExport, close }: { onReport: (id: string) => vo
           )}
           {msgs.map((m, k) => m.who === "me" ? (
             <div key={k} className="ms-8 rounded-[calc(var(--r-field)+4px)] rounded-ss-md bg-primary px-3.5 py-2.5 text-[13px] leading-6 text-primary-foreground animate-rise">{m.text}</div>
-          ) : m.job ? <JobCard key={m.key} job={m.job} onFinish={finish} /> : (
+          ) : m.job ? <JobCard key={m.key} job={m.job} onFinish={finish} onDownload={onDownload} /> : (
             <div key={m.key} className="num me-8 rounded-[calc(var(--r-field)+4px)] border border-border bg-surface px-3.5 py-2.5 text-[13px] leading-6 animate-rise">{m.text}</div>
           ))}
           <div ref={end} />
@@ -180,7 +205,7 @@ function Assistant({ onReport, onExport, close }: { onReport: (id: string) => vo
           {SUGGEST.map((s) => <button key={s} onClick={() => run(s)} className="chip h-auto shrink-0 py-1 text-[11.5px]">{s}</button>)}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); run(text); }} className="flex gap-2">
-          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="مثلاً: صورت‌حساب مهر را بفرست" aria-label="پیام به دستیار گزارش" />
+          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="مثلاً: صورت‌حساب مهر را آماده کن" aria-label="پیام به دستیار گزارش" />
           <Button type="submit" size="icon" variant="ai" aria-label="ارسال"><ArrowUp /></Button>
         </form>
       </div>
@@ -328,6 +353,12 @@ export function Reports() {
   const base = r ? scaleRows(r, k, unit === "toman") : [];
   const rows = applyConds(base, conds);
   const pick = React.useCallback((x: string) => { setId(x); setConds([]); }, []);
+  const doDownload = React.useCallback((f: Fmt, rid: string, people: string[]) => {
+    const rep = reports.find((x) => x.id === rid)!;
+    const rows = scaleRows(rep, 1, unit === "toman").filter((x) => !people.length || people.includes(String(x.item)));
+    if (f === "xlsx") { exportCsv(rep, rows, u); toast(`فایل اکسل «${rep.title}» دانلود شد.`); }
+    else { pick(rid); setTimeout(() => window.print(), 300); }
+  }, [unit, u, toast, pick]);
   const doExport = React.useCallback(() => { const rep = reports.find((x) => x.id === "tb")!; exportCsv(rep, scaleRows(rep, 1, unit === "toman"), u); toast("فایل اکسل تراز آزمایشی دانلود شد."); }, [unit, u, toast]);
 
   const chart = () => {
@@ -345,7 +376,7 @@ export function Reports() {
   const totals = r ? r.cols.map((c) => (c.num && !/٪/.test(c.label) ? rows.reduce((a, x) => a + (typeof x[c.key] === "number" ? (x[c.key] as number) : 0), 0) : null)) : [];
 
   const toolbar = (
-    <section className="panel no-print flex flex-wrap items-center gap-2 p-3">
+    <section className="panel edge-run no-print flex flex-wrap items-center gap-2 p-3">
       {bento ? <h2 className="px-2 text-[17px] font-extrabold">{r?.title ?? "نمای کلی سیستم"}</h2> : <Picker id={id} pick={pick} />}
       {r && (
         <div className="flex rounded-[calc(var(--r-field)+4px)] bg-muted/80 p-1" role="radiogroup" aria-label="دوره">
@@ -434,11 +465,12 @@ export function Reports() {
   // bento leads with numbers: a summary strip, then the register beside a compact chart
   const top = r && barKey ? [...rows].sort((x, y) => Math.abs(Number(y[barKey])) - Math.abs(Number(x[barKey])))[0] : null;
   const summary = r && (
-    <section className="panel grid grid-cols-2 overflow-hidden sm:grid-cols-4">
-      {([["تعداد ردیف", toFa(rows.length)], ["جمع", barKey ? fa(rows.reduce((a, x) => a + (Number(x[barKey]) || 0), 0)) : "—"], ["بیشترین", top ? String(top.item) : "—"], ["دوره", periods.find((p) => p[0] === period)![1]]] as const).map(([l, v], i) => (
-        <div key={l} className={cn("p-4", i > 0 && "border-s border-border/70")}><span className="text-[12px] font-bold text-muted-foreground">{l}</span><b className="num mt-1 block truncate text-[18px] font-extrabold">{v}</b></div>
-      ))}
-    </section>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <StatCard label="تعداد ردیف" value={toFa(rows.length)} unit={`از ${toFa(base.length)}`} icon={TaskSquare} tone="blue" progress={rows.length / Math.max(base.length, 1)} />
+      <StatCard label="جمع" value={barKey ? fa(rows.reduce((a, x) => a + (Number(x[barKey]) || 0), 0)) : "—"} unit={`میلیارد ${u}`} icon={Wallet3} tone="teal" bars={barKey ? rows.slice(0, 8).map((x) => Math.abs(Number(x[barKey]) || 0)) : undefined} />
+      <StatCard label="بیشترین" value={<span className="block max-w-[180px] truncate text-[18px]">{top ? String(top.item) : "—"}</span>} icon={TrendUp} tone="violet" sub={top && barKey ? `${fa(Number(top[barKey]))} میلیارد ${u}` : undefined} />
+      <StatCard label="دوره" value={periods.find((p) => p[0] === period)![1]} icon={CalendarDays} tone="sky" sub="۱۴۰۵" />
+    </div>
   );
   const body = !r ? (bento ? <SystemScorecard /> : <SystemOverview dense />) : bento ? (
     <>
@@ -459,7 +491,7 @@ export function Reports() {
         <div className="flex min-w-0 flex-col gap-4">{toolbar}{body}</div>
         {chatOpen && (
           <div className="no-print fixed inset-y-4 end-4 z-50 w-[min(400px,calc(100vw-32px))] animate-rise">
-            <Assistant onReport={pick} onExport={doExport} close={() => setChatOpen(false)} />
+            <Assistant onReport={pick} onExport={doExport} onDownload={doDownload} close={() => setChatOpen(false)} />
           </div>
         )}
       </div>
@@ -467,7 +499,7 @@ export function Reports() {
   }
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
-      <div className="no-print xl:sticky xl:top-4 xl:h-[calc(100vh-120px)]"><Assistant onReport={pick} onExport={doExport} /></div>
+      <div className="no-print xl:sticky xl:top-4 xl:h-[calc(100vh-120px)]"><Assistant onReport={pick} onExport={doExport} onDownload={doDownload} /></div>
       <div className="flex min-w-0 flex-col gap-4">{toolbar}{body}</div>
     </div>
   );

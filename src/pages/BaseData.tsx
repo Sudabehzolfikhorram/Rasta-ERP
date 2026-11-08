@@ -1,8 +1,9 @@
 import * as React from "react";
-import { Add, ArrowSwapVertical, Bank, Building2, Card, EmptyWallet, Lock, MoneyChange, PencilLine, Search, Trash2, type IconType } from "@/components/icons";
+import { Add, ArrowLeft2, ArrowSwapVertical, Bank, Call, Category2, ChevronRight, Building2, CalendarCheck2, Card, EmptyWallet, Global, Location, Lock, MoneyChange, PencilLine, People, Receipt1, Search, TaskSquare, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
+import { StatCard, type Tone } from "@/components/ui/stat";
 import { useApp } from "@/lib/store";
 import { users } from "@/data/demo";
-import { cn, group, toEn, toFa } from "@/lib/utils";
+import { cn, group, short, toEn, toFa } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SimpleSelect } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -32,10 +33,13 @@ const seedBranches: Branch[] = [
   { id: "r1", bank: "b1", name: "شعبه‌ی ونک", code: "۱۰۲۴", city: "تهران", phone: "۰۲۱ ۸۸۶۵ ۴۴۲۰", address: "میدان ونک، خیابان ملاصدرا" },
   { id: "r2", bank: "b2", name: "شعبه‌ی ولیعصر", code: "۲۲۱۰", city: "تهران", phone: "۰۲۱ ۸۸۷۱ ۰۹۹۰", address: "خیابان ولیعصر، بالاتر از پارک ساعی" },
   { id: "r3", bank: "b3", name: "شعبه‌ی مرکزی", code: "۰۳۱۵", city: "اصفهان", phone: "۰۳۱ ۳۲۲۲ ۱۱۰۰", address: "خیابان چهارباغ عباسی" },
+  { id: "r4", bank: "b1", name: "شعبه‌ی میرداماد", code: "۱۱۸۷", city: "تهران", phone: "۰۲۱ ۲۲۲۵ ۶۱۴۰", address: "بلوار میرداماد، نبش کازرون" },
+  { id: "r5", bank: "b1", name: "شعبه‌ی شهرک صنعتی", code: "۴۴۰۲", city: "اصفهان", phone: "۰۳۱ ۴۵۸۲ ۲۰۱۰", address: "شهرک صنعتی محمودآباد" },
 ];
 const seedAccounts: Account[] = [
   { id: "a1", bank: "b1", branch: "r1", name: "ملت جاری", no: "۸۸۲۰۴۴۱۰۹۲", type: "جاری", cheque: true, books: [{ serial: "۸۸۲۴۰۱", sheets: 25, used: 14, box: "x1" }], currency: "ریال", template: "BNK-01", tafsili: "۱۵۰۱۰۰۰۱", party: "—" },
   { id: "a2", bank: "b2", branch: "r2", name: "پارسیان جاری", no: "۴۴۱۰۲۲۰۰۷۸", type: "جاری", cheque: true, books: [{ serial: "۴۴۱۲۰۱", sheets: 50, used: 9, box: "x1" }], currency: "ریال", template: "BNK-02", tafsili: "۱۵۰۱۰۰۰۲", party: "—" },
+  { id: "a4", bank: "b1", branch: "r5", name: "ملت جاری کارخانه", no: "۸۸۲۰۹۹۱۳۰۴", type: "جاری", cheque: true, books: [{ serial: "۸۸۲۵۰۱", sheets: 50, used: 31, box: "x2" }], currency: "ریال", template: "BNK-04", tafsili: "۱۵۰۱۰۰۰۴", party: "—" },
   { id: "a3", bank: "b1", branch: "r1", name: "ملت سپرده‌ی کوتاه‌مدت", no: "۹۹۰۱۳۲۵۵۱۰", type: "سپرده‌ی کوتاه‌مدت", cheque: false, books: [], currency: "ریال", template: "BNK-03", tafsili: "۱۵۰۱۰۰۰۳", party: "—" },
 ];
 const seedBoxes: Box[] = [
@@ -49,8 +53,11 @@ const seedRates: Rate[] = [
   { id: "t3", cur: "AED", rate: 290_000, date: "۱۶ آبان ۱۴۰۵", inverse: false },
 ];
 
-type Tab = "banks" | "branches" | "accounts" | "boxes" | "currency";
-const TABS: [Tab, string, IconType][] = [["banks", "بانک‌ها", Bank], ["branches", "شعبه‌ها", Building2], ["accounts", "حساب‌های بانکی", Card], ["boxes", "صندوق‌ها", EmptyWallet], ["currency", "ارزها و نرخ‌ها", MoneyChange]];
+/** Demo balances for the hub pages (rial). */
+const BAL: Record<string, number> = { a1: 9_800_000_000, a2: 31_200_000_000, a3: 5_700_000_000, a4: 2_350_000_000 };
+
+type Tab = "home" | "banks" | "branches" | "accounts" | "boxes" | "currency";
+const TABS: [Tab, string, IconType][] = [["home", "نمای کلی", Category2], ["banks", "بانک‌ها", Bank], ["branches", "شعبه‌ها", Building2], ["accounts", "حساب‌های بانکی", Card], ["boxes", "صندوق‌ها", EmptyWallet], ["currency", "ارزها و نرخ‌ها", MoneyChange]];
 
 /* ---------- small form parts ---------- */
 const Field = ({ label, hint, error, children, wide }: { label: string; hint?: string; error?: string; children: React.ReactNode; wide?: boolean }) => (
@@ -84,7 +91,9 @@ const RowActions = ({ onEdit, onDelete, lockReason, label }: { onEdit: () => voi
 /* ---------- page ---------- */
 export function BaseData() {
   const { toast, baseTab } = useApp();
-  const tab = (TABS.some((t) => t[0] === baseTab) ? baseTab : "banks") as Tab;
+  const tab = (TABS.some((t) => t[0] === baseTab) ? baseTab : "home") as Tab;
+  const [hub, setHub] = React.useState<string | null>(null);
+  React.useEffect(() => setHub(null), [tab]);
   const [banks, setBanks] = React.useState(seedBanks);
   const [branches, setBranches] = React.useState(seedBranches);
   const [accounts, setAccounts] = React.useState(seedAccounts);
@@ -92,14 +101,14 @@ export function BaseData() {
   const [rates, setRates] = React.useState(seedRates);
   const [q, setQ] = React.useState("");
   React.useEffect(() => setQ(""), [tab]);
-  const [edit, setEdit] = React.useState<{ tab: Tab; id: string | null } | null>(null);
+  const [edit, setEdit] = React.useState<{ tab: Tab; id: string | null; bank?: string } | null>(null);
   const bankName = (id: string) => banks.find((b) => b.id === id)?.name ?? "—";
   const match = (...xs: string[]) => !q.trim() || xs.some((x) => x.includes(q.trim()));
-  const addLabel: Record<Tab, string> = { banks: "تعریف بانک", branches: "تعریف شعبه", accounts: "افتتاح حساب بانکی", boxes: "تعریف صندوق", currency: "ثبت نرخ ارز" };
+  const addLabel: Record<Tab, string> = { home: "تعریف بانک", banks: "تعریف بانک", branches: "تعریف شعبه", accounts: "افتتاح حساب بانکی", boxes: "تعریف صندوق", currency: "ثبت نرخ ارز" };
 
   const tables: Record<Tab, React.ReactNode> = {
     banks: (
-      <DataTable caption="بانک‌ها" rowKey={(b) => b.id} rows={banks.filter((b) => match(b.name, b.name2, b.swift))} onRow={(b) => setEdit({ tab: "banks", id: b.id })}
+      <DataTable caption="بانک‌ها" rowKey={(b) => b.id} rows={banks.filter((b) => match(b.name, b.name2, b.swift))} onRow={(b) => setHub(b.id)}
         empty={<Empty icon={Bank} title="بانکی پیدا نشد" />}
         columns={[
           { key: "code", label: "کد", className: "w-16", render: (b) => <span className="font-bold text-muted-foreground">{b.code}</span> },
@@ -148,14 +157,16 @@ export function BaseData() {
         ] as Column<Box>[]} />
     ),
     currency: <CurrencyTab rates={rates} />,
+    home: null,
   };
 
   const forms: Record<Tab, React.ReactNode> = {
     banks: <BankForm key={edit?.id ?? "new"} rec={banks.find((b) => b.id === edit?.id)} nextCode={toFa(String(81 + banks.length).padStart(3, "0"))}
       onSave={(b) => { setBanks((x) => (x.some((y) => y.id === b.id) ? x.map((y) => (y.id === b.id ? b : y)) : [...x, b])); setEdit(null); toast(`«${b.name}» ذخیره شد.`, "success"); }} onCancel={() => setEdit(null)} />,
-    branches: <BranchForm key={edit?.id ?? "new"} rec={branches.find((r) => r.id === edit?.id)} banks={banks}
+    home: null,
+    branches: <BranchForm key={edit?.id ?? "new"} rec={branches.find((r) => r.id === edit?.id)} bank={edit?.bank} banks={banks}
       onSave={(r) => { setBranches((x) => (x.some((y) => y.id === r.id) ? x.map((y) => (y.id === r.id ? r : y)) : [...x, r])); setEdit(null); toast(`«${r.name}» ذخیره شد.`, "success"); }} onCancel={() => setEdit(null)} />,
-    accounts: <AccountForm key={edit?.id ?? "new"} rec={accounts.find((a) => a.id === edit?.id)} banks={banks} branches={branches} boxes={boxes} nextTafsili={toFa(15010001 + accounts.length)}
+    accounts: <AccountForm key={edit?.id ?? "new"} rec={accounts.find((a) => a.id === edit?.id)} bank={edit?.bank} banks={banks} branches={branches} boxes={boxes} nextTafsili={toFa(15010001 + accounts.length)}
       onSave={(a) => { setAccounts((x) => (x.some((y) => y.id === a.id) ? x.map((y) => (y.id === a.id ? a : y)) : [...x, a])); setBanks((x) => x.map((b) => (b.id === a.bank ? { ...b, used: true } : b))); setEdit(null); toast(`حساب «${a.name}» ذخیره شد.`, "success"); }} onCancel={() => setEdit(null)} />,
     boxes: <BoxForm key={edit?.id ?? "new"} rec={boxes.find((x) => x.id === edit?.id)} rates={rates}
       onSave={(b) => { setBoxes((x) => (x.some((y) => y.id === b.id) ? x.map((y) => (y.id === b.id ? b : y)) : [...x, b])); setEdit(null); toast(`«${b.name}» ذخیره شد.`, "success"); }} onCancel={() => setEdit(null)} />,
@@ -164,38 +175,188 @@ export function BaseData() {
 
   // a few numbers on top of each section, so the page reads before the table does
   const tot = (xs: number[]) => xs.reduce((x, y) => x + y, 0);
-  const stats: Record<Tab, [string, string, string?][]> = {
-    banks: [["بانک‌ها و موسسه‌ها", toFa(banks.length)], ["در حال استفاده", toFa(banks.filter((b) => b.used).length), "نام و حذف قفل است"], ["بانک", toFa(banks.filter((b) => b.type === "بانک").length)], ["با کد سوئیفت", toFa(banks.filter((b) => b.swift).length)]],
-    branches: [["شعبه‌ها", toFa(branches.length)], ["شهرها", toFa(new Set(branches.map((r) => r.city)).size)], ["بانک‌های دارای شعبه", toFa(new Set(branches.map((r) => r.bank)).size)], ["شعبه‌های با حساب", toFa(branches.filter((r) => accounts.some((a) => a.branch === r.id)).length)]],
-    accounts: [["حساب‌های بانکی", toFa(accounts.length)], ["جاری با دسته‌چک", toFa(accounts.filter((a) => a.cheque).length)], ["برگ چک باقی‌مانده", toFa(tot(accounts.flatMap((a) => a.books.map((b) => b.sheets - b.used))))], ["سپرده", toFa(accounts.filter((a) => a.type.startsWith("سپرده")).length)]],
-    boxes: [["صندوق‌ها", toFa(boxes.length)], ["فعال", toFa(boxes.filter((x) => x.active).length)], ["موجودی اولیه", group(tot(boxes.filter((x) => x.currency === "ریال").map((x) => x.opening))), "ریال"], ["صندوق‌داران", toFa(new Set(boxes.map((x) => x.cashier)).size)]],
-    currency: [["نرخ‌های ثبت‌شده", toFa(rates.length)], ["ارزها", toFa(new Set(rates.map((r) => r.cur)).size)], ["آخرین ثبت", rates[0]?.date ?? "—"]],
+  type S = { l: string; v: string; u?: string; sub?: string; i: IconType; t: Tone; p?: number };
+  const usedBanks = banks.filter((b) => b.used).length;
+  const sheetsLeft = tot(accounts.flatMap((a) => a.books.map((b) => b.sheets - b.used)));
+  const sheetsAll = tot(accounts.flatMap((a) => a.books.map((b) => b.sheets)));
+  const stats: Record<Tab, S[]> = {
+    home: [
+      { l: "بانک‌ها و موسسه‌ها", v: toFa(banks.length), i: Bank, t: "blue", sub: `${toFa(usedBanks)} در حال استفاده` },
+      { l: "حساب‌های بانکی", v: toFa(accounts.length), i: Card, t: "violet", sub: `در ${toFa(branches.length)} شعبه` },
+      { l: "صندوق‌ها", v: toFa(boxes.length), i: EmptyWallet, t: "teal", sub: `${toFa(boxes.filter((x) => x.active).length)} فعال` },
+      { l: "ارزهای دارای نرخ", v: toFa(new Set(rates.map((r) => r.cur)).size), i: MoneyChange, t: "sky", sub: `آخرین ثبت ${rates[0]?.date ?? "—"}` },
+    ],
+    banks: [
+      { l: "بانک‌ها و موسسه‌ها", v: toFa(banks.length), i: Bank, t: "blue", sub: `${toFa(banks.filter((b) => b.type === "بانک").length)} بانک · ${toFa(banks.length - banks.filter((b) => b.type === "بانک").length)} موسسه و صندوق` },
+      { l: "در حال استفاده", v: toFa(usedBanks), u: `از ${toFa(banks.length)}`, i: Lock, t: "violet", p: usedBanks / Math.max(banks.length, 1), sub: "نام و حذف قفل است" },
+      { l: "شعبه‌ها", v: toFa(branches.length), i: Building2, t: "teal", sub: `در ${toFa(new Set(branches.map((r) => r.city)).size)} شهر` },
+      { l: "با کد سوئیفت", v: toFa(banks.filter((b) => b.swift).length), i: Global, t: "sky", sub: "برای حواله‌ی ارزی" },
+    ],
+    branches: [
+      { l: "شعبه‌ها", v: toFa(branches.length), i: Building2, t: "teal" },
+      { l: "شهرها", v: toFa(new Set(branches.map((r) => r.city)).size), i: Location, t: "blue" },
+      { l: "بانک‌های دارای شعبه", v: toFa(new Set(branches.map((r) => r.bank)).size), u: `از ${toFa(banks.length)}`, i: Bank, t: "violet", p: new Set(branches.map((r) => r.bank)).size / Math.max(banks.length, 1) },
+      { l: "شعبه‌های دارای حساب", v: toFa(branches.filter((r) => accounts.some((a) => a.branch === r.id)).length), i: Card, t: "sky" },
+    ],
+    accounts: [
+      { l: "حساب‌های بانکی", v: toFa(accounts.length), i: Card, t: "blue", sub: `${toFa(accounts.filter((a) => a.type.startsWith("سپرده")).length)} سپرده` },
+      { l: "جاری با دسته‌چک", v: toFa(accounts.filter((a) => a.cheque).length), i: Receipt1, t: "violet" },
+      { l: "برگ چک باقی‌مانده", v: toFa(sheetsLeft), u: `از ${toFa(sheetsAll)}`, i: TaskSquare, t: "teal", p: sheetsLeft / Math.max(sheetsAll, 1) },
+      { l: "ارزها", v: toFa(new Set(accounts.map((a) => a.currency)).size), i: MoneyChange, t: "sky", sub: [...new Set(accounts.map((a) => a.currency))].join("، ") },
+    ],
+    boxes: [
+      { l: "صندوق‌ها", v: toFa(boxes.length), i: EmptyWallet, t: "teal" },
+      { l: "فعال", v: toFa(boxes.filter((x) => x.active).length), u: `از ${toFa(boxes.length)}`, i: TickCircle, t: "blue", p: boxes.filter((x) => x.active).length / Math.max(boxes.length, 1) },
+      { l: "موجودی اولیه‌ی ریالی", v: group(tot(boxes.filter((x) => x.currency === "ریال").map((x) => x.opening))), u: "ریال", i: Wallet3, t: "violet" },
+      { l: "صندوق‌داران", v: toFa(new Set(boxes.map((x) => x.cashier)).size), i: People, t: "sky" },
+    ],
+    currency: [
+      { l: "نرخ‌های ثبت‌شده", v: toFa(rates.length), i: MoneyChange, t: "blue" },
+      { l: "ارزها", v: toFa(new Set(rates.map((r) => r.cur)).size), i: Global, t: "teal" },
+      { l: "آخرین ثبت", v: rates[0]?.date ?? "—", i: CalendarCheck2, t: "violet" },
+    ],
   };
   const [, title, TitleIcon] = TABS.find((t) => t[0] === tab)!;
 
+  const balOf = (ids: string[]) => ids.reduce((x, id) => x + (BAL[id] ?? 0), 0);
+  const bankCard = (b: BankRec) => {
+    const acc = accounts.filter((a) => a.bank === b.id);
+    const br = branches.filter((r) => r.bank === b.id);
+    return (
+      <button key={b.id} onClick={() => setHub(b.id)} className="group flex flex-col gap-3 rounded-[calc(var(--r-field)+6px)] border border-border bg-surface/60 p-4 text-start transition-[border-color,transform] hover:-translate-y-0.5 hover:border-primary/40">
+        <span className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-[12px] bg-primary-soft text-primary"><Bank className="size-5" variant="Bulk" /></span>
+          <span className="min-w-0 flex-1"><b className="block truncate text-[14px]">{b.name}</b><span className="num text-[11.5px] text-muted-foreground">کد {b.code} · {b.type}</span></span>
+          <ArrowLeft2 className="size-4 text-muted-foreground transition-transform group-hover:-translate-x-0.5" />
+        </span>
+        <span className="num grid grid-cols-3 gap-2 text-center text-[11.5px] text-muted-foreground">
+          <span className="rounded-[10px] bg-muted/60 py-1.5"><b className="block text-[15px] text-foreground">{toFa(br.length)}</b>شعبه</span>
+          <span className="rounded-[10px] bg-muted/60 py-1.5"><b className="block text-[15px] text-foreground">{toFa(acc.length)}</b>حساب</span>
+          <span className="rounded-[10px] bg-muted/60 py-1.5"><b className="block text-[15px] text-foreground">{acc.length ? short(balOf(acc.map((a) => a.id)), "rial").n : "—"}</b>{acc.length ? `${short(balOf(acc.map((a) => a.id)), "rial").s} ریال` : "مانده"}</span>
+        </span>
+      </button>
+    );
+  };
+  const HomeGrid = () => (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="panel p-5">
+        <h3 className="mb-3 text-[15px] font-extrabold">بانک‌ها و موسسه‌ها</h3>
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{banks.map(bankCard)}</div>
+      </section>
+      <div className="flex flex-col gap-4">
+        <section className="panel p-5">
+          <h3 className="mb-3 text-[15px] font-extrabold">صندوق‌ها</h3>
+          <ul className="flex flex-col gap-2">{boxes.map((x) => (
+            <li key={x.id} className="flex items-center gap-3 rounded-field bg-muted/40 px-3 py-2.5">
+              <EmptyWallet className="size-5 text-ch-2" variant="Bulk" />
+              <span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{x.name}</b><span className="text-[11.5px] text-muted-foreground">{x.cashier}</span></span>
+              <b className="num text-[12.5px]">{group(x.opening)}</b>
+            </li>))}</ul>
+        </section>
+        <section className="panel p-5">
+          <h3 className="mb-3 text-[15px] font-extrabold">آخرین نرخ‌ها</h3>
+          <ul className="flex flex-col gap-2">{rates.slice(0, 4).map((r) => (
+            <li key={r.id} className="num flex items-center justify-between rounded-field bg-muted/40 px-3 py-2.5 text-[13px]"><span className="font-semibold">{CURRENCIES.find((c) => c[1] === r.cur)?.[0]}</span><b>{group(r.rate)} <span className="text-[11px] font-normal text-muted-foreground">ریال</span></b></li>))}</ul>
+        </section>
+      </div>
+    </div>
+  );
+
+  const hubBank = banks.find((b) => b.id === hub);
+  if (hubBank) {
+    const br = branches.filter((r) => r.bank === hubBank.id);
+    const acc = accounts.filter((a) => a.bank === hubBank.id);
+    const books = acc.flatMap((a) => a.books.map((b) => ({ ...b, acc: a })));
+    const left = tot(books.map((b) => b.sheets - b.used)), all = tot(books.map((b) => b.sheets));
+    const bal = balOf(acc.map((a) => a.id));
+    return (
+      <>
+        <section className="panel edge-run flex flex-col gap-5 p-5">
+          <div className="flex flex-wrap items-start gap-4">
+            <span className="grid size-14 shrink-0 place-items-center rounded-[16px] bg-primary-soft text-primary"><Bank className="size-7" variant="Bulk" /></span>
+            <div className="min-w-[220px] flex-1">
+              <button onClick={() => setHub(null)} className="flex items-center gap-1 text-[12px] font-bold text-muted-foreground hover:text-primary"><ChevronRight className="size-3.5" /> {tab === "home" ? "نمای کلی" : "بانک‌ها"}</button>
+              <h2 className="mt-0.5 text-[20px] font-extrabold">{hubBank.name}</h2>
+              <p className="num mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-muted-foreground">
+                <span>کد {hubBank.code}</span><span>{hubBank.type}</span>
+                {hubBank.swift && <span dir="ltr" className="font-mono">{hubBank.swift}</span>}
+                {hubBank.name2 && <span dir="ltr">{hubBank.name2}</span>}
+                {hubBank.used && <span className="flex items-center gap-1"><Lock className="size-3.5" /> در حال استفاده</span>}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setEdit({ tab: "banks", id: hubBank.id })}><PencilLine /> ویرایش بانک</Button>
+              <Button variant="outline" onClick={() => setEdit({ tab: "branches", id: null, bank: hubBank.id })}><Add /> شعبه‌ی جدید</Button>
+              <Button onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}><Add /> افتتاح حساب</Button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard label="مانده‌ی حساب‌ها" value={acc.length ? short(bal, "rial").n : "—"} unit={acc.length ? `${short(bal, "rial").s} ریال` : undefined} icon={Wallet3} tone="blue" bars={acc.map((a) => BAL[a.id] ?? 0)} />
+            <StatCard label="حساب‌ها" value={toFa(acc.length)} icon={Card} tone="violet" sub={[...new Set(acc.map((a) => a.type))].join("، ") || "حسابی ندارد"} />
+            <StatCard label="شعبه‌ها" value={toFa(br.length)} icon={Building2} tone="teal" sub={[...new Set(br.map((r) => r.city))].join("، ") || "شعبه‌ای ندارد"} />
+            <StatCard label="برگ چک باقی‌مانده" value={toFa(left)} unit={all ? `از ${toFa(all)}` : undefined} icon={Receipt1} tone="sky" progress={all ? left / all : undefined} />
+          </div>
+        </section>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <section className="panel flex min-w-0 flex-col gap-3 p-5">
+            <h3 className="text-[15px] font-extrabold">حساب‌های این بانک</h3>
+            <DataTable caption="حساب‌ها" rowKey={(a) => a.id} rows={acc} onRow={(a) => setEdit({ tab: "accounts", id: a.id })} empty={<Empty icon={Card} title="حسابی در این بانک ندارید" />}
+              columns={[
+                { key: "name", label: "حساب", render: (a) => <span><b className="block">{a.name}</b><span className="text-[11.5px] text-muted-foreground">{branches.find((r) => r.id === a.branch)?.name} · {a.type}</span></span> },
+                { key: "no", label: "شماره", hide: "md", render: (a) => <span dir="ltr">{a.no}</span> },
+                { key: "bal", label: "مانده (ریال)", align: "end", render: (a) => <b>{group(BAL[a.id] ?? 0)}</b> },
+              ] as Column<Account>[]} />
+            {books.length > 0 && (
+              <>
+                <h3 className="mt-2 text-[15px] font-extrabold">دسته‌چک‌ها</h3>
+                <ul className="grid gap-2 sm:grid-cols-2">{books.map((b) => (
+                  <li key={b.serial} className="rounded-field border border-border bg-surface/60 p-3">
+                    <div className="num flex items-center justify-between text-[12.5px]"><b>سری {b.serial}</b><span className="text-muted-foreground">{b.acc.name}</span></div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-ch-1" style={{ width: `${(b.used / b.sheets) * 100}%` }} /></div>
+                    <div className="num mt-1.5 flex justify-between text-[11.5px] text-muted-foreground"><span>{toFa(b.used)} برگ مصرف‌شده</span><span>{toFa(b.sheets - b.used)} برگ مانده · {boxes.find((x) => x.id === b.box)?.name}</span></div>
+                  </li>))}</ul>
+              </>
+            )}
+          </section>
+          <section className="panel flex flex-col gap-3 p-5">
+            <h3 className="text-[15px] font-extrabold">شعبه‌ها</h3>
+            {br.length ? <ul className="flex flex-col gap-2">{br.map((r) => (
+              <li key={r.id}>
+                <button onClick={() => setEdit({ tab: "branches", id: r.id })} className="flex w-full items-start gap-3 rounded-field border border-border bg-surface/60 p-3 text-start hover:border-primary/40">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-ch-2/15 text-ch-2"><Building2 className="size-[18px]" variant="Bulk" /></span>
+                  <span className="min-w-0 flex-1">
+                    <b className="block text-[13.5px]">{r.name} <span className="num text-[11.5px] font-normal text-muted-foreground">· کد {r.code}</span></b>
+                    <span className="flex items-center gap-1 text-[12px] text-muted-foreground"><Location className="size-3.5" />{r.city}، {r.address}</span>
+                    <span className="num flex items-center gap-1 text-[12px] text-muted-foreground" dir="rtl"><Call className="size-3.5" />{r.phone} · {toFa(acc.filter((a) => a.branch === r.id).length)} حساب</span>
+                  </span>
+                </button>
+              </li>))}</ul> : <Empty icon={Building2} title="شعبه‌ای تعریف نشده" />}
+          </section>
+        </div>
+        {edit && forms[edit.tab]}
+      </>
+    );
+  }
+
   return (
     <>
-      <section className="panel flex flex-col gap-5 p-5">
+      <section className="panel edge-run flex flex-col gap-5 p-5">
         <div className="flex flex-wrap items-start gap-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-primary-soft text-primary"><TitleIcon className="size-6" variant="Bulk" /></span>
           <div className="min-w-[220px] flex-1">
             <p className="text-[12px] font-bold text-muted-foreground">اطلاعات پایه</p>
             <h2 className="text-[19px] font-extrabold">{title}</h2>
             <p className="mt-0.5 max-w-2xl text-[12.5px] text-muted-foreground">
-              {{ banks: "بانکی که در حساب‌ها استفاده شده باشد، نامش ثابت می‌ماند و حذف نمی‌شود.", branches: "هر حساب بانکی به یک شعبه وصل است.", accounts: "حساب بانکی پس از تعریف بانک و شعبه افتتاح می‌شود؛ دسته‌چک و کد تفصیلی هم همین‌جاست.", boxes: "هر صندوق فیزیکی یک صندوق در سیستم دارد؛ دسته‌چک‌ها و چک‌های دریافتی هم در صندوق نگهداری می‌شوند.", currency: "نرخ هر ارز با تاریخ اثر ثبت می‌شود و در اسناد ارزی، آخرین نرخ پیش از تاریخ سند پیشنهاد می‌شود." }[tab]}
+              {{ home: "همه‌ی اطلاعات پایه‌ی خزانه در یک نگاه. روی هر بانک بزنید تا شعبه‌ها، حساب‌ها و دسته‌چک‌هایش را ببینید.", banks: "بانکی که در حساب‌ها استفاده شده باشد، نامش ثابت می‌ماند و حذف نمی‌شود.", branches: "هر حساب بانکی به یک شعبه وصل است.", accounts: "حساب بانکی پس از تعریف بانک و شعبه افتتاح می‌شود؛ دسته‌چک و کد تفصیلی هم همین‌جاست.", boxes: "هر صندوق فیزیکی یک صندوق در سیستم دارد؛ دسته‌چک‌ها و چک‌های دریافتی هم در صندوق نگهداری می‌شوند.", currency: "نرخ هر ارز با تاریخ اثر ثبت می‌شود و در اسناد ارزی، آخرین نرخ پیش از تاریخ سند پیشنهاد می‌شود." }[tab]}
             </p>
           </div>
           <Button onClick={() => setEdit({ tab, id: null })}><Add /> {addLabel[tab]}</Button>
         </div>
-        <dl className={cn("grid gap-3", stats[tab].length > 3 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3")}>
-          {stats[tab].map(([l, v, sub]) => (
-            <div key={l} className="rounded-field border border-border bg-surface/60 px-4 py-3">
-              <dt className="text-[12px] text-muted-foreground">{l}</dt>
-              <dd className="num mt-1 flex items-baseline gap-1.5"><b className="text-[20px] font-extrabold">{v}</b>{sub && <span className="text-[11.5px] text-muted-foreground">{sub}</span>}</dd>
-            </div>
-          ))}
-        </dl>
+        <div className={cn("grid gap-3", stats[tab].length > 3 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3")}>
+          {stats[tab].map((x) => <StatCard key={x.l} label={x.l} value={x.v} unit={x.u} sub={x.sub} icon={x.i} tone={x.t} progress={x.p} />)}
+        </div>
       </section>
+      {tab === "home" ? <HomeGrid /> : (
       <section className="panel flex min-w-0 flex-col gap-4 p-5">
         {tab !== "currency" && (
           <label className="relative block max-w-sm">
@@ -205,6 +366,7 @@ export function BaseData() {
         )}
         {tables[tab]}
       </section>
+      )}
       {edit && forms[edit.tab]}
     </>
   );
@@ -229,8 +391,8 @@ function BankForm({ rec, nextCode, onSave, onCancel }: { rec?: BankRec; nextCode
   );
 }
 
-function BranchForm({ rec, banks, onSave, onCancel }: { rec?: Branch; banks: BankRec[]; onSave: (r: Branch) => void; onCancel: () => void }) {
-  const [r, setR] = React.useState<Branch>(rec ?? { id: `r${Date.now()}`, bank: banks[0]?.id ?? "", name: "", code: "", city: "", phone: "", address: "" });
+function BranchForm({ rec, bank, banks, onSave, onCancel }: { rec?: Branch; bank?: string; banks: BankRec[]; onSave: (r: Branch) => void; onCancel: () => void }) {
+  const [r, setR] = React.useState<Branch>(rec ?? { id: `r${Date.now()}`, bank: bank ?? banks[0]?.id ?? "", name: "", code: "", city: "", phone: "", address: "" });
   return (
     <FormDialog open onOpenChange={(o) => !o && onCancel()} title={rec ? `ویرایش ${rec.name}` : "تعریف شعبه"} canSave={!!r.name.trim() && !!r.code.trim()} onSave={() => onSave(r)}>
       <Field label="بانک"><SimpleSelect label="بانک" value={r.bank} onChange={(v) => setR({ ...r, bank: v })} options={banks.map((b) => [b.id, b.name])} /></Field>
@@ -243,8 +405,8 @@ function BranchForm({ rec, banks, onSave, onCancel }: { rec?: Branch; banks: Ban
   );
 }
 
-function AccountForm({ rec, banks, branches, boxes, nextTafsili, onSave, onCancel }: { rec?: Account; banks: BankRec[]; branches: Branch[]; boxes: Box[]; nextTafsili: string; onSave: (a: Account) => void; onCancel: () => void }) {
-  const [a, setA] = React.useState<Account>(rec ?? { id: `a${Date.now()}`, bank: banks[0]?.id ?? "", branch: "", name: "", no: "", type: "جاری", cheque: false, books: [], currency: "ریال", template: `BNK-${String(10 + Math.floor(Math.random() * 80))}`, tafsili: nextTafsili, party: "—" });
+function AccountForm({ rec, bank, banks, branches, boxes, nextTafsili, onSave, onCancel }: { rec?: Account; bank?: string; banks: BankRec[]; branches: Branch[]; boxes: Box[]; nextTafsili: string; onSave: (a: Account) => void; onCancel: () => void }) {
+  const [a, setA] = React.useState<Account>(rec ?? { id: `a${Date.now()}`, bank: bank ?? banks[0]?.id ?? "", branch: "", name: "", no: "", type: "جاری", cheque: false, books: [], currency: "ریال", template: `BNK-${String(10 + Math.floor(Math.random() * 80))}`, tafsili: nextTafsili, party: "—" });
   const bankBranches = branches.filter((r) => r.bank === a.bank);
   const book = a.books[0] ?? { serial: "", sheets: 25, used: 0, box: boxes[0]?.id ?? "" };
   const setBook = (p: Partial<typeof book>) => setA({ ...a, books: [{ ...book, ...p }, ...a.books.slice(1)] });

@@ -126,7 +126,7 @@ export function Settings() {
   if (concept === "bento") {
     return (
       <div className="grid gap-5 md:grid-cols-[230px_minmax(0,1fr)]">
-        <nav className="panel h-fit p-2 md:sticky md:top-4" aria-label="بخش‌های تنظیمات">
+        <nav className="panel edge-run h-fit p-2 md:sticky md:top-4" aria-label="بخش‌های تنظیمات">
           {SECTIONS.map(([id, l, I]) => (
             <button key={id} onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined}
               className={cn("flex w-full items-center gap-2.5 rounded-field px-3 py-2.5 text-start text-[13.5px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", tab === id && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary")}>

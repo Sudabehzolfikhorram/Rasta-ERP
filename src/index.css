@@ -187,15 +187,17 @@
   .cmd-item svg { @apply size-4 shrink-0 text-muted-foreground; }
   .cmd-item[data-selected="true"] { @apply bg-primary-soft; }
 
-  /* AI surfaces: a gradient light travels around the border */
-  .hero { position: relative; isolation: isolate; }
-  .hero::before {
-    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; pointer-events: none; z-index: 1;
-    background: conic-gradient(from var(--edge-a), transparent 0deg, transparent 230deg, var(--ai-from) 290deg, var(--ai-to) 340deg, transparent 360deg);
+  /* AI and key surfaces: a gradient light travels around the border (one per page) */
+  .hero, .edge-run { position: relative; isolation: isolate; }
+  .hero::before, .edge-run::before, .hero::after, .edge-run::after {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 2px; pointer-events: none; z-index: 1;
+    background: conic-gradient(from var(--edge-a), transparent 0deg, transparent 200deg, var(--ai-from) 260deg, #22B8CF 305deg, var(--ai-to) 340deg, transparent 360deg);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
-    animation: edge-run 7s linear infinite;
+    animation: edge-run 6s linear infinite;
   }
+  /* soft glow that follows the light */
+  .hero::after, .edge-run::after { padding: 3px; filter: blur(6px); opacity: .55; z-index: 0; }
   .rounded-field { border-radius: var(--r-field); }
   .ai-edge { background: linear-gradient(120deg, var(--ai-from), var(--ai-to)); }
   .chip {

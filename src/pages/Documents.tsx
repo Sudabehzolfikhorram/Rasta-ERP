@@ -262,7 +262,7 @@ function DocHeader() {
   const { docCat, setDocCat, docs, startVoucher } = useApp();
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <nav className="panel flex min-w-0 flex-1 gap-1 overflow-x-auto p-1.5" aria-label="دسته‌های اسناد">
+      <nav className="panel edge-run flex min-w-0 flex-1 gap-1 overflow-x-auto p-1.5" aria-label="دسته‌های اسناد">
         {docCats.map((c) => (
           <button key={c.id} onClick={() => setDocCat(c.id)} aria-current={docCat === c.id ? "page" : undefined}
             className={cn("flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", docCat === c.id && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary")}>

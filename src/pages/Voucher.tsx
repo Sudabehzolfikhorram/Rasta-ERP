@@ -1,7 +1,7 @@
 import * as React from "react";
 import { ArrowLeft, Check, FileImage, FileSpreadsheet, FileText, Keyboard, Mic, Paperclip, PencilLine, RotateCcw, Send, Upload, Wand2, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
-import { type Doc } from "@/data/demo";
+import { accountBy, type Doc } from "@/data/demo";
 import { cn, group, toFa } from "@/lib/utils";
 import { fmtDay, TODAY } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
@@ -198,7 +198,72 @@ function Reading({ via, file, onDone, compact }: { via: Via; file: Analysis | nu
 }
 
 /* ---------- asking: one question at a time ---------- */
-function Ask({ draft, slot, limit, onAnswer, history, inline }: { draft: Draft; slot: Slot; limit: number; onAnswer: (v: string) => void; history: string[]; inline?: boolean }) {
+/** Above the approval limit: show the whole voucher as it will be saved, then ask for a decision. */
+function LimitReview({ draft, limit, onAnswer, seq }: { draft: Draft; limit: number; onAnswer: (v: string) => void; seq: number }) {
+  const { title, lines } = linesFor(draft);
+  const total = lines.reduce((a, l) => a + l.debit, 0);
+  const kindFa = draft.kind === "receipt" ? "دریافت" : draft.kind === "payment" ? "پرداخت" : "انتقال";
+  const party = accountBy(draft.party)?.name ?? accountBy(draft.expense)?.name ?? "—";
+  const head: [string, string][] = [
+    ["شماره‌ی سند", docNo(draft.day.m, seq)], ["تاریخ", fmtDay(draft.day.m, draft.day.d)], ["نوع سند", kindFa],
+    ["طرف حساب", party], ["منبع", draft.source || "متن"], ["ثبت‌کننده", "سارا احمدی"],
+  ];
+  return (
+    <section className="panel overflow-hidden" aria-live="polite">
+      <div className="flex items-start gap-3 border-b border-border/70 p-5">
+        <Orb size={32} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[16px] font-extrabold">سند را بررسی و تأیید کنید</p>
+          <p className="num mt-0.5 text-[12.5px] text-muted-foreground">مبلغ از سقف تأیید ({toFa(group(limit))} ریال) بیشتر است. بعد از ثبت، سند برای تأیید مدیر مالی می‌رود.</p>
+        </div>
+        <span className="rounded-full bg-warning-soft px-2.5 py-1 text-[11.5px] font-bold text-warning">نیاز به تأیید مدیر</span>
+      </div>
+      <div className="flex flex-col gap-4 p-5">
+        <div>
+          <span className="field-label">شرح سند</span>
+          <p className="mt-1 text-[15px] font-bold">{title}</p>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-field bg-muted/40 p-4 sm:grid-cols-3">
+          {head.map(([k, v]) => <div key={k}><dt className="text-[11.5px] text-muted-foreground">{k}</dt><dd className="num mt-0.5 text-[13.5px] font-semibold">{v}</dd></div>)}
+        </dl>
+        <div className="overflow-hidden rounded-field border border-border">
+          <table className="w-full text-[13px]">
+            <thead><tr className="bg-muted/60 text-[12px] text-muted-foreground">
+              <th className="px-4 py-2.5 text-start font-semibold">کد حساب</th><th className="px-2 py-2.5 text-start font-semibold">حساب</th>
+              <th className="hidden px-2 py-2.5 text-start font-semibold sm:table-cell">شرح ردیف</th><th className="px-2 py-2.5 text-end font-semibold">بدهکار</th><th className="px-4 py-2.5 text-end font-semibold">بستانکار</th>
+            </tr></thead>
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.id} className="border-t border-border/70">
+                  <td className="num px-4 py-3 text-muted-foreground" dir="ltr" style={{ textAlign: "right" }}>{toFa(l.account ?? "")}</td>
+                  <td className="px-2 py-3 font-semibold">{accountBy(l.account)?.name}</td>
+                  <td className="hidden px-2 py-3 text-muted-foreground sm:table-cell">{l.desc}</td>
+                  <td className="num px-2 py-3 text-end font-bold">{l.debit ? toFa(group(l.debit)) : "—"}</td>
+                  <td className="num px-4 py-3 text-end font-bold">{l.credit ? toFa(group(l.credit)) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot><tr className="border-t border-border bg-surface-2/70 text-[12.5px]">
+              <td colSpan={3} className="px-4 py-2.5"><span className="flex items-center gap-1.5 font-semibold text-success"><Check className="size-3.5" /> سند تراز است</span></td>
+              <td className="num px-2 py-2.5 text-end font-extrabold">{toFa(group(total))}</td><td className="num px-4 py-2.5 text-end font-extrabold">{toFa(group(total))}</td>
+            </tr></tfoot>
+          </table>
+        </div>
+        <p className="num text-[12px] text-muted-foreground">معادل {toFa(group(total / 10))} تومان · ذخیره و چاپ به ریال</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/70 bg-surface-2/50 px-5 py-4">
+        <Button onClick={() => onAnswer("ok")}><Check /> تأیید و ادامه</Button>
+        <Button variant="outline" onClick={() => onAnswer("edit")}><PencilLine /> تغییر مبلغ</Button>
+      </div>
+    </section>
+  );
+}
+
+function Ask({ draft, slot, limit, onAnswer, history, inline, seq = 0 }: { draft: Draft; slot: Slot; limit: number; onAnswer: (v: string) => void; history: string[]; inline?: boolean; seq?: number }) {
+  if (slot === "limit" && !inline) return <LimitReview draft={draft} limit={limit} onAnswer={onAnswer} seq={seq} />;
+  return <AskCard draft={draft} slot={slot} limit={limit} onAnswer={onAnswer} history={history} inline={inline} />;
+}
+function AskCard({ draft, slot, limit, onAnswer, history, inline }: { draft: Draft; slot: Slot; limit: number; onAnswer: (v: string) => void; history: string[]; inline?: boolean }) {
   const q = questionFor(slot, draft, limit);
   const [val, setVal] = React.useState("");
   const many = q.options.length > 6;
@@ -432,7 +497,7 @@ export function Voucher() {
           <div className="flex min-w-0 flex-col gap-5">
             {phase === "input" && <Composer onSubmit={submit} onFile={onFile} seed={voucherSeed?.text ?? ""} />}
             {phase === "reading" && (busy ? <Reading key="wait" via="file" file={null} onDone={() => undefined} /> : <Reading key={pendingText.current + via} via={via} file={file} onDone={afterRead} />)}
-            {phase === "asking" && draft && slot && <Ask draft={draft} slot={slot} limit={settings.approvalLimit} onAnswer={onAnswer} history={history} />}
+            {phase === "asking" && draft && slot && <Ask draft={draft} slot={slot} limit={settings.approvalLimit} onAnswer={onAnswer} history={history} seq={nextSeq()} />}
             {phase !== "input" && pendingText.current && (
               <p className="flex items-start gap-2 px-1 text-[13px] text-muted-foreground">
                 {via === "voice" ? <Mic className="mt-1 size-3.5 shrink-0" /> : via === "file" ? <FileImage className="mt-1 size-3.5 shrink-0" /> : <Keyboard className="mt-1 size-3.5 shrink-0" />}

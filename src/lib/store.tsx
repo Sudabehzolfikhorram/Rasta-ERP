@@ -146,7 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [docId, setDocId] = React.useState<string | null>(init.doc);
   const [chatSeed, setChatSeed] = React.useState<{ id?: string; ask?: string; n: number } | null>(null);
   const [docCat, setDocCat] = React.useState("acc");
-  const [baseTab, setBaseTab] = React.useState("banks");
+  const [baseTab, setBaseTab] = React.useState("home");
   const [events, setEvents] = React.useState<CalEvent[]>(seedEvents);
   const [calDay, setCalDay] = React.useState<Ctx["calDay"]>(null);
   const [reportSeed, setReportSeed] = React.useState<string | null>(null);

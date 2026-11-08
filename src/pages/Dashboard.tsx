@@ -12,7 +12,7 @@ import { WhyPopover } from "@/components/ai/WhyPopover";
 import { Orb } from "@/components/ai/Orb";
 import { MicButton, VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
 import { useVoice } from "@/lib/voice";
-import { BridgeRows, CashChart, Heatmap, MiniBars, RadialBars, Ring, StackBars, TrendArea } from "@/components/charts";
+import { CashChart, Heatmap, MiniBars, StackBars, Treemap, TrendArea, Waterfall } from "@/components/charts";
 import { ACCEPT } from "@/components/voucher/analyze";
 import { docNo, docTotal, partyOf } from "@/components/voucher/VoucherEditor";
 
@@ -64,14 +64,18 @@ function Delta({ k }: { k: (typeof kpis)[number] }) {
   );
 }
 
+const KPI_TONE: Record<string, [string, IconType]> = { cash: ["--ch-1", Wallet3], ar: ["--ch-2", CardReceive], ap: ["--ch-3", MoneySend], pl: ["--ch-4", StatusUp] };
 function KpiCard({ k }: { k: (typeof kpis)[number] }) {
   const { unit } = useApp();
+  const [c, KI] = KPI_TONE[k.id] ?? ["--ch-1", Wallet3];
   const s = short(k.rial, unit);
   const u = unitLabel(unit);
   const fmt = (v: number) => `${toFa(String(+((unit === "rial" ? v : v / 10)).toFixed(2))).replace(".", "٫")} میلیارد ${u}`;
   return (
-    <div className="panel flex flex-col p-5">
+    <div className="panel relative isolate flex flex-col overflow-hidden p-5">
+      <span aria-hidden className="pointer-events-none absolute inset-0 -z-10" style={{ background: `linear-gradient(150deg, hsl(var(${c}) / .12), transparent 55%)` }} />
       <div className="flex items-center gap-2">
+        <span className="grid size-8 shrink-0 place-items-center rounded-[10px]" style={{ background: `hsl(var(${c}) / .16)`, color: `hsl(var(${c}))` }}><KI className="size-[18px]" variant="Bulk" /></span>
         <span className="text-[13.5px] font-bold">{k.label}</span>
         <Delta k={k} />
         <WhyPopover className="ms-auto" title={k.label} line={k.why.line} parts={k.why.parts} />
@@ -82,7 +86,7 @@ function KpiCard({ k }: { k: (typeof kpis)[number] }) {
       </div>
       <div className="num mt-1.5 text-[12px] text-muted-foreground">{k.today}</div>
       {/* the trend gets its own band under the text so nothing overlaps */}
-      <div className="mt-4 rounded-field bg-muted/40 px-2 pt-2">
+      <div className="mt-4 rounded-field px-2 pt-2" style={{ background: `hsl(var(${c}) / .07)` }}>
         <TrendArea data={k.series} tone={k.id === "pl" ? "ai" : "primary"} fmt={fmt} labelFor={(i) => { const d = TODAY.d - i; return d > 0 ? fmtDay(8, d) : fmtDay(7, 30 + d); }}
           className="h-16 w-full" />
         <div className="flex justify-between px-1 pb-1.5 pt-1 text-[10.5px] text-muted-foreground"><span>امروز</span><span>۳۰ روز پیش</span></div>
@@ -172,8 +176,8 @@ function Agenda() {
       </ul>
       {!list.length && <Empty icon={CalendarDays} title="برای این روز برنامه‌ای ثبت نشده" action={<Button size="sm" variant="soft" onClick={() => openCalendar({ m: TODAY.m, d: sel })}><Plus /> افزودن یادآوری</Button>} />}
       <div className="num mt-auto grid grid-cols-3 gap-2 pt-4 text-center">
-        {([["سررسید این هفته", toFa(week.length)], ["انجام‌شده", toFa(week.filter((e) => e.done).length)], ["خروجی هفته", `${short(weekOut, unit).n} ${short(weekOut, unit).s}`]] as const).map(([l, v]) => (
-          <div key={l} className="rounded-field bg-muted/60 px-2 py-2"><b className="block text-[14px]">{v}</b><span className="text-[11px] text-muted-foreground">{l}</span></div>
+        {([["سررسید این هفته", toFa(week.length), "--ch-1"], ["انجام‌شده", toFa(week.filter((e) => e.done).length), "--ch-2"], ["خروجی هفته", `${short(weekOut, unit).n} ${short(weekOut, unit).s}`, "--ch-3"]] as const).map(([l, v, c]) => (
+          <div key={l} className="rounded-field border px-2 py-2" style={{ borderColor: `hsl(var(${c}) / .22)`, background: `linear-gradient(140deg, hsl(var(${c}) / .14), hsl(var(${c}) / .04))` }}><b className="block text-[14px]" style={{ color: `hsl(var(${c}))` }}>{v}</b><span className="text-[11px] text-muted-foreground">{l}</span></div>
         ))}
       </div>
     </section>
@@ -281,24 +285,35 @@ function StatCards() {
   );
 }
 
+/** Document status as a pipeline: draft → pending → posted, one tile per document so each one is clickable. */
 function ApprovalTile() {
-  const { docs, go } = useApp();
+  const { docs, go, openDoc } = useApp();
+  const stages: { s: DocStatus; l: string; c: string }[] = [
+    { s: "draft", l: "پیش‌نویس", c: "--ch-6" }, { s: "pending", l: "منتظر تأیید", c: "--warning" }, { s: "posted", l: "تأییدشده", c: "--success" },
+  ];
   const n = (s: DocStatus) => docs.filter((d) => d.status === s).length;
-  const posted = n("posted");
+  const pct = Math.round((n("posted") / Math.max(docs.length, 1)) * 100);
   return (
     <section className="panel flex flex-col p-5">
-      <Head title="وضعیت اسناد آبان" />
-      <div className="mb-4 flex flex-1 items-center gap-4">
-        <Ring value={posted / docs.length} size={88} stroke={8} tone="success">
-          <span className="num text-[18px] font-extrabold leading-none">{toFa(Math.round((posted / docs.length) * 100))}٪</span>
-        </Ring>
-        <ul className="num flex flex-1 flex-col gap-1.5 text-[13px]">
-          <li className="flex justify-between"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-success" />تأییدشده</span><b>{toFa(posted)}</b></li>
-          <li className="flex justify-between"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-warning" />منتظر تأیید</span><b>{toFa(n("pending"))}</b></li>
-          <li className="flex justify-between"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-muted-foreground" />پیش‌نویس</span><b>{toFa(n("draft"))}</b></li>
-        </ul>
+      <Head title="وضعیت اسناد آبان" action={<span className="num text-[12px] text-muted-foreground"><b className="text-[15px] text-foreground">{toFa(pct)}٪</b> تأییدشده</span>} />
+      <ol className="grid grid-cols-3 gap-2">
+        {stages.map((st, i) => (
+          <li key={st.s} className="relative flex flex-col gap-2 rounded-field border border-border bg-surface/60 p-2.5">
+            {i < 2 && <ArrowLeft className="absolute -start-[13px] top-1/2 z-10 size-3.5 -translate-y-1/2 rounded-full bg-surface text-muted-foreground" />}
+            <span className="flex items-center justify-between text-[11.5px] font-semibold text-muted-foreground">{st.l}<b className="num text-[15px] text-foreground">{toFa(n(st.s))}</b></span>
+            <span className="flex flex-wrap gap-1">
+              {docs.filter((d) => d.status === st.s).map((d) => (
+                <button key={d.id} onClick={() => openDoc(d.id)} title={d.title} aria-label={d.title}
+                  className="size-3.5 rounded-[4px] transition-transform hover:scale-125" style={{ background: `hsl(var(${st.c}))` }} />
+              ))}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted">
+        {stages.map((st) => <span key={st.s} style={{ width: `${(n(st.s) / Math.max(docs.length, 1)) * 100}%`, background: `hsl(var(${st.c}))` }} />)}
       </div>
-      <Button size="sm" variant="soft" className="mt-auto" onClick={() => go("documents")}>بررسی اسناد</Button>
+      <Button size="sm" variant="soft" className="mt-4" onClick={() => go("documents")}>بررسی اسناد</Button>
     </section>
   );
 }
@@ -346,20 +361,12 @@ function SpendTile() {
   const { openReport, unit } = useApp();
   const r = reports.find((x) => x.id === "expmix")!;
   const k = unit === "toman" ? 10 : 1;
-  const top = r.rows.slice(0, 4).map((x, i) => ({ label: String(x.item), value: (x.v as number) / k, color: `--ch-${[1, 4, 2, 5][i]}` }));
-  const rest = r.rows.slice(4).reduce((a, x) => a + (x.v as number), 0) / k;
-  const total = top.reduce((a, x) => a + x.value, 0) + rest;
+  const total = r.rows.reduce((a, x) => a + (x.v as number), 0) / k;
   return (
     <section className="panel flex flex-col p-5">
       <Head title="ترکیب هزینه‌های آبان" action={<LinkBtn onClick={() => openReport("expmix")}>گزارش</LinkBtn>} />
-      <div className="flex flex-1 flex-wrap items-center gap-5">
-        <RadialBars items={top} size={168} center={<span><b className="num block text-[18px] font-extrabold leading-none">{toFa(total.toFixed(1)).replace(".", "٫")}</b><span className="text-[10.5px] text-muted-foreground">میلیارد {unitLabel(unit)}</span></span>} />
-        <ul className="num flex min-w-[150px] flex-1 flex-col gap-2 text-[12.5px]">
-          {[...top, { label: "سایر", value: rest, color: "--ch-6" }].map((x) => (
-            <li key={x.label} className="flex items-center gap-2"><i className="size-2.5 rounded-[3px]" style={{ background: `hsl(var(${x.color}))` }} /><span className="flex-1 truncate">{x.label}</span><b>{toFa(Math.round((x.value / total) * 100))}٪</b></li>
-          ))}
-        </ul>
-      </div>
+      <p className="num -mt-2 mb-3 text-[12px] text-muted-foreground">جمع <b className="text-[14px] text-foreground">{toFa(total.toFixed(1)).replace(".", "٫")}</b> میلیارد {unitLabel(unit)}</p>
+      <Treemap items={r.rows.map((x) => [String(x.item), (x.v as number) / k])} unit={`میلیارد ${unitLabel(unit)}`} height={236} legend={false} onPick={() => openReport("expmix")} />
     </section>
   );
 }
@@ -370,7 +377,7 @@ function FlowTile() {
   return (
     <section className="panel flex flex-col p-5">
       <Head title="گردش نقدی آبان" action={<span className="num text-[12px] text-muted-foreground">۱ تا ۱۷ آبان</span>} />
-      <BridgeRows open={42.1 / k} unit={unitLabel(unit)} items={[["دریافت از مشتریان", 9.8 / k], ["فروش نقدی", 1.6 / k], ["خرید و تأمین", -2.9 / k], ["حقوق و بیمه", -0.9 / k], ["سایر هزینه‌ها", -1.35 / k]]} />
+      <Waterfall zoom total="امروز" unit={unitLabel(unit)} items={[["اول آبان", 42.1 / k], ["دریافت", 9.8 / k], ["فروش نقدی", 1.6 / k], ["خرید", -2.9 / k], ["حقوق", -0.9 / k], ["سایر", -1.35 / k]]} />
     </section>
   );
 }

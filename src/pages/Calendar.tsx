@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CalendarCheck2, ChevronLeft, ChevronRight, Clock, FilePlus2, Plus, Sparkles, Trash2, X } from "@/components/icons";
+import { CalendarCheck2, ChevronLeft, ChevronRight, Clock, FilePlus2, MoneySend, Plus, Sparkles, Sun, TaskSquare, Trash2, X } from "@/components/icons";
+import { StatCard } from "@/components/ui/stat";
 import { useApp } from "@/lib/store";
 import { catMeta, holidays, type CalEvent, type EventCat } from "@/data/demo";
 import { cn, short, toEn, toFa, unitLabel } from "@/lib/utils";
@@ -443,7 +444,7 @@ export function Calendar() {
           </section>
 
           {/* the selected day */}
-          <section className="panel flex flex-col p-5">
+          <section className="panel edge-run flex flex-col p-5">
             <div className="flex flex-wrap items-center gap-4">
               <div className="min-w-0 flex-1">
                 <p className="text-[12.5px] font-bold text-muted-foreground">{isToday(sel.m, sel.d) ? "امروز" : relDay(sel.m, sel.d)}</p>
@@ -522,24 +523,19 @@ export function Calendar() {
   const monthAmt = monthEv.reduce((a, e) => a + (e.amount ?? 0), 0);
   const selList = on(sel.m, sel.d);
   const selHol = showHol ? holidayOn(sel.m, sel.d) : undefined;
-  const kpi: [string, string, string][] = [
-    ["سررسیدهای ماه", toFa(monthEv.filter((e) => e.amount).length), "--ch-1"],
-    ["مبلغ سررسیدها", `${short(monthAmt, unit).n} ${short(monthAmt, unit).s}`, "--ch-5"],
-    ["انجام‌شده", `${toFa(monthEv.filter((e) => e.done).length)} از ${toFa(monthEv.length)}`, "--ch-2"],
-    ["روز تعطیل", toFa(holidays.filter((h) => h.m === month).length + Array.from({ length: monthLength(month) }, (_, i) => i + 1).filter((d) => weekday(month, d) === 6).length), "--danger"],
-  ];
+  const doneN = monthEv.filter((e) => e.done).length;
+  const offDays = holidays.filter((h) => h.m === month).length + Array.from({ length: monthLength(month) }, (_, i) => i + 1).filter((d) => weekday(month, d) === 6).length;
+  const weekly = [0, 1, 2, 3, 4].map((w) => monthEv.filter((e) => Math.floor((e.d - 1) / 7) === w).reduce((a, e) => a + (e.amount ?? 0), 0));
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
       <div className="flex min-w-0 flex-col gap-4">
-        <section className="panel grid grid-cols-2 overflow-hidden sm:grid-cols-4">
-          {kpi.map(([l, v, c], i) => (
-            <div key={l} className={cn("flex items-center gap-3 p-4", i > 0 && "sm:border-s sm:border-border/70")}>
-              <span className="h-9 w-1 rounded-full" style={{ background: `hsl(var(${c}))` }} />
-              <span><span className="block text-[12px] font-bold text-muted-foreground">{l}</span><b className="num text-[19px] font-extrabold">{v}</b></span>
-            </div>
-          ))}
-        </section>
-        <section className="panel-data flex min-w-0 flex-col overflow-hidden">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="سررسیدهای ماه" value={toFa(monthEv.filter((e) => e.amount).length)} unit="مورد" icon={CalendarCheck2} tone="blue" sub="چک، قسط و مالیات" />
+          <StatCard label="مبلغ سررسیدها" value={short(monthAmt, unit).n} unit={`${short(monthAmt, unit).s}`} icon={MoneySend} tone="violet" bars={weekly} sub="به تفکیک هفته" />
+          <StatCard label="انجام‌شده" value={`${toFa(doneN)} از ${toFa(monthEv.length)}`} icon={TaskSquare} tone="teal" progress={doneN / Math.max(monthEv.length, 1)} />
+          <StatCard label="روز تعطیل" value={toFa(offDays)} unit="روز" icon={Sun} tone="amber" sub="جمعه‌ها و تعطیلات رسمی" />
+        </div>
+        <section className="panel-data edge-run flex min-w-0 flex-col overflow-hidden">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
             <Button size="sm" variant="outline" onClick={() => pick({ m: TODAY.m, d: TODAY.d })}>امروز</Button>
             <div className="flex">

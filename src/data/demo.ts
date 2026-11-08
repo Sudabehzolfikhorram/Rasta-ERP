@@ -250,6 +250,6 @@ export const catRows: Record<string, CatRow[]> = {
 
 /** Base-data sections; each one is its own page under «اطلاعات پایه». */
 export const baseSections: { id: string; label: string }[] = [
-  { id: "banks", label: "بانک‌ها" }, { id: "branches", label: "شعبه‌ها" }, { id: "accounts", label: "حساب‌های بانکی" },
+  { id: "home", label: "نمای کلی" }, { id: "banks", label: "بانک‌ها" }, { id: "branches", label: "شعبه‌ها" }, { id: "accounts", label: "حساب‌های بانکی" },
   { id: "boxes", label: "صندوق‌ها" }, { id: "currency", label: "ارزها و نرخ‌ها" },
 ];

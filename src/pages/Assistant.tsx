@@ -70,7 +70,6 @@ function Thinking() {
   React.useEffect(() => { const t = window.setInterval(() => setI((x) => Math.min(x + 1, STEPS.length - 1)), 420); return () => clearInterval(t); }, []);
   return (
     <li className="flex items-start gap-3 animate-rise">
-      <Orb size={30} busy />
       <div className="rounded-[calc(var(--r-field)+6px)] border border-border bg-surface px-4 py-3">
         <ol className="flex flex-col gap-1.5 text-[12.5px]">
           {STEPS.map((s, k) => (
@@ -156,7 +155,7 @@ export function Assistant() {
   return (
     <div className="grid gap-5 lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[290px_minmax(0,1fr)]">
       {history}
-      <section className="panel flex min-h-[520px] min-w-0 flex-col overflow-hidden">
+      <section className="panel edge-run flex min-h-[520px] min-w-0 flex-col overflow-hidden">
         {chat ? (
           <header className="flex items-center gap-3 border-b border-border/70 px-5 py-3">
             <button onClick={() => setActive(null)} className="grid size-8 place-items-center rounded-field text-muted-foreground hover:bg-muted lg:hidden" aria-label="بازگشت"><ArrowLeft className="size-4 rotate-180" /></button>
@@ -170,7 +169,7 @@ export function Assistant() {
             <ol className="mx-auto flex w-full max-w-3xl flex-col gap-4" aria-live="polite">
               {chat.msgs.map((m, i) => (
                 <li key={i} className={cn("flex items-start gap-3 animate-rise", m.who === "me" && "flex-row-reverse")}>
-                  {m.who === "ai" ? <Orb size={30} /> : <span className="grid size-[30px] shrink-0 place-items-center rounded-full bg-muted text-[12px] font-bold">س</span>}
+                  {m.who === "me" && <span className="grid size-[30px] shrink-0 place-items-center rounded-full bg-muted text-[12px] font-bold">س</span>}
                   <div className={cn("max-w-[82%] rounded-[calc(var(--r-field)+6px)] px-4 py-3 text-[14px] leading-7", m.who === "me" ? "bg-primary text-primary-foreground" : "border border-border bg-surface")}>
                     {m.who === "ai" ? (fresh.current === `${chat.id}:${i}` ? <Stream text={m.text} /> : <Bubble text={m.text} />) : <span className="num whitespace-pre-line">{m.text}</span>}
                   </div>

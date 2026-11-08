@@ -41,4 +41,5 @@ export {
   Category2, FolderOpen, Wallet3, MoneyRecive, MoneySend, Bank, EmptyWallet, CardReceive, Receipt1, Messages2, Graph, ChartSquare,
   Chart, Card, MoneyChange, People, Hierarchy, StatusUp, ArrowSwapVertical, ExportCurve, TaskSquare, CalendarAdd, Setting4, Profile2User, ReceiptText, Note1, Archive, Folder2,
   TrendUp, TrendDown, MagicStar, Element3, DocumentText, TickCircle, Timer1, Calendar, Edit2, Add, ArrowLeft2, ArrowDown2,
+  Global, Location, Call, Wallet2, Chart21, Activity, DocumentDownload,
 } from "iconsax-react";
