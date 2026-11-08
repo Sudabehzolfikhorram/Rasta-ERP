@@ -1,344 +1,417 @@
 import * as React from "react";
-import {
-  AlertTriangle, ArrowLeft, Check, CheckCircle2, CircleDashed, FileImage, Keyboard, Loader2, Paperclip, Plus, Scale, Send, Sparkles, Trash2, Upload, Wand2,
-} from "lucide-react";
+import { ArrowLeft, Check, FileImage, Keyboard, Loader2, Mic, Paperclip, PencilLine, RotateCcw, Send, Sparkles, Square, Upload, Wand2 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { accounts } from "@/data/demo";
-import { cn, group, toEn, toFa, words } from "@/lib/utils";
+import { type Doc } from "@/data/demo";
+import { cn, group, toFa } from "@/lib/utils";
+import { fmtDay, TODAY } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AccountPicker, suggestFor } from "@/components/voucher/AccountPicker";
+import { Segmented } from "@/components/shell/Topbar";
+import { answer, facts, linesFor, nextSlot, questionFor, readFile, understand, type Draft, type Slot } from "@/components/voucher/agent";
+import { balanceDoc, blankLine, buildChecks, ChecksList, docBalanced, docNo, docTotal, VoucherEditor, type InUnit } from "@/components/voucher/VoucherEditor";
 
-type Row = { id: number; account: string | null; desc: string; debit: number; credit: number; ai?: boolean };
-type Mode = "sentence" | "file" | "manual";
-type InUnit = "toman" | "rial";
+type Phase = "input" | "reading" | "asking" | "review";
+type Via = "text" | "voice" | "file";
 
-let nextId = 1;
-const blank = (): Row => ({ id: nextId++, account: null, desc: "", debit: 0, credit: 0 });
+const EXAMPLES = [
+  "۵۰۰ میلیون تومان از پتروشیمی مارون به حساب پارسیان واریز شد",
+  "دیروز ۱۲ میلیون تومان کرایه‌ی حمل بار از صندوق دادیم",
+  "۳۰۰ میلیون تومان از سپرده‌ی پارسیان به جاری منتقل شد",
+];
+const VOICE_DEMO = "دیروز دوازده میلیون تومان کرایه حمل بار به اصفهان از صندوق دادیم";
 
-/* ---------- demo "agent": parse a Persian sentence into a draft ---------- */
-function parseSentence(s: string) {
-  const t = toEn(s);
-  const m = t.match(/([\d.,٬]+)\s*(هزار میلیارد|میلیارد|میلیون|هزار)?\s*(تومان|ریال)?/);
-  const base = m ? parseFloat(m[1].replace(/[,٬]/g, "")) : 0;
-  const mult = m?.[2] === "هزار میلیارد" ? 1e12 : m?.[2] === "میلیارد" ? 1e9 : m?.[2] === "میلیون" ? 1e6 : m?.[2] === "هزار" ? 1e3 : 1;
-  const rial = base * mult * (m?.[3] === "ریال" ? 1 : 10);
-  const party = accounts.find((a) => a.code.startsWith("1-103") && t.includes(a.name.split(" ")[0])) ?? accounts.find((a) => a.code.startsWith("3-301") && t.includes(a.name));
-  const bankWord = ["پارسیان", "ملت"].find((b) => t.includes(b));
-  const bankOptions = accounts.filter((a) => a.code.startsWith("1-101") && bankWord && a.name.includes(bankWord));
-  const receive = /واریز|دریافت|گرفتیم/.test(t);
-  return { rial, party, bankOptions, receive, text: t, unitGuess: m?.[3] ? null : "تومان" };
+/* ---------- voice: real recognition when the browser has it, a sample sentence otherwise ---------- */
+type SR = { lang: string; interimResults: boolean; continuous: boolean; start: () => void; stop: () => void; abort: () => void; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: (() => void) | null; onend: (() => void) | null };
+function useVoice(onText: (t: string, demo: boolean) => void) {
+  const [rec, setRec] = React.useState(false);
+  const [live, setLive] = React.useState("");
+  const r = React.useRef<SR | null>(null);
+  const text = React.useRef("");
+  const timer = React.useRef<number>();
+  const finish = React.useCallback(() => {
+    clearTimeout(timer.current);
+    setRec(false);
+    const t = text.current.trim();
+    onText(t || VOICE_DEMO, !t);
+    text.current = "";
+    setLive("");
+  }, [onText]);
+  const start = () => {
+    text.current = "";
+    setRec(true);
+    const W = window as unknown as { SpeechRecognition?: new () => SR; webkitSpeechRecognition?: new () => SR };
+    const Ctor = W.SpeechRecognition ?? W.webkitSpeechRecognition;
+    if (Ctor) {
+      try {
+        const s = new Ctor();
+        s.lang = "fa-IR"; s.interimResults = true; s.continuous = false;
+        s.onresult = (e) => { const all = Array.from(e.results).map((x) => x[0].transcript).join(" "); text.current = all; setLive(all); };
+        s.onerror = () => { /* fall back to the sample sentence */ };
+        s.onend = () => { if (r.current) { r.current = null; finish(); } };
+        r.current = s;
+        s.start();
+      } catch { r.current = null; }
+    }
+    timer.current = window.setTimeout(() => stop(), 6000);
+  };
+  const stop = () => {
+    if (r.current) { const s = r.current; s.stop(); } else finish();
+  };
+  React.useEffect(() => () => { clearTimeout(timer.current); r.current?.abort(); }, []);
+  return { rec, live, start, stop };
 }
 
-function MoneyInput({ value, onChange, unit, label }: { value: number; onChange: (rial: number) => void; unit: InUnit; label: string }) {
-  const shown = value ? group(unit === "toman" ? value / 10 : value) : "";
+function Wave() {
   return (
-    <div className="flex flex-col gap-0.5">
-      <Input
-        inputMode="numeric"
-        dir="ltr"
-        aria-label={label}
-        value={shown}
-        placeholder="۰"
-        onChange={(e) => {
-          const n = parseInt(toEn(e.target.value).replace(/[^\d]/g, "") || "0", 10);
-          onChange(unit === "toman" ? n * 10 : n);
-        }}
-        className="num text-left font-bold"
-      />
-      {unit === "toman" && value > 0 && <span className="num truncate text-[11px] text-muted-foreground" title={words(value)}>= {group(value)} ریال</span>}
-    </div>
+    <span className="flex h-6 items-center gap-[3px]" aria-hidden>
+      {Array.from({ length: 14 }).map((_, i) => (
+        <i key={i} className="block h-full w-[3px] origin-center rounded-full bg-current" style={{ animation: `bar ${0.7 + (i % 4) * 0.13}s ease-in-out ${i * 0.06}s infinite` }} />
+      ))}
+    </span>
   );
 }
 
-type GuardCheck = { id: string; label: string; state: "ok" | "warn" | "bad" | "idle"; note: string; action?: { label: string; run: () => void } };
+/* ---------- the live card: facts light up along an Algonet-style rail ---------- */
+function Rail({ draft, phase, current, onRedo }: { draft: Draft | null; phase: Phase; current: Slot | null; onRedo: (k: string) => void }) {
+  const list = draft ? facts(draft) : [{ k: "نوع", v: null }, { k: "مبلغ", v: null }, { k: "از طرف", v: null }, { k: "به حساب", v: null }];
+  const filled = list.filter((f) => f.v).length;
+  const slotOf: Record<string, Slot> = { نوع: "kind", مبلغ: "amount", "از طرف": "party", "به حساب": "bank", "از حساب": "bank", بابت: "expense", از: "from", به: "to" };
+  return (
+    <section className="panel relative overflow-hidden p-5" data-tour="rail" aria-label="سند در حال ساخت">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[15px] font-extrabold">سند در حال ساخت</h3>
+        <span className="num text-[12px] text-muted-foreground">{toFa(filled)} از {toFa(list.length)}</span>
+      </div>
+      <ol className="relative mt-5">
+        <span className="absolute bottom-3 start-[11px] top-3 w-px bg-border" aria-hidden />
+        <span className="absolute start-[11px] top-3 w-px bg-ai transition-[height] duration-700 ease-out" style={{ height: `calc(${(Math.max(filled - 1, 0) / Math.max(list.length - 1, 1)) * 100}% - 12px)` }} aria-hidden />
+        {list.map((f) => {
+          const asking = current && slotOf[f.k] === current && phase === "asking";
+          return (
+            <li key={f.k} className="relative flex min-h-[58px] items-start gap-3.5">
+              <span className={cn("relative z-10 mt-0.5 grid size-[23px] shrink-0 place-items-center rounded-full border-2 bg-surface transition-colors duration-500",
+                f.v ? "border-ai bg-ai text-white" : asking ? "border-ai animate-ping-soft" : "border-border")}>
+                {f.v && <Check className="size-3" strokeWidth={3} />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11.5px] font-semibold text-muted-foreground">{f.k}</div>
+                {f.v ? (
+                  <button key={f.v} onClick={() => phase === "asking" && onRedo(f.k)} disabled={phase !== "asking"}
+                    className={cn("num block max-w-full truncate text-start text-[14px] font-bold animate-fly", phase === "asking" && "editable")} title={phase === "asking" ? "برای تغییر بزنید" : undefined}>
+                    {f.v}
+                  </button>
+                ) : (
+                  <span className={cn("mt-1 block h-3.5 w-28 rounded-full bg-muted", phase === "reading" && "shimmer")} />
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {draft && (
+        <div className="mt-1 flex items-center gap-2 border-t border-border/70 pt-3 text-[12px] text-muted-foreground">
+          <span className="num">تاریخ: <b className="text-foreground">{fmtDay(draft.day.m, draft.day.d)}</b></span>
+          <span className="ms-auto">از {draft.source}</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- composer: say it, type it or drop a file ---------- */
+function Composer({ onSubmit, onFile, seed }: { onSubmit: (t: string, via: Via) => void; onFile: (f: File) => void; seed: string }) {
+  const [text, setText] = React.useState(seed);
+  const [over, setOver] = React.useState(false);
+  const [demoNote, setDemoNote] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const voice = useVoice(React.useCallback((t: string, demo: boolean) => { setText(t); setDemoNote(demo); onSubmit(t, "voice"); }, [onSubmit]));
+  return (
+    <section
+      data-tour="entry"
+      className={cn("panel relative overflow-hidden p-5 transition-shadow", over && "shadow-lift ring-2 ring-ai/60")}
+      onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(false); }}
+      onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) onFile(f); }}
+    >
+      <h2 className="text-[18px] font-extrabold">چه اتفاقی افتاد؟</h2>
+      <p className="mt-1 text-[13px] text-muted-foreground">بنویسید، بگویید یا عکس فیش را بیندازید. بقیه را دستیار می‌پرسد.</p>
+      <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) onSubmit(text, "text"); }} className="mt-4 rounded-[calc(var(--radius)-6px)] border border-input bg-surface/90 focus-within:border-ring focus-within:ring-4 focus-within:ring-ring/15">
+        {voice.rec ? (
+          <div className="flex min-h-[104px] flex-col items-center justify-center gap-2 px-4 py-4 text-ai-ink" aria-live="polite">
+            <Wave />
+            <span className="text-[13px] font-semibold">{voice.live || "گوش می‌دهم…"}</span>
+          </div>
+        ) : (
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (text.trim()) onSubmit(text, "text"); } }}
+            rows={3}
+            aria-label="شرح رویداد"
+            placeholder="مثلاً: ۵۰۰ میلیون تومان از پتروشیمی مارون به پارسیان واریز شد"
+            className="block w-full resize-none bg-transparent px-4 pt-4 text-[15px] leading-8 outline-none placeholder:text-muted-foreground"
+          />
+        )}
+        <div className="flex items-center gap-2 px-3 pb-3">
+          <Button type="button" variant={voice.rec ? "default" : "outline"} size="icon" aria-label={voice.rec ? "پایان ضبط" : "گفتن با صدا"} onClick={() => (voice.rec ? voice.stop() : voice.start())} className={cn(voice.rec && "bg-danger hover:bg-danger/90")}>
+            {voice.rec ? <Square className="size-4" /> : <Mic />}
+          </Button>
+          <Button type="button" variant="outline" size="icon" aria-label="عکس یا فایل" onClick={() => fileRef.current?.click()}><Paperclip /></Button>
+          <input ref={fileRef} type="file" accept="image/*,.pdf,.xlsx,.xls,.csv,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
+          <span className="hidden text-[11.5px] text-muted-foreground sm:inline">{voice.rec ? "دوباره بزنید تا تمام شود" : "Enter برای ساختن"}</span>
+          <Button type="submit" variant="ai" className="ms-auto" disabled={!text.trim() || voice.rec}><Wand2 /> ساختن سند</Button>
+        </div>
+      </form>
+      {demoNote && <p className="mt-2 text-[11.5px] text-muted-foreground">مرورگر صدا را نشناخت؛ جمله‌ی نمونه استفاده شد.</p>}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {EXAMPLES.map((ex) => (
+          <button key={ex} onClick={() => { setText(ex); onSubmit(ex, "text"); }} className="chip h-auto min-h-8 py-1 text-start">{ex}</button>
+        ))}
+        <button onClick={() => onFile(new File(["demo"], "فیش-پارسیان-۰۹۱۲.jpg", { type: "image/jpeg" }))} className="chip"><FileImage className="size-3.5" /> فیش نمونه</button>
+      </div>
+      {over && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-ai-soft/80 backdrop-blur-sm">
+          <span className="flex items-center gap-2 text-[15px] font-bold text-ai-ink"><Upload /> رها کنید تا بخوانم</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- reading: upload + scan, or a short think ---------- */
+function Reading({ via, file, onDone }: { via: Via; file: { name: string; url?: string } | null; onDone: () => void }) {
+  const steps = via === "file" ? ["بارگذاری فایل", "خواندن مبلغ، تاریخ و طرف حساب", "پیدا کردن حساب‌ها"] : via === "voice" ? ["تبدیل صدا به متن", "فهمیدن جمله", "پیدا کردن حساب‌ها"] : ["فهمیدن جمله", "پیدا کردن حساب‌ها", "مقایسه با اسناد قبلی"];
+  const [i, setI] = React.useState(0);
+  const [pct, setPct] = React.useState(0);
+  const fields = file ? readFile(file.name).fields : [];
+  React.useEffect(() => {
+    const t = setInterval(() => setPct((p) => Math.min(p + 4, 100)), 40);
+    return () => clearInterval(t);
+  }, []);
+  React.useEffect(() => {
+    if (i >= steps.length) { const t = setTimeout(onDone, 250); return () => clearTimeout(t); }
+    const t = setTimeout(() => setI(i + 1), via === "file" ? 900 : 620);
+    return () => clearTimeout(t);
+  }, [i, steps.length, onDone, via]);
+  return (
+    <section className="panel p-5" aria-live="polite">
+      {file && (
+        <div className="mb-5 flex gap-4">
+          <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-xl border border-border bg-surface shadow-soft">
+            {file.url ? <img src={file.url} alt="" className="size-full object-cover" /> : (
+              <div className="flex size-full flex-col gap-1.5 p-3">{Array.from({ length: 7 }).map((_, k) => <span key={k} className="h-1.5 rounded bg-muted" style={{ width: `${55 + ((k * 23) % 40)}%` }} />)}</div>
+            )}
+            <span className="absolute inset-x-0 h-0.5 bg-ai shadow-[0_0_14px_hsl(var(--ai))]" style={{ animation: "scan 1.1s ease-in-out infinite alternate" }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[14px] font-bold">{file.name}</div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full ai-edge transition-[width] duration-100" style={{ width: `${pct}%` }} /></div>
+            <div className="num mt-1 text-[11.5px] text-muted-foreground">{pct < 100 ? `${toFa(pct)}٪` : "خوانده شد"}</div>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {fields.slice(0, Math.max(0, i)).map(([k, v]) => <li key={k} className="num rounded-full bg-ai-soft px-2.5 py-0.5 text-[11.5px] text-ai-ink animate-fly">{k}: <b>{v}</b></li>)}
+            </ul>
+          </div>
+        </div>
+      )}
+      <ol className="flex flex-col gap-3">
+        {steps.map((s, k) => (
+          <li key={s} className={cn("flex items-center gap-3 text-[13.5px]", k > i && "text-muted-foreground")}>
+            <span className={cn("grid size-6 place-items-center rounded-full", k < i ? "bg-ai text-white" : k === i ? "bg-ai-soft text-ai-ink" : "bg-muted")}>
+              {k < i ? <Check className="size-3.5" strokeWidth={3} /> : k === i ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            </span>
+            <span className={cn(k === i && "font-bold")}>{s}</span>
+            {k === i && <span className="shimmer h-2 flex-1 rounded-full" />}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/* ---------- asking: one question at a time ---------- */
+function Ask({ draft, slot, limit, onAnswer, history }: { draft: Draft; slot: Slot; limit: number; onAnswer: (v: string) => void; history: string[] }) {
+  const q = questionFor(slot, draft, limit);
+  const [val, setVal] = React.useState("");
+  const many = q.options.length > 6;
+  return (
+    <section className="panel p-5" aria-live="polite">
+      {history.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {history.map((h, i) => <span key={i} className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[12px] text-muted-foreground"><Check className="size-3 text-ai" />{h}</span>)}
+        </div>
+      )}
+      <div key={slot} className="animate-rise">
+        <div className="flex items-start gap-3">
+          <span className="ai-edge mt-0.5 grid size-8 shrink-0 place-items-center rounded-full text-white"><Sparkles className="size-4" /></span>
+          <div>
+            <p className="num text-[17px] font-extrabold leading-8">{q.ask}</p>
+            {q.hint && <p className="num text-[12.5px] text-muted-foreground">{q.hint}</p>}
+          </div>
+        </div>
+        {q.input === "amount" ? (
+          <form onSubmit={(e) => { e.preventDefault(); if (/\d|[۰-۹]/.test(val)) onAnswer(val); }} className="mt-4 flex gap-2 ps-11">
+            <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} placeholder="۱۲۰ میلیون" aria-label="مبلغ"
+              className="h-12 flex-1 rounded-xl border border-input bg-surface px-4 text-[15px] font-bold outline-none focus:border-ring focus:ring-4 focus:ring-ring/15" />
+            <Button type="submit" size="lg">ادامه <ArrowLeft /></Button>
+          </form>
+        ) : (
+          <div className={cn("mt-4 grid gap-2 ps-11", many ? "grid-cols-2 sm:grid-cols-3" : "sm:grid-cols-2")}>
+            {q.options.map((o, k) => (
+              <button key={o.value} onClick={() => onAnswer(o.value)} style={{ animationDelay: `${k * 40}ms` }}
+                className="group flex min-h-12 flex-col justify-center rounded-2xl border border-border bg-surface/80 px-4 py-2 text-start transition-[border-color,background-color,transform] animate-rise hover:-translate-y-px hover:border-ai/50 hover:bg-ai-soft/50 focus-visible:border-ai">
+                <span className="text-[13.5px] font-bold">{o.label}</span>
+                {o.sub && <span className="num text-[11.5px] text-muted-foreground">{o.sub}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 export function Voucher() {
-  const { voucherSeed, toast, go } = useApp();
-  const [mode, setMode] = React.useState<Mode>("sentence");
-  const [inUnit, setInUnit] = React.useState<InUnit>("toman");
-  const [rows, setRows] = React.useState<Row[]>(() => [blank(), blank()]);
-  const [sentence, setSentence] = React.useState(voucherSeed ?? "");
-  const [thinking, setThinking] = React.useState(false);
-  const [question, setQuestion] = React.useState<null | { options: typeof accounts; pending: ReturnType<typeof parseSentence> }>(null);
-  const [desc, setDesc] = React.useState("");
-  const [attached, setAttached] = React.useState(false);
-  const [dupDismissed, setDupDismissed] = React.useState(false);
-  const [status, setStatus] = React.useState<"draft" | "sent">("draft");
+  const { voucherSeed, toast, docs, saveDoc, nextSeq, go, settings } = useApp();
+  const editing = voucherSeed?.doc ?? null;
+  const [mode, setMode] = React.useState<"ai" | "manual">(editing || voucherSeed?.manual ? "manual" : "ai");
+  const [phase, setPhase] = React.useState<Phase>(editing ? "review" : "input");
+  const [via, setVia] = React.useState<Via>("text");
+  const [file, setFile] = React.useState<{ name: string; url?: string } | null>(null);
+  const [draft, setDraft] = React.useState<Draft | null>(null);
+  const [force, setForce] = React.useState<Slot | null>(null);
+  const [history, setHistory] = React.useState<string[]>([]);
+  const [inUnit, setInUnit] = React.useState<InUnit>(settings.inputUnit);
+  const [dupOk, setDupOk] = React.useState(false);
+  const pendingText = React.useRef("");
 
-  const fill = (p: ReturnType<typeof parseSentence>, bankCode: string) => {
-    if (p.receive) {
-      const party = p.party ?? accounts[4];
-      const d = `دریافت از ${party.name}`;
-      setDesc(d);
-      setRows([
-        { id: nextId++, account: bankCode, desc: d, debit: p.rial, credit: 0, ai: true },
-        { id: nextId++, account: party.code, desc: d, debit: 0, credit: p.rial, ai: true },
-      ]);
-    } else {
-      // a payment: expense (guessed from the words) against cash or bank
-      const expense = suggestFor(p.text) ?? accounts.find((a) => a.code.startsWith("6-"))!;
-      const from = /صندوق/.test(p.text) ? "1-101-100010" : bankCode;
-      const d = `پرداخت بابت ${expense.name}`;
-      setDesc(d);
-      setRows([
-        { id: nextId++, account: expense.code, desc: d, debit: p.rial, credit: 0, ai: true },
-        { id: nextId++, account: from, desc: d, debit: 0, credit: p.rial, ai: true },
-      ]);
-    }
-    setQuestion(null);
+  const fresh = React.useCallback((): Doc => ({ id: `n${Date.now()}`, seq: nextSeq(), m: TODAY.m, d: TODAY.d, title: "", kind: "general", status: "draft", source: "manual", lines: [blankLine(), blankLine()], attachments: [], by: "سارا احمدی" }), [nextSeq]);
+  const [doc, setDocState] = React.useState<Doc>(() => editing ?? fresh());
+  const setDoc = (fn: (d: Doc) => Doc) => setDocState(fn);
+
+  const slot = draft ? force ?? nextSlot(draft, settings.approvalLimit) : null;
+
+  const toReview = React.useCallback((d: Draft) => {
+    const { title, lines } = linesFor(d);
+    setDocState((x) => ({ ...x, title, lines, kind: d.kind ?? "general", m: d.day.m, d: d.day.d, source: via === "file" ? "file" : via === "voice" ? "voice" : "ai", attachments: file ? [file.name] : x.attachments }));
+    setPhase("review");
+  }, [via, file]);
+
+  const submit = React.useCallback((t: string, v: Via) => { pendingText.current = t; setVia(v); setFile(null); setPhase("reading"); }, []);
+  const onFile = (f: File) => {
+    const url = f.type.startsWith("image/") && f.size > 10 ? URL.createObjectURL(f) : undefined;
+    setFile({ name: f.name, url });
+    pendingText.current = readFile(f.name).text;
+    setVia("file");
+    setPhase("reading");
+  };
+  const afterRead = React.useCallback(() => {
+    const d = understand(pendingText.current, via === "file" ? "فایل" : via === "voice" ? "صدا" : "متن");
+    setDraft(d);
+    setHistory([]);
+    setForce(null);
+    if (nextSlot(d, settings.approvalLimit)) setPhase("asking"); else toReview(d);
+  }, [via, settings.approvalLimit, toReview]);
+
+  const onAnswer = (v: string) => {
+    if (!draft || !slot) return;
+    const q = questionFor(slot, draft, settings.approvalLimit);
+    const label = q.options.find((o) => o.value === v)?.label ?? toFa(v);
+    const nd = answer(draft, slot, v);
+    setDraft(nd);
+    setForce(null);
+    setHistory((h) => [...h, label]);
+    if (!nextSlot(nd, settings.approvalLimit)) setTimeout(() => toReview(nd), 380);
+  };
+  const redo = (k: string) => {
+    if (!draft) return;
+    const map: Record<string, Slot> = { نوع: "kind", مبلغ: "amount", "از طرف": "party", "به حساب": "bank", "از حساب": "bank", بابت: "expense", از: "from", به: "to" };
+    setForce(map[k] ?? null);
   };
 
-  const runAgent = (s = sentence) => {
-    if (!s.trim()) return;
-    setThinking(true);
-    setQuestion(null);
-    setTimeout(() => {
-      const p = parseSentence(s);
-      setThinking(false);
-      if (!p.rial) { toast("مبلغ را پیدا نکردم. مثلاً بنویسید «۵۰۰ میلیون تومان».", "ai"); return; }
-      if (p.bankOptions.length > 1) setQuestion({ options: p.bankOptions, pending: p });
-      else fill(p, p.bankOptions[0]?.code ?? "1-101-100001");
-    }, 700);
-  };
-
-  // If we arrived from the inbox or the palette with a sentence, draft it right away.
+  // arriving from the dashboard or the command bar with a sentence or a sample file: start right away
   React.useEffect(() => {
-    if (voucherSeed) runAgent(voucherSeed);
+    if (editing || voucherSeed?.manual) return;
+    if (voucherSeed?.file) onFile(new File(["demo"], "فیش-پارسیان-۰۹۱۲.jpg", { type: "image/jpeg" }));
+    else if (voucherSeed?.text) submit(voucherSeed.text, "text");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const totalD = rows.reduce((a, r) => a + r.debit, 0);
-  const totalC = rows.reduce((a, r) => a + r.credit, 0);
-  const diff = totalD - totalC;
-  const balanced = totalD > 0 && diff === 0;
-  const missingAcc = rows.some((r) => (r.debit || r.credit) && !r.account);
-  const isDup = rows.some((r) => r.account === "1-103-300014" && r.credit === 5_000_000_000);
+  const restart = () => { setPhase("input"); setDraft(null); setFile(null); setHistory([]); setDocState(fresh()); setDupOk(false); };
 
-  const update = (id: number, patch: Partial<Row>) => setRows((x) => x.map((r) => (r.id === id ? { ...r, ...patch, ai: false } : r)));
-  const balance = () => {
-    if (!diff) return;
-    setRows((x) => {
-      const empty = x.find((r) => !r.debit && !r.credit);
-      const patch = diff > 0 ? { credit: diff, debit: 0 } : { debit: -diff, credit: 0 };
-      return empty ? x.map((r) => (r.id === empty.id ? { ...r, ...patch } : r)) : [...x, { ...blank(), ...patch }];
-    });
+  const total = docTotal(doc);
+  const checks = buildChecks(doc, docs, settings.approvalLimit, dupOk, setDupOk, () => setDocState(balanceDoc), toast);
+  const blocking = checks.some((c) => c.state === "bad");
+  const ok = docBalanced(doc) && !blocking;
+
+  const save = (asDraft: boolean) => {
+    const status: Doc["status"] = asDraft ? "draft" : total > settings.approvalLimit ? "pending" : "posted";
+    const title = doc.title.trim() || "سند بدون شرح";
+    saveDoc({ ...doc, title, status, source: mode === "manual" && !editing ? "manual" : doc.source });
+    toast(asDraft ? `پیش‌نویس ${docNo(doc.m, doc.seq)} ذخیره شد.` : status === "pending" ? `سند ${docNo(doc.m, doc.seq)} ثبت شد و برای تأیید مدیر مالی رفت.` : `سند ${docNo(doc.m, doc.seq)} ثبت شد.`);
+    go("documents");
   };
 
-  const checks: GuardCheck[] = [
-    { id: "bal", label: "تراز بودن سند", state: totalD === 0 ? "idle" : balanced ? "ok" : "bad", note: totalD === 0 ? "هنوز مبلغی ننوشته‌اید" : balanced ? "جمع بدهکار و بستانکار یکی است" : `اختلاف ${group(Math.abs(diff))} ریال`, action: !balanced && totalD > 0 ? { label: "تراز کن", run: balance } : undefined },
-    { id: "acc", label: "حساب همه‌ی ردیف‌ها", state: totalD === 0 ? "idle" : missingAcc ? "bad" : "ok", note: missingAcc ? "یک ردیف هنوز حساب ندارد" : "همه‌ی ردیف‌ها حساب دارند" },
-    { id: "nat", label: "ماهیت حساب‌ها", state: totalD === 0 ? "idle" : "ok", note: "با ماهیت تعریف‌شده‌ی حساب‌ها جور است" },
-    { id: "dup", label: "سند تکراری", state: isDup && !dupDismissed ? "warn" : totalD === 0 ? "idle" : "ok", note: isDup && !dupDismissed ? "۱۴ آبان سند ۰۰۳۸ با همین مبلغ و همین طرف حساب ثبت شده" : "سند مشابهی پیدا نشد", action: isDup && !dupDismissed ? { label: "تکراری نیست", run: () => { setDupDismissed(true); toast("ثبت شد. دلیلش در سابقه‌ی سند می‌ماند.", "ai"); } } : undefined },
-    { id: "att", label: "پیوست", state: attached ? "ok" : "idle", note: attached ? "تصویر فیش پیوست شد" : "اختیاری، ولی برای دریافت‌ها بهتر است" },
-    { id: "per", label: "دوره‌ی مالی", state: "ok", note: "آبان ۱۴۰۵ باز است" },
-  ];
-  const canSend = balanced && !missingAcc;
-
-  const send = () => {
-    setStatus("sent");
-    toast("سند ت-۰۱۲ برای تأیید رفت.");
+  const switchMode = (m: "ai" | "manual") => {
+    setMode(m);
+    if (m === "manual") { if (phase !== "review") { setDocState(fresh()); setPhase("review"); } }
+    else if (!editing) restart();
   };
 
-  if (status === "sent") {
-    return (
-      <section className="panel mx-auto mt-6 flex w-full max-w-xl flex-col items-center gap-3 p-10 text-center animate-in fade-in-0 zoom-in-95">
-        <span className="grid size-14 place-items-center rounded-full bg-success-soft text-success"><CheckCircle2 className="size-7" /></span>
-        <h2 className="text-[20px] font-extrabold">سند برای تأیید رفت</h2>
-        <p className="num max-w-[46ch] text-[14px] leading-7 text-muted-foreground">
-          شماره‌ی موقت ت-۰۱۲ · {group(totalD)} ریال. وقتی قطعی شود، شماره‌ی دائم آبان را می‌گیرد.
-        </p>
-        <div className="mt-2 flex gap-2">
-          <Button onClick={() => go("dashboard")}>بازگشت به امروز <ArrowLeft /></Button>
-          <Button variant="outline" onClick={() => { setStatus("draft"); setRows([blank(), blank()]); setSentence(""); setDesc(""); setAttached(false); setDupDismissed(false); }}>
-            <Plus /> سند بعدی
-          </Button>
-        </div>
-      </section>
-    );
-  }
+  const sideActions = (
+    <section data-tour="send" className="panel flex flex-col gap-2 p-5">
+      <div className="num mb-1 flex items-baseline justify-between">
+        <span className="text-[12.5px] text-muted-foreground">جمع سند</span>
+        <b className="text-[18px]">{group(total)} <span className="text-[11.5px] font-normal text-muted-foreground">ریال</span></b>
+      </div>
+      <Button size="lg" disabled={!ok} onClick={() => save(false)}><Send /> {total > settings.approvalLimit ? "ثبت و ارسال برای تأیید" : "ثبت سند"}</Button>
+      <Button variant="outline" onClick={() => save(true)}>ذخیره‌ی پیش‌نویس</Button>
+      {!ok && total > 0 && <p className="text-center text-[12px] text-danger">موارد قرمز را درست کنید.</p>}
+    </section>
+  );
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="flex min-w-0 flex-col gap-5">
-        {/* header strip */}
-        <section className="panel flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
-          <div className="flex items-center gap-2">
-            <Badge tone="neutral">پیش‌نویس</Badge>
-            <span className="num text-[13px] text-muted-foreground">شماره‌ی موقت <b className="text-foreground">ت-۰۱۲</b></span>
-          </div>
-          <span className="num text-[13px] text-muted-foreground">تاریخ <b className="text-foreground">۱۴۰۵/۰۸/۱۶</b></span>
-          <span className="text-[13px] text-muted-foreground">نوع <b className="text-foreground">عادی</b></span>
-          <span className="text-[13px] text-muted-foreground">منبع <b className="text-foreground">{rows.some((r) => r.ai) ? "ایجنت ثبت" : "دستی"}</b></span>
-          <div className="ms-auto flex items-center gap-2 text-[12.5px] text-muted-foreground">
-            ورود مبلغ به
-            <div role="radiogroup" aria-label="واحد ورود مبلغ" className="flex rounded-full bg-muted p-1">
-              {(["toman", "rial"] as const).map((u) => (
-                <button key={u} role="radio" aria-checked={inUnit === u} onClick={() => setInUnit(u)} className={cn("h-7 rounded-full px-3 font-semibold", inUnit === u && "bg-surface text-foreground shadow-soft")}>
-                  {u === "toman" ? "تومان" : "ریال"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* three ways in */}
-        <section data-tour="entry" className="panel p-5">
-          <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-[16px] font-extrabold">سند را چطور بسازیم؟</h2>
-              <TabsList>
-                <TabsTrigger value="sentence"><Wand2 /> با یک جمله</TabsTrigger>
-                <TabsTrigger value="file"><FileImage /> از عکس یا فایل</TabsTrigger>
-                <TabsTrigger value="manual"><Keyboard /> دستی</TabsTrigger>
-              </TabsList>
-            </div>
-          </Tabs>
-
-          {mode === "sentence" && (
-            <div className="mt-4">
-              <form onSubmit={(e) => { e.preventDefault(); runAgent(); }} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Sparkles className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-ai" />
-                  <Input value={sentence} onChange={(e) => setSentence(e.target.value)} placeholder="مثلاً: ۵۰۰ میلیون تومان از پتروشیمی مارون به حساب پارسیان واریز شد" aria-label="شرح سند با یک جمله" className="h-12 rounded-full pe-4 ps-10 text-[14px]" />
-                </div>
-                <Button type="submit" variant="ai" size="lg" disabled={thinking}>{thinking ? <Loader2 className="animate-spin" /> : <Sparkles />} پیش‌نویس بساز</Button>
-              </form>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {["۵۰۰ میلیون تومان از پتروشیمی مارون به حساب پارسیان واریز شد", "۱۲ میلیون تومان کرایه‌ی حمل بار از صندوق پرداخت شد"].map((ex) => (
-                  <button key={ex} onClick={() => { setSentence(ex); runAgent(ex); }} className="rounded-full border border-border bg-surface/70 px-3 py-1 text-[12px] text-muted-foreground transition-colors hover:border-ai/40 hover:text-foreground">
-                    {ex}
-                  </button>
-                ))}
-              </div>
-              {thinking && <p className="mt-3 flex items-center gap-2 text-[13px] text-ai-ink"><Loader2 className="size-4 animate-spin" /> ایجنت ثبت حساب‌ها را از اسناد مشابه قبلی پیدا می‌کند…</p>}
-              {question && (
-                <div className="mt-4 rounded-2xl bg-ai-soft/70 p-4 animate-in fade-in-0 slide-in-from-top-1">
-                  <p className="flex items-center gap-2 text-[13.5px] font-bold text-ai-ink"><Sparkles className="size-4" /> فقط یک سؤال: پول به کدام حساب پارسیان آمده؟</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {question.options.map((o) => <Button key={o.code} size="sm" variant="outline" onClick={() => fill(question.pending, o.code)}>{o.name}</Button>)}
-                  </div>
-                  {question.pending.unitGuess && <p className="mt-3 text-[12px] text-muted-foreground">واحد را ننوشته بودید، تومان در نظر گرفتم. معادل ریالی زیر هر مبلغ هست.</p>}
-                </div>
-              )}
-            </div>
-          )}
-
-          {mode === "file" && (
-            <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr]">
-              <button
-                onClick={() => { setAttached(true); setSentence("۵۰۰ میلیون تومان از پتروشیمی مارون به حساب پارسیان واریز شد"); runAgent("۵۰۰ میلیون تومان از پتروشیمی مارون به حساب پارسیان واریز شد"); }}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-input bg-surface/60 p-8 text-center transition-colors hover:border-ai/50 hover:bg-ai-soft/40"
-              >
-                <span className="grid size-12 place-items-center rounded-full bg-primary-soft text-primary shadow-soft"><Upload className="size-5" /></span>
-                <b className="text-[14px]">عکس فیش، متن پیامک بانک یا فایل اکسل را اینجا بکشید</b>
-                <span className="text-[12px] text-muted-foreground">در این نمونه، با یک کلیک فیش آزمایشی خوانده می‌شود</span>
-              </button>
-              <div className="rounded-2xl border border-border bg-surface/60 p-4 text-[13px]">
-                <b className="text-[13.5px]">ایجنت ثبت از فایل چه برمی‌دارد</b>
-                <ul className="mt-2 space-y-1.5 text-muted-foreground">
-                  <li className="flex items-center gap-2"><Check className="size-4 text-success" /> مبلغ، تاریخ و طرف حساب</li>
-                  <li className="flex items-center gap-2"><Check className="size-4 text-success" /> شماره‌ی پیگیری بانک</li>
-                  <li className="flex items-center gap-2"><CircleDashed className="size-4 text-warning" /> هر جا مطمئن نباشد، خانه را خالی می‌گذارد و علامت می‌زند</li>
-                </ul>
-              </div>
-            </div>
-          )}
-
-          {mode === "manual" && (
-            <p className="mt-4 text-[13px] leading-7 text-muted-foreground">
-              شرح هر ردیف را بنویسید تا حساب پیشنهاد شود. <b className="text-foreground">Enter</b> به خانه‌ی بعدی می‌رود و ردیف آخر برای تراز شدن خودکار پیشنهاد می‌شود.
-            </p>
-          )}
-        </section>
-
-        {/* the voucher itself */}
-        <section data-tour="lines" className="panel-data overflow-hidden">
-          <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
-            <h2 className="text-[16px] font-extrabold">ردیف‌های سند</h2>
-            <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="شرح کلی سند" aria-label="شرح کلی سند" className="h-9 max-w-sm flex-1 rounded-full" />
-            <Button size="sm" variant="ghost" className="ms-auto" onClick={() => setRows((x) => [...x, blank()])}><Plus /> ردیف</Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] table-fixed text-[13px]">
-              <thead>
-                <tr className="text-[12px] text-muted-foreground">
-                  <th className="w-10 px-3 py-2.5 text-center font-semibold">#</th>
-                  <th className="w-[30%] px-2 py-2.5 text-start font-semibold">حساب</th>
-                  <th className="px-2 py-2.5 text-start font-semibold">شرح ردیف</th>
-                  <th className="w-[19%] px-2 py-2.5 text-start font-semibold">بدهکار ({inUnit === "toman" ? "تومان" : "ریال"})</th>
-                  <th className="w-[19%] px-2 py-2.5 text-start font-semibold">بستانکار ({inUnit === "toman" ? "تومان" : "ریال"})</th>
-                  <th className="w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.id} className={cn("align-top transition-colors", r.ai && "bg-ai-soft/40")}>
-                    <td className="num px-3 pt-4 text-center text-muted-foreground">
-                      {r.ai ? <Sparkles className="mx-auto size-3.5 text-ai" aria-label="پر شده توسط ایجنت" /> : toFa(i + 1)}
-                    </td>
-                    <td className="px-2 py-2"><AccountPicker value={r.account} onChange={(c) => update(r.id, { account: c })} desc={r.desc || desc} invalid={!!(r.debit || r.credit) && !r.account} /></td>
-                    <td className="px-2 py-2"><Input value={r.desc} onChange={(e) => update(r.id, { desc: e.target.value })} placeholder={desc || "شرح"} aria-label={`شرح ردیف ${toFa(i + 1)}`} /></td>
-                    <td className="px-2 py-2"><MoneyInput label={`بدهکار ردیف ${toFa(i + 1)}`} unit={inUnit} value={r.debit} onChange={(v) => update(r.id, { debit: v, credit: v ? 0 : r.credit })} /></td>
-                    <td className="px-2 py-2"><MoneyInput label={`بستانکار ردیف ${toFa(i + 1)}`} unit={inUnit} value={r.credit} onChange={(v) => update(r.id, { credit: v, debit: v ? 0 : r.debit })} /></td>
-                    <td className="px-2 pt-3">
-                      <button aria-label="حذف ردیف" disabled={rows.length <= 2} onClick={() => setRows((x) => x.filter((y) => y.id !== r.id))} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-danger-soft hover:text-danger disabled:opacity-30">
-                        <Trash2 className="size-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div data-tour="balance" className="flex flex-wrap items-center gap-x-8 gap-y-2 border-t border-border bg-surface-2/80 px-5 py-4">
-            <span className="num text-[13px] text-muted-foreground">جمع بدهکار <b className="text-[15px] text-foreground">{group(totalD)}</b> ریال</span>
-            <span className="num text-[13px] text-muted-foreground">جمع بستانکار <b className="text-[15px] text-foreground">{group(totalC)}</b> ریال</span>
-            <span className="ms-auto">
-              {totalD === 0 ? <Badge><Scale className="size-3" /> منتظر مبلغ</Badge>
-                : balanced ? <Badge tone="success"><Check className="size-3" /> سند تراز است</Badge>
-                : <span className="flex items-center gap-2"><Badge tone="danger"><AlertTriangle className="size-3" /> اختلاف {group(Math.abs(diff))} ریال</Badge><Button size="sm" variant="soft" onClick={balance}>تراز کن</Button></span>}
-            </span>
-          </div>
-        </section>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <Segmented label="روش ثبت" value={mode} onChange={switchMode} items={[["ai", "با دستیار"], ["manual", "دستی"]]} className="text-[13px]" />
+        {mode === "ai" && phase !== "input" && <Button size="sm" variant="ghost" onClick={restart}><RotateCcw /> از اول</Button>}
+        {editing && <span className="num text-[12.5px] text-muted-foreground">ویرایش سند {docNo(editing.m, editing.seq)}</span>}
       </div>
 
-      {/* right rail: the guard + actions */}
-      <aside className="flex flex-col gap-5">
-        <section data-tour="guard" className="panel p-5">
-          <h2 className="flex items-center gap-2 text-[16px] font-extrabold">
-            <span className="ai-edge grid size-5 place-items-center rounded-full text-white"><Sparkles className="size-3" /></span>
-            نگهبان سند
-          </h2>
-          <p className="mt-1 text-[12px] text-muted-foreground">ایجنت کنترل هم‌زمان با نوشتن شما بررسی می‌کند.</p>
-          <ul className="mt-4 flex flex-col gap-3">
-            {checks.map((c) => (
-              <li key={c.id} className="flex gap-3">
-                <span className={cn("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full",
-                  c.state === "ok" && "bg-success-soft text-success", c.state === "warn" && "bg-warning-soft text-warning", c.state === "bad" && "bg-danger-soft text-danger", c.state === "idle" && "bg-muted text-muted-foreground")}>
-                  {c.state === "ok" ? <Check className="size-3.5" /> : c.state === "idle" ? <CircleDashed className="size-3.5" /> : <AlertTriangle className="size-3.5" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-bold">{c.label}</div>
-                  <div className="num text-[12px] leading-5 text-muted-foreground">{c.note}</div>
-                  {c.action && <button onClick={c.action.run} className="mt-1 text-[12px] font-bold text-primary underline-offset-4 hover:underline">{c.action.label}</button>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section data-tour="send" className="panel sticky top-5 flex flex-col gap-2 p-5">
-          <Button size="lg" disabled={!canSend} onClick={send}><Send /> ارسال برای تأیید</Button>
-          <Button variant="outline" onClick={() => toast("پیش‌نویس ت-۰۱۲ ذخیره شد.")}>ذخیره‌ی پیش‌نویس</Button>
-          <button onClick={() => setAttached(true)} className="mt-1 flex items-center justify-center gap-1.5 text-[12.5px] text-muted-foreground hover:text-foreground">
-            <Paperclip className="size-3.5" /> {attached ? "۱ پیوست" : "افزودن پیوست"}
-          </button>
-          {!canSend && totalD > 0 && <p className="text-center text-[12px] text-danger">برای ارسال، سند باید تراز باشد و همه‌ی ردیف‌ها حساب داشته باشند.</p>}
-        </section>
-      </aside>
+      {mode === "ai" && phase !== "review" ? (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex min-w-0 flex-col gap-5">
+            {phase === "input" && <Composer onSubmit={submit} onFile={onFile} seed={voucherSeed?.text ?? ""} />}
+            {phase === "reading" && <Reading key={pendingText.current + via} via={via} file={file} onDone={afterRead} />}
+            {phase === "asking" && draft && slot && <Ask draft={draft} slot={slot} limit={settings.approvalLimit} onAnswer={onAnswer} history={history} />}
+            {phase !== "input" && pendingText.current && (
+              <p className="flex items-start gap-2 px-1 text-[13px] text-muted-foreground">
+                {via === "voice" ? <Mic className="mt-1 size-3.5 shrink-0" /> : via === "file" ? <FileImage className="mt-1 size-3.5 shrink-0" /> : <Keyboard className="mt-1 size-3.5 shrink-0" />}
+                <span>«{pendingText.current}»</span>
+              </p>
+            )}
+          </div>
+          <Rail draft={draft} phase={phase} current={slot} onRedo={redo} />
+        </div>
+      ) : (
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            {mode === "ai" && (
+              <div className="flex items-center gap-3 rounded-[var(--radius)] bg-ai-soft/70 px-4 py-3 text-[13.5px] text-ai-ink animate-rise">
+                <Sparkles className="size-4 shrink-0" />
+                <span className="flex-1"><b>سند آماده است.</b> نگاهی بیندازید؛ هر خانه را می‌توانید همین‌جا تغییر دهید.</span>
+                <PencilLine className="size-4 shrink-0 opacity-70" />
+              </div>
+            )}
+            <VoucherEditor doc={doc} setDoc={setDoc} inUnit={inUnit} setInUnit={setInUnit} />
+          </div>
+          <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
+            {sideActions}
+            <section data-tour="guard" className="panel p-5">
+              <h3 className="mb-3 text-[15px] font-extrabold">بررسی سند</h3>
+              <ChecksList checks={checks} compact />
+            </section>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,263 +1,386 @@
 import * as React from "react";
-import { ArrowLeft, Bell, Check, CheckCheck, FileText, Pin, PinOff, Plus, ShieldCheck, Sparkles, TimerReset, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowUpLeft, ArrowDownLeft, CalendarDays, Check, CheckCheck, FileImage, Mic, Paperclip, Plus, ShieldCheck, Sparkles, TimerReset, Wand2 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { cashActual, cashForecast, inbox, kpis, today, week, type InboxItem } from "@/data/demo";
-import { short, toFa, unitLabel, cn } from "@/lib/utils";
+import { cashActual, cashForecast, catMeta, inbox, kpis, type InboxItem } from "@/data/demo";
+import { reports } from "@/data/reports";
+import { cn, short, toFa, unitLabel } from "@/lib/utils";
+import { dayIndex, diffDays, fmtDay, isToday, monthLength, relDay, TODAY, weekday, WD_SHORT } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { WhyPopover } from "@/components/ai/WhyPopover";
-import { CashChart, Spark } from "@/components/charts";
+import { CashChart, Ring, Spark, StackBars, Treemap, TrendArea } from "@/components/charts";
 
-function AgentMark({ className }: { className?: string }) {
-  return <span className={cn("ai-edge grid size-6 shrink-0 place-items-center rounded-full text-white", className)}><Sparkles className="size-3.5" /></span>;
-}
+const looksLikeEntry = (t: string) => /واریز|پرداخت|دادیم|خرید|دریافت|منتقل|میلیون|میلیارد|تومان|ریال/.test(t);
 
-function Brief() {
-  const { startVoucher, openPalette } = useApp();
-  const Link = ({ children, q }: { children: React.ReactNode; q: string }) => (
-    <button
-      onClick={() => openPalette(q)}
-      className="rounded-md bg-white/12 px-1 font-bold text-white underline decoration-white/55 decoration-2 underline-offset-[7px] transition-colors hover:bg-white/20"
-    >
-      {children}
-    </button>
-  );
-  // The lit gradient pane in both concepts; colours come from --hero-* per concept and theme.
+function HeroLines({ className }: { className?: string }) {
   return (
-    <section data-tour="brief" className="hero-glass relative overflow-hidden p-6 lg:p-7">
-      <div className="pointer-events-none absolute -left-16 -top-24 size-80 rounded-full bg-white/15 blur-3xl" aria-hidden />
-      <div className="pointer-events-none absolute -bottom-28 right-10 size-72 rounded-full bg-[hsl(var(--hero-glow)/0.3)] blur-3xl" aria-hidden />
-      <div className="relative">
-        <div className="flex items-center gap-2 text-[12.5px] font-bold text-white/85">
-          <AgentMark className="bg-none bg-white/20" /> خلاصه‌ی امروز · از ایجنت تحلیل‌گر
-        </div>
-        <p className="num mt-3 max-w-[60ch] text-[19px] font-medium leading-[2.15]">
-          از دیروز <Link q="اسناد دیروز">۲۳ سند</Link> ثبت شده و <Link q="اسناد منتظر تأیید">۳ سند</Link> منتظر تأیید شماست.
-          نقدینگی با رسیدن پول پتروشیمی مارون <Link q="چرا نقدینگی بالا رفت؟">۶٪ بیشتر</Link> شد. <Link q="چک تکین‌کو">چک تکین‌کو</Link> امروز سررسید است.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Button
-            className="bg-white text-[hsl(var(--hero-ink))] hover:bg-white/90"
-            onClick={() => document.getElementById("inbox")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            از مهم‌ترین کار شروع کنید <ArrowLeft />
-          </Button>
-          <Button variant="outline" className="border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={() => startVoucher()}>
-            <Plus /> سند تازه
-          </Button>
-        </div>
-      </div>
-    </section>
+    <svg viewBox="0 0 420 260" className={cn("hero-lines pointer-events-none absolute", className)} fill="none" stroke="white" strokeOpacity=".35" strokeWidth="1.2" strokeLinecap="round" aria-hidden>
+      <path d="M20 200 H110 Q 132 200 148 184 L 268 64 Q 282 50 300 50 A 60 60 0 0 1 360 110 V 190" />
+      <path className="l2" d="M60 230 A 70 70 0 0 0 128 250 Q 150 250 166 234 L 300 100 Q 314 86 332 86 A 40 40 0 0 1 372 126 V 240" />
+      <path className="l3" d="M200 160 H 360" />
+      <path className="l4" d="M250 10 V 50 H 300" />
+      {[[110, 200], [200, 160], [300, 50], [360, 190], [250, 50], [128, 250]].map(([x, y]) => <circle key={`${x}${y}`} cx={x} cy={y} r="3" fill="white" fillOpacity=".7" stroke="none" />)}
+    </svg>
   );
 }
 
-function Kpis() {
-  const { unit } = useApp();
-  return (
-    <section data-tour="kpis" className="panel grid grid-cols-2 xl:grid-cols-4">
-      {kpis.map((k, i) => {
-        const s = short(k.rial, unit);
-        return (
-          <div key={k.id} className={cn("flex flex-col gap-1 p-5", i > 0 && "xl:border-s xl:border-border/70", i % 2 === 1 && "border-s border-border/70 xl:border-s", i > 1 && "border-t border-border/70 xl:border-t-0")}>
-            <div className="flex items-center justify-between text-[12.5px] text-muted-foreground">
-              {k.label}
-              <WhyPopover title={k.label} line={k.why.line} parts={k.why.parts} />
-            </div>
-            <div className="num mt-1 text-[26px] font-extrabold tracking-tight">
-              {s.n} <span className="text-[12px] font-medium text-muted-foreground">{s.s} {unitLabel(unit)}</span>
-            </div>
-            <div className="num text-[12px] text-muted-foreground">
-              <span className={cn("me-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-px font-bold", k.good ? "bg-success-soft text-success" : "bg-danger-soft text-danger")}>
-                {k.delta.startsWith("+") ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}{k.delta.slice(1)}
-              </span>{k.deltaNote}
-            </div>
-            <Spark data={k.series} className="mt-1 text-primary/70" />
-          </div>
-        );
-      })}
-    </section>
-  );
-}
-
-function Today() {
-  const { toast } = useApp();
-  const [items, setItems] = React.useState(today);
-  const [text, setText] = React.useState("");
-  const [sel, setSel] = React.useState(1);
-  const add = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!text.trim()) return;
-    setItems((x) => [...x, { time: "۱۰:۰۰", title: text.replace(/پنجشنبه|ساعت ۱۰/g, "").trim() || text, who: "human", source: "یادآوری شما · پنجشنبه ۲۱ آبان", state: "open" }]);
-    setText("");
-    toast("یادآوری پنجشنبه ۲۱ آبان، ساعت ۱۰ ثبت شد.", "ai");
-  };
-  const stateBadge = (s: string) =>
-    s === "done" ? <Badge tone="success"><Check className="size-3" />انجام شد</Badge>
-    : s === "today" ? <Badge tone="warning">امروز</Badge>
-    : s === "soon" ? <Badge tone="warning">۳ روز مانده</Badge>
-    : <Badge>باز</Badge>;
-  return (
-    <section data-tour="today" className="panel flex flex-col p-5">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-[16px] font-extrabold">امروز</h2>
-        <span className="text-[12px] text-muted-foreground">کارهای شما و ایجنت‌ها، به ترتیب ساعت</span>
-      </div>
-      <div className="mt-4 grid grid-cols-7 gap-1.5" role="tablist" aria-label="روزهای هفته">
-        {week.map((d, i) => (
-          <button
-            key={d.n}
-            role="tab"
-            aria-selected={sel === i}
-            onClick={() => setSel(i)}
-            className={cn("relative flex flex-col items-center rounded-2xl py-2 text-[11.5px] text-muted-foreground transition-colors hover:bg-muted", sel === i && "bg-primary text-primary-foreground hover:bg-primary")}
-          >
-            {d.d}
-            <b className={cn("num text-[15px] text-foreground", sel === i && "text-primary-foreground")}>{d.n}</b>
-            {d.dot && <span className="absolute bottom-1 size-1 rounded-full bg-ai" />}
-          </button>
-        ))}
-      </div>
-      <ol className="mt-3 flex flex-col">
-        {items.map((t, i) => (
-          <li key={i} className="grid grid-cols-[48px_1fr_auto] items-center gap-3 border-t border-border/70 py-3">
-            <span className="num text-[12px] font-semibold text-muted-foreground">{t.time}</span>
-            <div className="min-w-0">
-              <div className="truncate text-[13.5px] font-bold">{t.title}</div>
-              <div className={cn("mt-0.5 flex items-center gap-1 text-[12px]", t.who === "agent" ? "text-ai-ink" : "text-muted-foreground")}>
-                {t.who === "agent" ? <Sparkles className="size-3" /> : <Bell className="size-3" />}
-                {t.source}
-              </div>
-            </div>
-            {stateBadge(t.state)}
-          </li>
-        ))}
-      </ol>
-      <form onSubmit={add} className="mt-auto flex gap-2 pt-3">
-        <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="یک جمله بنویسید: «پنجشنبه ساعت ۱۰ پیگیری چک جم»" aria-label="یادآوری جدید" className="rounded-full" />
-        <Button type="submit" variant="soft" size="icon" aria-label="افزودن یادآوری"><Plus /></Button>
-      </form>
-    </section>
-  );
-}
-
-function Cash() {
-  const { unit } = useApp();
-  return (
-    <section className="panel flex flex-col p-5">
-      <div className="flex items-baseline justify-between">
-        <div><h2 className="text-[16px] font-extrabold">نقدینگی</h2><p className="mt-0.5 text-[12.5px] text-muted-foreground">۱۲ روز گذشته و پیش‌بینی ۱۲ روز آینده · میلیارد {unitLabel(unit)}</p></div>
-        <WhyPopover title="پیش‌بینی نقد" line="۲۲ آبان نقد به حدود ۴۴ میلیارد ریال می‌رسد، چون حقوق و بیمه هم‌زمان پرداخت می‌شوند." parts={[["حقوق آذر", "−۳٫۸ میلیارد"], ["لیست بیمه", "−۱٫۱ میلیارد"], ["دریافت فولاد مبارکه", "+۲٫۴ میلیارد"]]} />
-      </div>
-      <CashChart actual={cashActual} forecast={cashForecast} scale={unit === "rial" ? 1 : 0.1} unit={unitLabel(unit)} />
-      <div className="mt-auto flex flex-wrap gap-4 pt-3 text-[12px] text-muted-foreground">
-        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-primary" />واقعی</span>
-        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-ai" />پیش‌بینی ایجنت نقدینگی</span>
-        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full border-2 border-warning" />کمترین موجودی: ۲۲ آبان</span>
-      </div>
-    </section>
-  );
-}
-
-const kindIcon = { draft: FileText, check: ShieldCheck, approve: CheckCheck, close: TimerReset };
-
-function InboxCard({ item, onDone }: { item: InboxItem; onDone: (id: string, msg: string) => void }) {
-  const { startVoucher } = useApp();
-  const Icon = kindIcon[item.kind];
-  const primary = () => {
-    if (item.kind === "draft") startVoucher("۵۰۰ میلیون تومان از پتروشیمی مارون به حساب پارسیان واریز شد");
-    else if (item.kind === "approve") onDone(item.id, "۱۰ سند تأیید شد و شماره‌ی دائم آبان گرفت.");
-    else onDone(item.id, "باز شد.");
-  };
-  return (
-    <li className="rounded-2xl border border-border/80 bg-surface/80 p-4 transition-shadow hover:shadow-soft">
-      <div className="flex items-center gap-2 text-[12px] font-semibold text-ai-ink">
-        <span className="grid size-6 place-items-center rounded-lg bg-ai-soft"><Icon className="size-3.5" /></span>
-        {item.agent}
-        {item.confidence && <span className="num ms-auto text-[11.5px] font-medium text-muted-foreground">اطمینان {item.confidence}</span>}
-      </div>
-      <div className="mt-2 text-[14px] font-bold">{item.title}</div>
-      <p className="num mt-0.5 text-[13px] leading-6 text-muted-foreground">{item.detail}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button size="sm" onClick={primary}>{item.primary}</Button>
-        {item.secondary && <Button size="sm" variant="outline" onClick={() => onDone(item.id, "ثبت شد. ایجنت کنترل از این به بعد این مورد را می‌شناسد.")}>{item.secondary}</Button>}
-      </div>
-    </li>
-  );
-}
-
-function Inbox() {
-  const { toast } = useApp();
+function useDecisions() {
+  const { startVoucher, go, toast, openCalendar, docs } = useApp();
   const [items, setItems] = React.useState(inbox);
-  const done = (id: string, msg: string) => { setItems((x) => x.filter((i) => i.id !== id)); toast(msg); };
-  return (
-    <section id="inbox" data-tour="inbox" className="panel flex flex-col p-5">
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-[16px] font-extrabold"><AgentMark className="size-5" /> منتظر تصمیم شما</h2>
-        <span className="num rounded-full bg-ai-soft px-2.5 text-[12px] font-bold text-ai-ink">{toFa(items.length)}</span>
-      </div>
-      <p className="mt-1 text-[12px] text-muted-foreground">ایجنت‌ها آماده می‌کنند، شما تصمیم می‌گیرید.</p>
-      {items.length ? (
-        <ul className="mt-4 flex flex-col gap-3">{items.map((i) => <InboxCard key={i.id} item={i} onDone={done} />)}</ul>
-      ) : (
-        <div className="mt-8 flex flex-col items-center gap-2 py-8 text-center">
-          <span className="grid size-12 place-items-center rounded-full bg-success-soft text-success"><CheckCheck /></span>
-          <b className="text-[14px]">کار امروز تمام شد</b>
-          <span className="text-[12.5px] text-muted-foreground">هر کار تازه‌ای برسد، همین‌جا می‌بینید.</span>
-        </div>
-      )}
-      <div className="mt-auto flex items-center gap-2 pt-4 text-[12px] text-muted-foreground">
-        <span className="size-1.5 animate-pulse rounded-full bg-ai" /> ایجنت کنترل امروز ۲۳ سند را بررسی کرده است
-      </div>
-    </section>
-  );
+  const pending = docs.filter((d) => d.status === "pending").length;
+  const live = items.map((i) => (i.kind === "approve" ? { ...i, title: pending ? `${toFa(pending)} سند منتظر تأیید شما` : "سندی منتظر تأیید نیست" } : i)).filter((i) => i.kind !== "approve" || pending);
+  const remove = (id: string, msg?: string) => { setItems((x) => x.filter((i) => i.id !== id)); if (msg) toast(msg); };
+  const primary = (i: InboxItem) => {
+    if (i.kind === "draft") { remove(i.id); startVoucher({ file: true }); }
+    else if (i.kind === "approve") go("documents");
+    else if (i.kind === "check") go("documents");
+    else openCalendar({ m: 8, d: 30 });
+  };
+  return { items: live, primary, remove };
 }
+const kindIcon = { draft: FileImage, check: ShieldCheck, approve: CheckCheck, close: TimerReset };
 
-function Pinned() {
-  const { pinned, unpin, openPalette } = useApp();
+/* =====================================================================
+   Concept 1 «دستیار»: one conversation surface, then the few numbers that matter
+   ===================================================================== */
+function AssistHero() {
+  const { startVoucher, openPalette, docs } = useApp();
+  const [text, setText] = React.useState("");
+  const pending = docs.filter((d) => d.status === "pending").length;
+  const go = (t = text) => { if (!t.trim()) return; looksLikeEntry(t) ? startVoucher({ text: t }) : openPalette(t); };
+  const L = ({ children, q }: { children: React.ReactNode; q: string }) => (
+    <button onClick={() => openPalette(q)} className="rounded-md px-0.5 font-extrabold text-white underline decoration-white/50 decoration-2 underline-offset-[7px] transition-colors hover:bg-white/15">{children}</button>
+  );
   return (
-    <section data-tour="pinned" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-[14px] font-extrabold">سنجاق‌شده‌ها</h2>
-        <span className="text-[12px] text-muted-foreground">جواب‌هایی که می‌خواهید هر روز ببینید</span>
-      </div>
-      {pinned.length === 0 ? (
-        <button onClick={() => openPalette("مانده‌ی بانک‌ها")} className="flex items-center gap-3 rounded-[var(--radius)] border border-dashed border-ai/40 bg-surface/50 p-4 text-start text-[13px] text-muted-foreground transition-colors hover:bg-ai-soft/50">
-          <Pin className="size-4 text-ai" /> بپرسید «مانده‌ی بانک‌ها» و جوابش را سنجاق کنید. این صفحه با سؤال‌های خودتان کامل می‌شود.
-        </button>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {pinned.map((p) => (
-            <div key={p.id} className="panel-data p-4 animate-in fade-in-0 zoom-in-95">
-              <div className="flex items-center justify-between">
-                <b className="text-[14px]">{p.title}</b>
-                <button aria-label="برداشتن سنجاق" onClick={() => unpin(p.id)} className="text-muted-foreground hover:text-foreground"><PinOff className="size-4" /></button>
-              </div>
-              <ul className="mt-2 divide-y divide-border">
-                {p.rows.map(([k, v]) => <li key={k} className="num flex justify-between py-1.5 text-[13px]"><span>{k}</span><b>{v}</b></li>)}
-              </ul>
-              <p className="mt-2 text-[11.5px] text-muted-foreground">{p.note}</p>
-            </div>
+    <section data-tour="hero" className="hero relative overflow-hidden p-6 lg:p-8">
+      <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" aria-hidden />
+      <HeroLines className="-bottom-6 left-0 hidden h-[115%] w-auto opacity-90 md:block" />
+      <div className="relative max-w-[680px]">
+        <div className="flex items-center gap-2 text-[12.5px] font-bold text-white/85"><Sparkles className="size-4" /> امروز در یک نگاه</div>
+        <p className="num mt-3 text-[20px] font-medium leading-[2.1] lg:text-[22px]">
+          <L q="اسناد منتظر تأیید">{toFa(pending)} سند</L> منتظر تأیید شماست و <L q="چک تکین‌کو">چک تکین‌کو</L> امروز سررسید است.
+          نقدینگی <L q="چرا نقدینگی بالا رفت؟">۶٪ بیشتر</L> شد.
+        </p>
+        <form onSubmit={(e) => { e.preventDefault(); go(); }} className="mt-5 flex items-center gap-1.5 rounded-full bg-white p-1.5 ps-5 shadow-[0_18px_40px_-18px_rgb(0_0_0/0.5)]">
+          <input value={text} onChange={(e) => setText(e.target.value)} aria-label="به دستیار بگویید"
+            placeholder="بگویید چه شد؛ مثلاً «۵۰۰ میلیون تومان از مارون واریز شد»"
+            className="h-11 min-w-0 flex-1 bg-transparent text-[14.5px] text-[#0F2341] outline-none placeholder:text-[#5B6B80]" />
+          <button type="button" aria-label="گفتن با صدا" onClick={() => startVoucher()} className="grid size-11 shrink-0 place-items-center rounded-full text-[#1E3A6E] hover:bg-[#EEF3FB]"><Mic className="size-5" /></button>
+          <button type="button" aria-label="فرستادن فیش" onClick={() => startVoucher({ file: true })} className="grid size-11 shrink-0 place-items-center rounded-full text-[#1E3A6E] hover:bg-[#EEF3FB]"><Paperclip className="size-5" /></button>
+          <Button type="submit" variant="ai" className="h-11 shrink-0 px-5"><Wand2 /> ساختن سند</Button>
+        </form>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[["فیش را بفرستید", () => startVoucher({ file: true })], ["مانده‌ی بانک‌ها", () => openPalette("مانده‌ی بانک‌ها")], ["صورت‌حساب مشتری‌ها", () => openPalette("صورت‌حساب مشتری‌ها")]].map(([l, fn]) => (
+            <button key={l as string} onClick={fn as () => void} className="h-8 rounded-full border border-white/30 bg-white/10 px-3.5 text-[12.5px] font-semibold text-white backdrop-blur transition-colors hover:bg-white/20">{l as string}</button>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function KpiCard({ k, compact }: { k: (typeof kpis)[number]; compact?: boolean }) {
+  const { unit } = useApp();
+  const s = short(k.rial, unit);
+  const up = k.delta > 0;
+  const u = unitLabel(unit);
+  const fmt = (v: number) => `${toFa(String(+((unit === "rial" ? v : v / 10)).toFixed(2))).replace(".", "٫")} میلیارد ${u}`;
+  return (
+    <div className={cn("panel relative flex flex-col overflow-hidden p-5", compact ? "min-h-[178px]" : "min-h-[208px]")}>
+      <div className="flex items-center gap-2">
+        <span className="text-[13.5px] font-bold">{k.label}</span>
+        <span className={cn("num ms-auto inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 text-[12px] font-bold", k.good ? "bg-success-soft text-success" : "bg-danger-soft text-danger")}>
+          {up ? <ArrowUpLeft className="size-3.5" /> : <ArrowDownLeft className="size-3.5" />}{toFa(Math.abs(k.delta).toFixed(1)).replace(".", "٫")}٪
+        </span>
+        <WhyPopover title={k.label} line={k.why.line} parts={k.why.parts} />
+      </div>
+      <span className="text-[11.5px] text-muted-foreground">۳۰ روز گذشته</span>
+      <div className="relative z-10 mt-auto">
+        <div className="num text-[34px] font-extrabold leading-none tracking-tight">{s.n}</div>
+        <div className="num mt-1.5 text-[12px] text-muted-foreground">{s.s} {u} · <span className={k.good ? "text-success" : "text-danger"}>{k.today}</span></div>
+      </div>
+      <TrendArea data={k.series} tone={k.id === "pl" ? "ai" : "primary"} fmt={fmt} labelFor={(i) => { const d = TODAY.d - i; return d > 0 ? fmtDay(8, d) : fmtDay(7, 30 + d); }}
+        className="absolute bottom-0 left-0 h-[58%] w-[62%]" />
+    </div>
+  );
+}
+
+function Decisions({ layout = "list" }: { layout?: "list" | "grid" }) {
+  const { items, primary, remove } = useDecisions();
+  return (
+    <section data-tour="inbox" className="panel flex flex-col p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[16px] font-extrabold">منتظر تصمیم شما</h2>
+        <span className="num rounded-full bg-ai-soft px-2.5 text-[12px] font-bold text-ai-ink">{toFa(items.length)}</span>
+      </div>
+      {items.length ? (
+        <ul className={cn("mt-3", layout === "grid" ? "grid gap-3 sm:grid-cols-2" : "flex flex-col")}>
+          {items.map((i) => {
+            const I = kindIcon[i.kind];
+            return (
+              <li key={i.id} className={cn("flex flex-wrap items-center gap-3 animate-rise sm:flex-nowrap", layout === "grid" ? "rounded-2xl border border-border/70 bg-surface/60 p-3" : "border-t border-border/60 py-3 first:border-t-0")}>
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-ai-soft text-ai-ink"><I className="size-4" /></span>
+                <div className="min-w-0 flex-1 basis-40">
+                  <div className="truncate text-[13.5px] font-bold">{i.title}</div>
+                  <div className="num truncate text-[12px] text-muted-foreground">{i.detail}</div>
+                </div>
+                {i.secondary && <Button size="sm" variant="ghost" onClick={() => remove(i.id, "یادم ماند؛ این دو سند تکراری نیستند.")}>{i.secondary}</Button>}
+                <Button size="sm" variant="soft" onClick={() => primary(i)}>{i.primary}</Button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center">
+          <span className="grid size-11 place-items-center rounded-full bg-success-soft text-success"><Check /></span>
+          <b className="text-[14px]">کاری نمانده</b>
+        </div>
       )}
     </section>
+  );
+}
+
+function Agenda() {
+  const { events, openCalendar, toggleEvent, unit } = useApp();
+  const [sel, setSel] = React.useState<number>(TODAY.d);
+  const days = Array.from({ length: 7 }, (_, i) => TODAY.d - 1 + i);
+  const list = events.filter((e) => e.m === TODAY.m && e.d === sel);
+  return (
+    <section data-tour="today" className="panel flex flex-col p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[16px] font-extrabold">برنامه</h2>
+        <button onClick={() => openCalendar({ m: TODAY.m, d: sel })} className="flex items-center gap-1 text-[12.5px] font-bold text-primary hover:underline"><CalendarDays className="size-4" /> تقویم</button>
+      </div>
+      <div className="mt-3 grid grid-cols-7 gap-1" role="tablist" aria-label="روزهای هفته">
+        {days.map((d) => {
+          const has = events.some((e) => e.m === TODAY.m && e.d === d && !e.done);
+          return (
+            <button key={d} role="tab" aria-selected={sel === d} onClick={() => setSel(d)}
+              className={cn("relative flex flex-col items-center rounded-2xl py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted", sel === d && "bg-primary text-primary-foreground hover:bg-primary")}>
+              {WD_SHORT[weekday(TODAY.m, d)]}
+              <b className={cn("num text-[14px] text-foreground", sel === d && "text-primary-foreground")}>{toFa(d)}</b>
+              {has && <span className={cn("absolute bottom-0.5 size-1 rounded-full bg-ai", sel === d && "bg-white")} />}
+            </button>
+          );
+        })}
+      </div>
+      <ul className="mt-2">
+        {list.map((e) => (
+          <li key={e.id} className="flex items-center gap-3 border-t border-border/60 py-2.5 first:border-t-0">
+            <input type="checkbox" checked={!!e.done} onChange={() => toggleEvent(e.id)} aria-label={`انجام شد: ${e.title}`} className="size-4 accent-[hsl(var(--primary))]" />
+            <span className="size-2 shrink-0 rounded-full" style={{ background: `hsl(${catMeta[e.cat].color})` }} />
+            <div className="min-w-0 flex-1">
+              <div className={cn("truncate text-[13.5px] font-bold", e.done && "text-muted-foreground line-through decoration-1")}>{e.title}</div>
+              <div className="num text-[12px] text-muted-foreground">{e.time ? `ساعت ${e.time}` : catMeta[e.cat].label}{e.amount ? ` · ${short(e.amount, unit).n} ${short(e.amount, unit).s}` : ""}</div>
+            </div>
+          </li>
+        ))}
+        {!list.length && <li className="py-6 text-center text-[13px] text-muted-foreground">برنامه‌ای ندارید.</li>}
+      </ul>
+    </section>
+  );
+}
+
+function AssistDashboard() {
+  return (
+    <div className="flex flex-col gap-5">
+      <AssistHero />
+      <div data-tour="kpis" className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+        {kpis.map((k) => <KpiCard key={k.id} k={k} />)}
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <Decisions />
+        <Agenda />
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================================
+   Concept 2 «پیشخوان»: a bento board, every answer one glance away
+   ===================================================================== */
+function BentoHero() {
+  const { docs, events, startVoucher, go } = useApp();
+  const pending = docs.filter((d) => d.status === "pending").length;
+  const todayLeft = events.filter((e) => isToday(e.m, e.d) && !e.done).length;
+  const stats: [string, string][] = [[toFa(pending), "سند منتظر تأیید"], [toFa(todayLeft), "کار امروز"], ["۸۰٪", "آماده‌ی بستن آبان"]];
+  return (
+    <section data-tour="hero" className="hero relative flex flex-col overflow-hidden p-6">
+      <HeroLines className="-left-10 -top-6 h-[120%] w-auto opacity-70" />
+      <div className="relative">
+        <div className="text-[12.5px] font-bold text-white/80">صبح یکشنبه</div>
+        <h2 className="mt-1 text-[22px] font-extrabold leading-9">سه کار مهم امروز آماده است.</h2>
+      </div>
+      <dl className="relative mt-5 grid grid-cols-3 gap-2">
+        {stats.map(([n, l]) => (
+          <div key={l} className="rounded-2xl bg-white/12 p-3">
+            <dt className="text-[11.5px] text-white/80">{l}</dt>
+            <dd className="num text-[24px] font-extrabold">{n}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="relative mt-auto flex flex-wrap gap-2 pt-5">
+        <Button className="bg-white text-[hsl(var(--hero-ink))] hover:bg-white/90" onClick={() => go("documents")}>شروع با تأییدها <ArrowLeft /></Button>
+        <Button variant="outline" className="border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={() => startVoucher()}><Plus /> سند تازه</Button>
+      </div>
+    </section>
+  );
+}
+
+function CashTile() {
+  const { unit } = useApp();
+  const s = short(48_250_000_000, unit);
+  return (
+    <section className="panel flex flex-col p-5">
+      <div className="flex items-start gap-3">
+        <div>
+          <h2 className="text-[13.5px] font-bold text-muted-foreground">نقد و بانک</h2>
+          <div className="num mt-1 text-[30px] font-extrabold leading-none">{s.n} <span className="text-[13px] font-medium text-muted-foreground">{s.s} {unitLabel(unit)}</span></div>
+        </div>
+        <WhyPopover className="ms-auto" title="پیش‌بینی نقد" line="۲۲ آبان نقد به حدود ۴۴ میلیارد ریال می‌رسد، چون حقوق و بیمه هم‌زمان پرداخت می‌شوند." parts={[["حقوق آبان", "−۳٫۸ میلیارد"], ["لیست بیمه", "−۱٫۱ میلیارد"], ["دریافت فولاد مبارکه", "+۲٫۴ میلیارد"]]} />
+      </div>
+      <CashChart actual={cashActual} forecast={cashForecast} scale={unit === "rial" ? 1 : 0.1} unit={unitLabel(unit)} minH={200} />
+      <div className="flex flex-wrap gap-4 pt-2 text-[12px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-primary" />واقعی</span>
+        <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 rounded bg-ai" />پیش‌بینی</span>
+        <span className="flex items-center gap-1.5"><i className="size-2 rounded-full border-2 border-warning" />کمترین: ۲۲ آبان</span>
+      </div>
+    </section>
+  );
+}
+
+function MiniKpi({ k }: { k: (typeof kpis)[number] }) {
+  const { unit } = useApp();
+  const s = short(k.rial, unit);
+  return (
+    <div className="panel flex flex-col p-4">
+      <div className="flex items-center gap-2 text-[12.5px] font-bold text-muted-foreground">
+        {k.label}
+        <span className={cn("num ms-auto inline-flex items-center gap-0.5 rounded-md px-1.5 text-[11.5px] font-bold", k.good ? "bg-success-soft text-success" : "bg-danger-soft text-danger")}>{k.delta > 0 ? <ArrowUpLeft className="size-3" /> : <ArrowDownLeft className="size-3" />}{toFa(Math.abs(k.delta).toFixed(1)).replace(".", "٫")}٪</span>
+      </div>
+      <div className="num mt-2 text-[24px] font-extrabold leading-none">{s.n} <span className="text-[11.5px] font-medium text-muted-foreground">{s.s}</span></div>
+      <Spark data={k.series} className={cn("mt-3 h-9", k.id === "pl" ? "text-ai" : "text-primary")} />
+    </div>
+  );
+}
+
+function ApprovalTile() {
+  const { docs, go } = useApp();
+  const pending = docs.filter((d) => d.status === "pending").length;
+  const posted = docs.filter((d) => d.status === "posted").length;
+  return (
+    <button onClick={() => go("documents")} className="panel flex items-center gap-4 p-4 text-start transition-shadow hover:shadow-lift">
+      <Ring value={posted / docs.length} size={84} stroke={8}>
+        <span className="num text-[18px] font-extrabold leading-none">{toFa(Math.round((posted / docs.length) * 100))}٪</span>
+      </Ring>
+      <div>
+        <div className="text-[12.5px] font-bold text-muted-foreground">اسناد آبان</div>
+        <div className="num mt-1 text-[13px]"><b className="text-[18px]">{toFa(posted)}</b> ثبت‌شده</div>
+        <div className="num text-[12.5px] text-warning">{toFa(pending)} منتظر تأیید</div>
+      </div>
+    </button>
+  );
+}
+
+function MonthTile() {
+  const { events, openCalendar } = useApp();
+  const len = monthLength(TODAY.m), lead = weekday(TODAY.m, 1);
+  const next = events.filter((e) => !e.done && diffDays(e.m, e.d) >= 0).sort((a, b) => dayIndex(a.m, a.d) - dayIndex(b.m, b.d))[0];
+  return (
+    <section className="panel flex flex-col p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[14px] font-extrabold">آبان</h2>
+        <button onClick={() => openCalendar()} className="text-[12px] font-bold text-primary hover:underline">تقویم کامل</button>
+      </div>
+      <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[10.5px] text-muted-foreground">{WD_SHORT.map((w) => <span key={w}>{w}</span>)}</div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {Array.from({ length: lead }).map((_, i) => <span key={"b" + i} />)}
+        {Array.from({ length: len }, (_, i) => i + 1).map((d) => {
+          const ev = events.filter((e) => e.m === TODAY.m && e.d === d);
+          const open = ev.filter((e) => !e.done);
+          return (
+            <button key={d} onClick={() => openCalendar({ m: TODAY.m, d })} aria-label={`${fmtDay(TODAY.m, d)}${ev.length ? `، ${toFa(ev.length)} مورد` : ""}`}
+              className={cn("num relative grid aspect-square place-items-center rounded-lg text-[11.5px] transition-colors hover:ring-1 hover:ring-primary/40",
+                open.length ? "font-bold" : "text-muted-foreground", isToday(TODAY.m, d) && "bg-primary text-primary-foreground")}
+              style={open.length && !isToday(TODAY.m, d) ? { background: `hsl(${catMeta[open[0].cat].color} / 0.16)` } : undefined}>
+              {toFa(d)}
+            </button>
+          );
+        })}
+      </div>
+      {next && <p className="num mt-3 truncate text-[12px] text-muted-foreground">بعدی: <b className="text-foreground">{next.title}</b> · {relDay(next.m, next.d)}</p>}
+    </section>
+  );
+}
+
+function AgingTile() {
+  const { openReport } = useApp();
+  const r = reports.find((x) => x.id === "aging")!;
+  return (
+    <section className="panel flex flex-col p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[14px] font-extrabold">عمر طلب‌ها</h2>
+        <button onClick={() => openReport("aging")} className="text-[12px] font-bold text-primary hover:underline">گزارش</button>
+      </div>
+      <StackBars rows={r.rows.map((x) => ({ label: String(x.item), values: [x.a, x.b, x.c, x.d] as number[] }))} keys={["جاری", "تا ۳۰", "تا ۶۰", "بیش از ۶۰ روز"]} colors={["--seq-1", "--seq-2", "--seq-3", "--seq-4"]} />
+    </section>
+  );
+}
+
+function SpendTile() {
+  const { openReport, unit } = useApp();
+  const r = reports.find((x) => x.id === "expmix")!;
+  return (
+    <section className="panel flex flex-col p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[14px] font-extrabold">هزینه‌های آبان</h2>
+        <button onClick={() => openReport("expmix")} className="text-[12px] font-bold text-primary hover:underline">گزارش</button>
+      </div>
+      <Treemap height={230} items={[...r.rows.slice(0, 3).map((x) => [String(x.item), (x.v as number) / (unit === "toman" ? 10 : 1)] as [string, number]), ["سایر", r.rows.slice(3).reduce((a, x) => a + (x.v as number), 0) / (unit === "toman" ? 10 : 1)]]} unit={`میلیارد ${unitLabel(unit)}`} onPick={() => openReport("expmix")} />
+    </section>
+  );
+}
+
+function CloseTile() {
+  const steps: [string, boolean][] = [["همه‌ی اسناد ثبت شد", false], ["تطبیق بانک پارسیان", true], ["تطبیق بانک ملت", false], ["استهلاک آبان", true], ["حقوق و بیمه", true]];
+  const done = steps.filter((s) => s[1]).length;
+  return (
+    <section className="panel flex flex-col p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[14px] font-extrabold">بستن آبان</h2>
+        <span className="num text-[12px] text-muted-foreground">{toFa(done)} از {toFa(steps.length)}</span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full ai-edge" style={{ width: `${(done / steps.length) * 100}%` }} /></div>
+      <ul className="mt-3 flex flex-col gap-1.5">
+        {steps.map(([l, ok]) => (
+          <li key={l} className={cn("flex items-center gap-2 text-[12.5px]", ok && "text-muted-foreground")}>
+            <span className={cn("grid size-4 place-items-center rounded-full", ok ? "bg-ai text-white" : "border border-border")}>{ok && <Check className="size-2.5" strokeWidth={3} />}</span>{l}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function BentoDashboard() {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12 [&>div]:min-w-0 [&>div>*]:h-full">
+      <div className="md:col-span-6 xl:col-span-5"><BentoHero /></div>
+      <div className="md:col-span-6 xl:col-span-7"><CashTile /></div>
+      <div data-tour="kpis" className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:col-span-6 xl:col-span-9">
+        {kpis.slice(1).map((k) => <MiniKpi key={k.id} k={k} />)}
+      </div>
+      <div className="md:col-span-6 xl:col-span-3"><ApprovalTile /></div>
+      <div className="md:col-span-3 xl:col-span-3"><MonthTile /></div>
+      <div className="md:col-span-3 xl:col-span-5"><AgingTile /></div>
+      <div className="md:col-span-6 xl:col-span-4"><SpendTile /></div>
+      <div className="md:col-span-6 xl:col-span-7"><Decisions layout="grid" /></div>
+      <div className="md:col-span-6 xl:col-span-5"><CloseTile /></div>
+    </div>
   );
 }
 
 export function Dashboard() {
-  return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="flex min-w-0 flex-col gap-5">
-        <Brief />
-        <Kpis />
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Today />
-          <Cash />
-        </div>
-        <Pinned />
-      </div>
-      <Inbox />
-    </div>
-  );
+  const { concept } = useApp();
+  return concept === "bento" ? <BentoDashboard /> : <AssistDashboard />;
 }
+

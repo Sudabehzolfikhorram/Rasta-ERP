@@ -7,9 +7,14 @@ import { Tour } from "@/components/tour/Tour";
 import { Toasts } from "@/components/shell/Toasts";
 import { Dashboard } from "@/pages/Dashboard";
 import { Voucher } from "@/pages/Voucher";
+import { Documents } from "@/pages/Documents";
+import { Reports } from "@/pages/Reports";
+import { Calendar } from "@/pages/Calendar";
+import { Settings } from "@/pages/Settings";
+import { Background } from "@/components/shell/Background";
 
 function Shell() {
-  const { page, openPalette } = useApp();
+  const { page, openPalette, voucherSeed, reportSeed, calDay } = useApp();
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(); }
@@ -19,12 +24,20 @@ function Shell() {
   }, [openPalette]);
 
   return (
-    <div className="field min-h-screen">
-      <div className="mx-auto flex min-h-screen max-w-[1600px] gap-5 p-4 lg:p-5">
+    <div className="relative min-h-screen">
+      <Background />
+      <div className="relative mx-auto flex min-h-screen max-w-[1680px] gap-5 p-4 pb-24 md:pb-5 lg:p-5">
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col gap-5">
           <Topbar />
-          {page === "dashboard" ? <Dashboard /> : <Voucher />}
+          <div key={page} className="flex min-w-0 flex-col gap-5 animate-rise">
+            {page === "dashboard" && <Dashboard />}
+            {page === "voucher" && <Voucher key={voucherSeed?.n ?? 0} />}
+            {page === "documents" && <Documents />}
+            {page === "reports" && <Reports key={reportSeed ?? ""} />}
+            {page === "calendar" && <Calendar key={calDay ? `${calDay.m}-${calDay.d}` : ""} />}
+            {page === "settings" && <Settings />}
+          </div>
         </main>
       </div>
       <CommandPalette />

@@ -1,56 +1,149 @@
 // All figures are synthetic demo data for the design concept.
-export type Account = { code: string; name: string; path: string; nature: "بدهکار" | "بستانکار" };
+
+export type AccountGroup = { id: string; label: string; path: string };
+export type Account = { code: string; name: string; group: string; nature: "بدهکار" | "بستانکار" };
+
+export const groups: AccountGroup[] = [
+  { id: "cash", label: "بانک و صندوق", path: "دارایی‌های جاری › موجودی نقد" },
+  { id: "ar", label: "مشتریان", path: "دارایی‌های جاری › دریافتنی‌های تجاری" },
+  { id: "notes", label: "چک‌های دریافتنی", path: "دارایی‌های جاری › اسناد دریافتنی" },
+  { id: "ap", label: "تأمین‌کنندگان", path: "بدهی‌های جاری › پرداختنی‌های تجاری" },
+  { id: "tax", label: "مالیات و بیمه", path: "بدهی‌های جاری › مالیات و بیمه‌ی پرداختنی" },
+  { id: "loan", label: "وام و تسهیلات", path: "بدهی‌ها › تسهیلات مالی" },
+  { id: "rev", label: "درآمد", path: "درآمدهای عملیاتی" },
+  { id: "exp", label: "هزینه‌ها", path: "هزینه‌های عملیاتی" },
+];
 
 export const accounts: Account[] = [
-  { code: "1-101-100001", name: "بانک پارسیان · جاری ۴۴۱۰", path: "دارایی‌های جاری › موجودی نقد و بانک", nature: "بدهکار" },
-  { code: "1-101-100003", name: "بانک پارسیان · سپرده ۹۱۰۲", path: "دارایی‌های جاری › موجودی نقد و بانک", nature: "بدهکار" },
-  { code: "1-101-100002", name: "بانک ملت · جاری ۸۸۲۰", path: "دارایی‌های جاری › موجودی نقد و بانک", nature: "بدهکار" },
-  { code: "1-101-100010", name: "صندوق مرکزی", path: "دارایی‌های جاری › موجودی نقد و بانک", nature: "بدهکار" },
-  { code: "1-103-300014", name: "پتروشیمی مارون", path: "دارایی‌های جاری › حساب‌های دریافتنی تجاری", nature: "بدهکار" },
-  { code: "1-103-300021", name: "فولاد مبارکه", path: "دارایی‌های جاری › حساب‌های دریافتنی تجاری", nature: "بدهکار" },
-  { code: "3-301-500007", name: "تکین‌کو", path: "بدهی‌های جاری › حساب‌های پرداختنی تجاری", nature: "بستانکار" },
-  { code: "6-601-700003", name: "هزینه حمل‌ونقل", path: "هزینه‌های عملیاتی › هزینه‌های توزیع", nature: "بدهکار" },
-  { code: "6-602-700011", name: "کارمزد خدمات بانکی", path: "هزینه‌های عملیاتی › هزینه‌های مالی", nature: "بدهکار" },
-  { code: "6-605-700020", name: "هزینه اجاره دفتر مرکزی", path: "هزینه‌های عملیاتی › هزینه‌های اداری", nature: "بدهکار" },
-  { code: "4-401-600001", name: "فروش محصولات", path: "درآمدها › درآمد عملیاتی", nature: "بستانکار" },
+  { code: "1-101-100001", name: "بانک پارسیان · جاری ۴۴۱۰", group: "cash", nature: "بدهکار" },
+  { code: "1-101-100003", name: "بانک پارسیان · سپرده ۹۱۰۲", group: "cash", nature: "بدهکار" },
+  { code: "1-101-100002", name: "بانک ملت · جاری ۸۸۲۰", group: "cash", nature: "بدهکار" },
+  { code: "1-101-100010", name: "صندوق مرکزی", group: "cash", nature: "بدهکار" },
+  { code: "1-101-100020", name: "تنخواه دفتر مرکزی", group: "cash", nature: "بدهکار" },
+  { code: "1-103-300014", name: "پتروشیمی مارون", group: "ar", nature: "بدهکار" },
+  { code: "1-103-300021", name: "فولاد مبارکه", group: "ar", nature: "بدهکار" },
+  { code: "1-103-300030", name: "پخش البرز", group: "ar", nature: "بدهکار" },
+  { code: "1-103-300042", name: "سیمان تهران", group: "ar", nature: "بدهکار" },
+  { code: "1-104-310001", name: "چک‌های در جریان وصول", group: "notes", nature: "بدهکار" },
+  { code: "3-301-500007", name: "تکین‌کو", group: "ap", nature: "بستانکار" },
+  { code: "3-301-500012", name: "حمل‌ونقل آریا", group: "ap", nature: "بستانکار" },
+  { code: "3-301-500019", name: "کاغذ و بسته‌بندی نوین", group: "ap", nature: "بستانکار" },
+  { code: "3-305-520001", name: "مالیات بر ارزش افزوده", group: "tax", nature: "بستانکار" },
+  { code: "3-305-520002", name: "حق بیمه‌ی پرداختنی", group: "tax", nature: "بستانکار" },
+  { code: "3-305-520003", name: "مالیات حقوق", group: "tax", nature: "بستانکار" },
+  { code: "3-310-530001", name: "تسهیلات بانک ملت", group: "loan", nature: "بستانکار" },
+  { code: "4-401-600001", name: "فروش محصولات", group: "rev", nature: "بستانکار" },
+  { code: "4-401-600002", name: "درآمد خدمات", group: "rev", nature: "بستانکار" },
+  { code: "6-601-700003", name: "هزینه‌ی حمل‌ونقل", group: "exp", nature: "بدهکار" },
+  { code: "6-602-700011", name: "کارمزد بانکی", group: "exp", nature: "بدهکار" },
+  { code: "6-605-700020", name: "اجاره‌ی دفتر مرکزی", group: "exp", nature: "بدهکار" },
+  { code: "6-606-700030", name: "حقوق و دستمزد", group: "exp", nature: "بدهکار" },
+  { code: "6-607-700041", name: "ملزومات اداری", group: "exp", nature: "بدهکار" },
+  { code: "6-607-700045", name: "پذیرایی و تشریفات", group: "exp", nature: "بدهکار" },
 ];
+
+export const accountBy = (code: string | null | undefined) => accounts.find((a) => a.code === code);
+export const groupOf = (code: string) => groups.find((g) => g.id === accountBy(code)?.group);
+
+/* ---------- documents ---------- */
+export type DocStatus = "draft" | "pending" | "posted";
+export type DocKind = "receipt" | "payment" | "transfer" | "cheque" | "general";
+export type DocSource = "ai" | "voice" | "file" | "manual";
+export type DocLine = { id: number; account: string | null; desc: string; debit: number; credit: number; ai?: boolean };
+export type Doc = {
+  id: string; seq: number; m: number; d: number; title: string; kind: DocKind; status: DocStatus; source: DocSource;
+  lines: DocLine[]; attachments: string[]; by: string; fresh?: boolean;
+};
+
+export const kindLabel: Record<DocKind, string> = { receipt: "دریافت", payment: "پرداخت", transfer: "انتقال", cheque: "چک", general: "عمومی" };
+export const statusLabel: Record<DocStatus, string> = { draft: "پیش‌نویس", pending: "منتظر تأیید", posted: "ثبت‌شده" };
+export const sourceLabel: Record<DocSource, string> = { ai: "دستیار", voice: "پیام صوتی", file: "از فایل", manual: "دستی" };
+
+let lid = 1000;
+const L = (account: string, desc: string, debit: number, credit = 0): DocLine => ({ id: lid++, account, desc, debit, credit });
+const pair = (dr: string, cr: string, amount: number, desc: string) => [L(dr, desc, amount), L(cr, desc, 0, amount)];
+
+export const seedDocs: Doc[] = [
+  { id: "d42", seq: 42, m: 8, d: 16, title: "دریافت از فولاد مبارکه", kind: "receipt", status: "pending", source: "file", by: "سارا احمدی", attachments: ["فیش-واریز-۰۹۱۲.jpg"], lines: pair("1-101-100002", "1-103-300021", 2_400_000_000, "دریافت از فولاد مبارکه") },
+  { id: "d41", seq: 41, m: 8, d: 16, title: "کارمزد خدمات بانکی آبان", kind: "payment", status: "pending", source: "ai", by: "دستیار راستا", attachments: [], lines: pair("6-602-700011", "1-101-100001", 12_000_000, "کارمزد خدمات بانکی") },
+  { id: "d40", seq: 40, m: 8, d: 15, title: "کرایه‌ی حمل بار به اصفهان", kind: "payment", status: "posted", source: "voice", by: "علی رضایی", attachments: ["بارنامه-۳۳۱.pdf"], lines: pair("6-601-700003", "1-101-100010", 120_000_000, "کرایه‌ی حمل بار") },
+  { id: "d39", seq: 39, m: 8, d: 15, title: "انتقال از سپرده به جاری پارسیان", kind: "transfer", status: "posted", source: "manual", by: "سارا احمدی", attachments: [], lines: pair("1-101-100001", "1-101-100003", 3_000_000_000, "انتقال بین حساب‌ها") },
+  { id: "d38", seq: 38, m: 8, d: 14, title: "دریافت از پتروشیمی مارون", kind: "receipt", status: "posted", source: "file", by: "دستیار راستا", attachments: ["فیش-پارسیان-۷۷۲۰.jpg"], lines: pair("1-101-100001", "1-103-300014", 5_000_000_000, "دریافت از پتروشیمی مارون") },
+  { id: "d37", seq: 37, m: 8, d: 13, title: "فروش محصولات به پخش البرز", kind: "general", status: "posted", source: "manual", by: "علی رضایی", attachments: ["فاکتور-۱۰۴۲.pdf"], lines: [L("1-103-300030", "فروش طی فاکتور ۱۰۴۲", 3_270_000_000), L("4-401-600001", "فروش طی فاکتور ۱۰۴۲", 0, 3_000_000_000), L("3-305-520001", "ارزش افزوده‌ی فاکتور ۱۰۴۲", 0, 270_000_000)] },
+  { id: "d36", seq: 36, m: 8, d: 12, title: "اجاره‌ی دفتر مرکزی آبان", kind: "payment", status: "posted", source: "ai", by: "دستیار راستا", attachments: [], lines: pair("6-605-700020", "1-101-100002", 650_000_000, "اجاره‌ی دفتر مرکزی") },
+  { id: "d35", seq: 35, m: 8, d: 10, title: "چک دریافتی سیمان تهران", kind: "cheque", status: "posted", source: "file", by: "سارا احمدی", attachments: ["چک-صیادی-۴۴۰۱.jpg"], lines: pair("1-104-310001", "1-103-300042", 1_800_000_000, "دریافت چک صیادی ۴۴۰۱") },
+  { id: "d34", seq: 34, m: 8, d: 9, title: "خرید ملزومات اداری", kind: "payment", status: "draft", source: "manual", by: "علی رضایی", attachments: [], lines: pair("6-607-700041", "1-101-100020", 38_500_000, "خرید ملزومات اداری") },
+  { id: "d33", seq: 33, m: 8, d: 8, title: "پرداخت به تکین‌کو", kind: "payment", status: "posted", source: "ai", by: "دستیار راستا", attachments: [], lines: pair("3-301-500007", "1-101-100001", 4_000_000_000, "تسویه‌ی بخشی از بدهی تکین‌کو") },
+  { id: "d32", seq: 32, m: 8, d: 5, title: "قسط وام بانک ملت", kind: "payment", status: "posted", source: "manual", by: "سارا احمدی", attachments: [], lines: pair("3-310-530001", "1-101-100002", 850_000_000, "قسط وام") },
+  { id: "d31", seq: 31, m: 8, d: 3, title: "پذیرایی جلسه‌ی هیئت‌مدیره", kind: "payment", status: "draft", source: "voice", by: "علی رضایی", attachments: [], lines: pair("6-607-700045", "1-101-100020", 9_200_000, "پذیرایی جلسه") },
+];
+
+/* ---------- KPIs (series = last 30 days) ---------- */
+const wave = (start: number, end: number, n = 30, wob = 0.04, seed = 1) =>
+  Array.from({ length: n }, (_, i) => {
+    const t = i / (n - 1);
+    const ease = t * t * (3 - 2 * t);
+    return +(start + (end - start) * ease + Math.sin(i * 1.7 + seed) * wob * Math.abs(end - start + 1)).toFixed(2);
+  });
 
 export const kpis = [
-  { id: "cash", label: "نقد و بانک", rial: 48_250_000_000, delta: "+۶٪", deltaNote: "از دیروز", good: true,
-    series: [31, 33, 32, 36, 35, 41, 44, 46, 48],
-    why: { line: "۶٪ افزایش، بیشترش از دریافت پتروشیمی مارون.", parts: [["دریافت پتروشیمی مارون", "+۵۰۰ میلیون"], ["پرداخت حقوق آبان", "−۱۸۰ میلیون"], ["کارمزد بانکی", "−۱٫۲ میلیون"]] } },
-  { id: "ar", label: "دریافتنی‌ها", rial: 12_800_000_000, delta: "−۲٪", deltaNote: "این هفته", good: false,
-    series: [15, 14.6, 14.1, 13.9, 13.5, 13.4, 13.0, 12.9, 12.8],
-    why: { line: "دو مشتری بزرگ بخشی از بدهی‌شان را پرداختند.", parts: [["پتروشیمی مارون", "−۵۰۰ میلیون"], ["فولاد مبارکه", "+۲۴۰ میلیون"]] } },
-  { id: "ap", label: "پرداختنی‌ها", rial: 9_400_000_000, delta: "−۴٪", deltaNote: "این هفته", good: true,
-    series: [10.4, 10.2, 10.1, 9.9, 9.8, 9.7, 9.6, 9.5, 9.4],
-    why: { line: "تسویه‌ی بخشی از بدهی تکین‌کو.", parts: [["تکین‌کو", "−۴۰۰ میلیون"]] } },
-  { id: "pl", label: "سود آبان تا امروز", rial: 3_150_000_000, delta: "+۱۱٪", deltaNote: "نسبت به مهر", good: true,
-    series: [1.1, 1.4, 1.6, 1.9, 2.2, 2.5, 2.7, 2.9, 3.15],
-    why: { line: "فروش بیشتر شد و هزینه‌ی حمل ۱۸٪ بالا رفت.", parts: [["فروش محصولات", "+۹۰۰ میلیون"], ["هزینه حمل‌ونقل", "−۹۲ میلیون"]] } },
+  { id: "cash", label: "نقد و بانک", rial: 48_250_000_000, delta: 6.2, good: true, today: "امروز ۵ میلیارد آمد", series: wave(36, 48.25, 30, 0.05, 1),
+    why: { line: "بیشترِ افزایش از دریافت پتروشیمی مارون است.", parts: [["دریافت پتروشیمی مارون", "+۵ میلیارد"], ["پرداخت به تکین‌کو", "−۴ میلیارد"], ["کارمزد بانکی", "−۱۲ میلیون"]] } },
+  { id: "ar", label: "طلب از مشتریان", rial: 12_800_000_000, delta: -2.1, good: false, today: "این هفته ۵۰۰ میلیون کم شد", series: wave(15.2, 12.8, 30, 0.06, 2),
+    why: { line: "دو مشتری بزرگ بخشی از بدهی‌شان را دادند.", parts: [["پتروشیمی مارون", "−۵ میلیارد"], ["پخش البرز", "+۳٫۲ میلیارد"]] } },
+  { id: "ap", label: "بدهی به تأمین‌کنندگان", rial: 9_400_000_000, delta: -4.0, good: true, today: "این ماه ۴ میلیارد کم شد", series: wave(13.4, 9.4, 30, 0.04, 3),
+    why: { line: "بخشی از بدهی تکین‌کو تسویه شد.", parts: [["تکین‌کو", "−۴ میلیارد"]] } },
+  { id: "pl", label: "سود آبان تا امروز", rial: 3_150_000_000, delta: 11.0, good: true, today: "امروز ۲۱۰ میلیون بیشتر شد", series: wave(0.2, 3.15, 30, 0.03, 4),
+    why: { line: "فروش بیشتر شد و هزینه‌ی حمل ۱۸٪ بالا رفت.", parts: [["فروش محصولات", "+۹۰۰ میلیون"], ["هزینه‌ی حمل‌ونقل", "−۹۲ میلیون"]] } },
 ] as const;
 
-export type TimelineItem = { time: string; title: string; who: "human" | "agent"; source: string; state: "done" | "today" | "soon" | "open" };
-export const today: TimelineItem[] = [
-  { time: "۰۹:۳۰", title: "جلسه‌ی بودجه‌ی زمستان", who: "human", source: "یادآوری شما", state: "done" },
-  { time: "۱۱:۰۰", title: "سررسید چک تکین‌کو · ۱٫۲ میلیارد ریال", who: "agent", source: "ایجنت تقویم", state: "today" },
-  { time: "۱۴:۰۰", title: "مهلت ارسال لیست بیمه‌ی مهر", who: "agent", source: "ایجنت تقویم · چک‌لیست آماده است", state: "soon" },
-  { time: "۱۶:۰۰", title: "پیگیری مانده‌ی بانک ملت", who: "human", source: "یادآوری شما", state: "open" },
-];
-
-export type InboxItem = { id: string; agent: string; title: string; detail: string; primary: string; secondary?: string; confidence?: string; kind: "draft" | "check" | "approve" | "close" };
+/* ---------- decisions waiting for the user ---------- */
+export type InboxItem = { id: string; kind: "draft" | "check" | "approve" | "close"; title: string; detail: string; primary: string; secondary?: string };
 export const inbox: InboxItem[] = [
-  { id: "d1", agent: "ایجنت ثبت · از عکس فیش", title: "پیش‌نویس دریافت از پتروشیمی مارون", detail: "۵۰۰٬۰۰۰٬۰۰۰ ریال به بانک پارسیان", primary: "بازبینی پیش‌نویس", confidence: "۹۶٪", kind: "draft" },
-  { id: "c1", agent: "ایجنت کنترل", title: "احتمال ثبت تکراری", detail: "سند ۰۰۴۱ با سند ۰۰۳۸ هم مبلغ است و هم تاریخ.", primary: "مقایسه", secondary: "تکراری نیست", kind: "check" },
-  { id: "a1", agent: "صف تأیید", title: "۱۲ سند منتظر تأیید", detail: "۱۰ سند از همه‌ی کنترل‌ها سالم گذشته‌اند و ۲ سند هشدار دارند.", primary: "تأیید ۱۰ سند سالم", secondary: "دیدن هشدارها", kind: "approve" },
-  { id: "p1", agent: "ایجنت بستن دوره", title: "آبان ۸۰٪ آماده‌ی بستن است", detail: "۳ کار مانده: ۲ پیش‌نویس باز و ۱ مغایرت بانکی.", primary: "دیدن کارهای مانده", kind: "close" },
+  { id: "i1", kind: "draft", title: "پیش‌نویس دریافت از پتروشیمی مارون", detail: "از عکس فیش · ۵۰۰ میلیون تومان به پارسیان", primary: "بازبینی" },
+  { id: "i2", kind: "approve", title: "۲ سند منتظر تأیید شما", detail: "هر دو از بررسی‌ها سالم گذشته‌اند", primary: "دیدن و تأیید" },
+  { id: "i3", kind: "check", title: "احتمال ثبت تکراری", detail: "سند ۰۴۱ با سند ۰۳۶ هم‌مبلغ و هم‌تاریخ است", primary: "مقایسه", secondary: "تکراری نیست" },
+  { id: "i4", kind: "close", title: "آبان ۸۰٪ آماده‌ی بستن است", detail: "۳ کار مانده: ۲ پیش‌نویس و ۱ مغایرت بانکی", primary: "کارهای مانده" },
 ];
 
-export const week = [
-  { d: "ج", n: "۱۵" }, { d: "ش", n: "۱۶", today: true }, { d: "ی", n: "۱۷", dot: true }, { d: "د", n: "۱۸" },
-  { d: "س", n: "۱۹", dot: true }, { d: "چ", n: "۲۰" }, { d: "پ", n: "۲۱" },
-];
-
-// 30-day cash: actual (first 12 points) then agent forecast.
+/* ---------- cash: 12 days back + 12 days forecast (billion rial) ---------- */
 export const cashActual = [38, 39.5, 39, 41, 40.2, 42.8, 43.1, 42.4, 44.9, 46.1, 47.2, 48.25];
 export const cashForecast = [48.25, 47.6, 49.1, 50.3, 48.8, 45.9, 44.2, 46.5, 48.7, 50.9, 52.4, 53.1];
+
+/* ---------- calendar ---------- */
+export type EventCat = "tax" | "cheque" | "loan" | "close" | "cash" | "reminder";
+export type CalEvent = { id: string; m: number; d: number; time?: string; title: string; cat: EventCat; amount?: number; done?: boolean; auto?: boolean; note?: string };
+
+export const catMeta: Record<EventCat, { label: string; color: string }> = {
+  tax: { label: "مالیات و بیمه", color: "var(--cat-1)" },
+  cheque: { label: "چک", color: "var(--cat-2)" },
+  loan: { label: "وام و قسط", color: "var(--cat-3)" },
+  close: { label: "بستن دوره", color: "var(--cat-4)" },
+  cash: { label: "نقدینگی", color: "var(--cat-5)" },
+  reminder: { label: "یادآوری", color: "var(--cat-6)" },
+};
+
+export const seedEvents: CalEvent[] = [
+  { id: "e1", m: 7, d: 15, title: "اظهارنامه‌ی ارزش افزوده‌ی تابستان", cat: "tax", done: true, auto: true },
+  { id: "e2", m: 7, d: 30, title: "لیست بیمه‌ی شهریور", cat: "tax", done: true, auto: true },
+  { id: "e3", m: 7, d: 30, title: "مالیات حقوق شهریور", cat: "tax", done: true, auto: true },
+  { id: "e4", m: 8, d: 5, title: "قسط وام بانک ملت", cat: "loan", amount: 850_000_000, done: true, auto: true },
+  { id: "e5", m: 8, d: 10, title: "وصول چک سیمان تهران", cat: "cheque", amount: 1_800_000_000, done: true, auto: true },
+  { id: "e6", m: 8, d: 12, title: "اجاره‌ی دفتر مرکزی", cat: "reminder", amount: 650_000_000, done: true },
+  { id: "e7", m: 8, d: 17, time: "۰۹:۳۰", title: "جلسه‌ی بودجه‌ی زمستان", cat: "reminder", done: true },
+  { id: "e8", m: 8, d: 17, time: "۱۱:۰۰", title: "سررسید چک تکین‌کو", cat: "cheque", amount: 1_200_000_000, auto: true, note: "موجودی بانک ملت کافی است" },
+  { id: "e9", m: 8, d: 17, time: "۱۶:۰۰", title: "پیگیری مانده‌ی بانک ملت", cat: "reminder" },
+  { id: "e10", m: 8, d: 19, time: "۱۰:۰۰", title: "جلسه با حسابرس", cat: "reminder" },
+  { id: "e11", m: 8, d: 22, title: "کمترین موجودی نقد این ماه", cat: "cash", amount: 44_200_000_000, auto: true, note: "حقوق و بیمه هم‌زمان پرداخت می‌شوند" },
+  { id: "e12", m: 8, d: 25, title: "وصول چک پخش البرز", cat: "cheque", amount: 950_000_000, auto: true },
+  { id: "e13", m: 8, d: 28, title: "پرداخت حقوق آبان", cat: "close", amount: 3_800_000_000, auto: true },
+  { id: "e14", m: 8, d: 30, title: "لیست بیمه‌ی مهر", cat: "tax", amount: 1_100_000_000, auto: true, note: "چک‌لیست آماده است" },
+  { id: "e15", m: 8, d: 30, title: "مالیات حقوق مهر", cat: "tax", amount: 420_000_000, auto: true },
+  { id: "e16", m: 8, d: 30, title: "بستن دوره‌ی آبان", cat: "close", auto: true },
+  { id: "e17", m: 9, d: 5, title: "قسط وام بانک ملت", cat: "loan", amount: 850_000_000, auto: true },
+  { id: "e18", m: 9, d: 12, title: "سررسید ضمانت‌نامه‌ی حسن انجام کار", cat: "loan", auto: true },
+  { id: "e19", m: 9, d: 30, title: "لیست بیمه‌ی آبان", cat: "tax", auto: true },
+  { id: "e20", m: 9, d: 30, title: "مالیات حقوق آبان", cat: "tax", auto: true },
+  { id: "e21", m: 10, d: 5, title: "قسط وام بانک ملت", cat: "loan", amount: 850_000_000, auto: true },
+  { id: "e22", m: 10, d: 15, title: "اظهارنامه‌ی ارزش افزوده‌ی پاییز", cat: "tax", auto: true },
+];

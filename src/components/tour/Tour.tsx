@@ -1,31 +1,29 @@
 import * as React from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
-import { useApp } from "@/lib/store";
+import { useApp, type Page } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn, toFa } from "@/lib/utils";
 
 type Step = { target: string; title: string; body: string };
 
-const steps: Record<"dashboard" | "voucher", Step[]> = {
+const steps: Partial<Record<Page, Step[]>> = {
   dashboard: [
-    { target: "brief", title: "روزتان از اینجا شروع می‌شود", body: "ایجنت تحلیل‌گر در سه جمله می‌گوید چه خبر است. روی هر عبارت خط‌دار بزنید تا جزئیاتش باز شود." },
-    { target: "inbox", title: "فقط تصمیم با شماست", body: "ایجنت‌ها پیش‌نویس و هشدار آماده می‌کنند. هر کارت فقط یک تصمیم از شما می‌خواهد." },
-    { target: "kpis", title: "هر عدد یک «چرا؟» دارد", body: "برای فهمیدن یک عدد، گزارش لازم نیست. «چرا؟» می‌گوید عدد از کدام اسناد آمده." },
-    { target: "today", title: "کارهای امروز، شما و ایجنت‌ها", body: "مهلت‌های قانونی و سررسیدها خودشان اینجا می‌آیند. یادآوری را با یک جمله بنویسید." },
-    { target: "command", title: "هر کاری، از یک جا", body: "Ctrl K را بزنید: بپرسید، دستور بدهید یا سند را با یک جمله بنویسید. جواب را می‌شود روی داشبورد سنجاق کرد." },
+    { target: "hero", title: "از اینجا شروع کنید", body: "خلاصه‌ی امروز در یک نگاه. روی هر عبارت خط‌دار بزنید تا جزئیاتش باز شود." },
+    { target: "kpis", title: "هر عدد یک «چرا؟» دارد", body: "روی نمودار بروید تا عدد هر روز را ببینید. «چرا؟» می‌گوید عدد از کدام اسناد آمده." },
+    { target: "inbox", title: "تصمیم با شماست", body: "دستیار پیش‌نویس و هشدار آماده می‌کند. هر ردیف فقط یک تصمیم از شما می‌خواهد." },
+    { target: "command", title: "هر کاری، از یک جا", body: "Ctrl K را بزنید: بپرسید، به صفحه‌ای بروید یا سند را در یک جمله بگویید." },
+    { target: "nav", title: "منو", body: "نشانگر را روی منو ببرید تا باز شود. «سند تازه» همیشه بالای منوست." },
   ],
   voucher: [
-    { target: "entry", title: "سه راه برای ثبت", body: "یک جمله بنویسید، عکس فیش را بکشید یا دستی وارد کنید. ایجنت حداکثر یک سؤال می‌پرسد." },
-    { target: "lines", title: "مبلغ را به تومان بنویسید", body: "معادل ریالی زیر هر مبلغ می‌آید و سند به ریال ذخیره می‌شود. با نوشتن شرح، حساب پیشنهاد می‌شود." },
-    { target: "balance", title: "تراز با یک کلیک", body: "اگر بدهکار و بستانکار برابر نباشد، «تراز کن» ردیف آخر را خودش پر می‌کند." },
-    { target: "guard", title: "نگهبان سند", body: "ایجنت کنترل تراز، ماهیت حساب، تکراری بودن و باز بودن دوره را هم‌زمان بررسی می‌کند." },
-    { target: "send", title: "ارسال برای تأیید", body: "سند با شماره‌ی موقت می‌رود. شماره‌ی دائم ماه را وقتی قطعی شد می‌گیرد." },
+    { target: "entry", title: "سه راه برای ثبت", body: "بنویسید، با صدا بگویید یا عکس فیش را بیندازید. دستیار فقط چیزهایی را می‌پرسد که لازم است." },
+    { target: "rail", title: "سند جلوی چشمتان ساخته می‌شود", body: "هر چیزی که دستیار می‌فهمد اینجا روشن می‌شود. برای تغییر، روی همان مورد بزنید." },
+    { target: "command", title: "دستی هم می‌شود", body: "از بالای صفحه «دستی» را بزنید تا فرم کامل باز شود." },
   ],
 };
 
 export function Tour() {
   const { tour, setTour, page } = useApp();
-  const list = steps[page];
+  const list = steps[page] ?? [];
   const [i, setI] = React.useState(0);
   const [rect, setRect] = React.useState<DOMRect | null>(null);
   const cardRef = React.useRef<HTMLDivElement>(null);
@@ -105,7 +103,7 @@ export function Tour() {
           </div>
           <div className="ms-auto flex gap-2">
             {i > 0 && <Button size="sm" variant="ghost" onClick={() => setI(i - 1)}><ArrowRight /> قبلی</Button>}
-            <Button size="sm" onClick={() => (last ? setTour(false) : setI(i + 1))}>{last ? "شروع کار" : <>بعدی <ArrowLeft /></>}</Button>
+            <Button size="sm" onClick={() => (last ? setTour(false) : setI(i + 1))}>{last ? "فهمیدم" : <>بعدی <ArrowLeft /></>}</Button>
           </div>
         </div>
       </div>
