@@ -5,6 +5,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Orb } from "@/components/ai/Orb";
+import { Logo } from "./Logo";
 import { cn, toFa } from "@/lib/utils";
 import { fmtFull, TODAY } from "@/lib/jalali";
 
@@ -121,6 +122,10 @@ export function Topbar() {
   const [title, sub] = titles[page];
   return (
     <header className="no-print flex flex-wrap items-center gap-3">
+      <div className="flex w-full items-center gap-2 md:hidden">
+        <Logo part="emblem" className="size-8" />
+        <Logo part="wordmark" className="h-5 w-auto" />
+      </div>
       <div className="min-w-[170px]">
         <h1 className="text-[22px] font-extrabold tracking-tight">{title}</h1>
         <p className="num text-[12.5px] text-muted-foreground">{sub ?? fmtFull(TODAY.m, TODAY.d)} · دوره‌ی آبان باز است</p>

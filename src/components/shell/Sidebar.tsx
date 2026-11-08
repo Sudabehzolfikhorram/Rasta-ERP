@@ -2,6 +2,7 @@ import { BarChart3, CalendarDays, FilePlus2, Files, House, Settings2 } from "luc
 import { useApp, type Page } from "@/lib/store";
 import { cn, toFa } from "@/lib/utils";
 import { TODAY } from "@/lib/jalali";
+import { Logo } from "./Logo";
 
 type Item = { id: Page; label: string; icon: typeof House; count?: number };
 
@@ -48,10 +49,13 @@ export function Sidebar() {
         className="group/rail panel fixed bottom-4 start-4 top-4 z-40 hidden w-[68px] flex-col overflow-hidden px-2.5 py-4 transition-[width,box-shadow] duration-300 ease-[cubic-bezier(.16,1,.3,1)] hover:w-[232px] hover:shadow-lift focus-within:w-[232px] md:flex"
         aria-label="منوی اصلی"
       >
-        <div className="mb-6 flex items-center gap-3 px-1">
-          <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-primary text-[18px] font-black text-primary-foreground" aria-hidden>ر</span>
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex w-12 shrink-0 flex-col items-center gap-1.5">
+            <Logo part="emblem" className="size-10" />
+            <Logo part="wordmark" className="h-[17px] w-auto" />
+          </div>
           <div className="whitespace-nowrap leading-tight opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100">
-            <div className="text-[16px] font-extrabold">راستا</div>
+            <div className="text-[13px] font-bold">نرم‌افزار مالی</div>
             <div className="num text-[11.5px] text-muted-foreground">سال مالی ۱۴۰۵</div>
           </div>
         </div>
