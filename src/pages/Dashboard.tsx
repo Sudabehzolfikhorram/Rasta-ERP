@@ -86,10 +86,10 @@ function KpiCard({ k }: { k: (typeof kpis)[number] }) {
       </div>
       <div className="num mt-1.5 text-[12px] text-muted-foreground">{k.today}</div>
       {/* the trend gets its own band under the text so nothing overlaps */}
-      <div className="mt-4 rounded-field px-2 pt-2" style={{ background: `hsl(var(${c}) / .07)` }}>
+      <div className="mt-4">
         <TrendArea data={k.series} tone={k.id === "pl" ? "ai" : "primary"} fmt={fmt} labelFor={(i) => { const d = TODAY.d - i; return d > 0 ? fmtDay(8, d) : fmtDay(7, 30 + d); }}
           className="h-16 w-full" />
-        <div className="flex justify-between px-1 pb-1.5 pt-1 text-[10.5px] text-muted-foreground"><span>امروز</span><span>۳۰ روز پیش</span></div>
+        <div className="flex justify-between pt-1 text-[10.5px] text-muted-foreground"><span>امروز</span><span>۳۰ روز پیش</span></div>
       </div>
     </div>
   );

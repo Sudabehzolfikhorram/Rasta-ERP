@@ -190,14 +190,15 @@
   /* AI and key surfaces: a gradient light travels around the border (one per page) */
   .hero, .edge-run { position: relative; isolation: isolate; }
   .hero::before, .edge-run::before, .hero::after, .edge-run::after {
-    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 2px; pointer-events: none; z-index: 1;
-    background: conic-gradient(from var(--edge-a), transparent 0deg, transparent 200deg, var(--ai-from) 260deg, #22B8CF 305deg, var(--ai-to) 340deg, transparent 360deg);
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none; z-index: 1;
+    /* same spectrum as the orb rim */
+    background: conic-gradient(from var(--edge-a), transparent 0deg, transparent 110deg, #ff9fd6 160deg, #ffd27a 205deg, #8af0c8 250deg, #6cc7ff 295deg, #b5a0ff 335deg, transparent 360deg);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
     animation: edge-run 6s linear infinite;
   }
   /* soft glow that follows the light */
-  .hero::after, .edge-run::after { padding: 3px; filter: blur(6px); opacity: .55; z-index: 0; }
+  .hero::after, .edge-run::after { padding: 2px; filter: blur(5px); opacity: .45; z-index: 0; }
   .rounded-field { border-radius: var(--r-field); }
   .ai-edge { background: linear-gradient(120deg, var(--ai-from), var(--ai-to)); }
   .chip {
