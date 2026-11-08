@@ -182,3 +182,35 @@ export const holidays: { m: number; d: number; title: string }[] = [
   { m: 10, d: 2, title: "ولادت امام علی (ع)" },
   { m: 10, d: 16, title: "مبعث حضرت رسول (ص)" },
 ];
+
+/** Document categories shown as a submenu under «اسناد». Only accounting vouchers have a working detail flow in this prototype. */
+export type DocCat = { id: string; label: string; short: string; count: number };
+export const docCats: DocCat[] = [
+  { id: "acc", label: "اسناد حسابداری", short: "حسابداری", count: 0 },
+  { id: "treasury", label: "اسناد دریافت و پرداخت", short: "دریافت و پرداخت", count: 18 },
+  { id: "cheque", label: "چک‌ها", short: "چک‌ها", count: 9 },
+  { id: "invoice", label: "فاکتورهای خرید و فروش", short: "فاکتورها", count: 14 },
+  { id: "bank", label: "صورت‌حساب‌های بانکی", short: "صورت‌حساب بانکی", count: 3 },
+];
+/** Sample rows for the categories that only show a list. */
+export const catRows: Record<string, { no: string; title: string; party: string; day: number; rial: number; state: string; tone: "success" | "warning" | "neutral" | "info" }[]> = {
+  treasury: [
+    { no: "د-۲۱۴", title: "دریافت از پتروشیمی مارون", party: "پتروشیمی مارون", day: 16, rial: 5_000_000_000, state: "وصول‌شده", tone: "success" },
+    { no: "پ-۱۸۸", title: "پرداخت به تکین‌کو", party: "تکین‌کو", day: 15, rial: 4_000_000_000, state: "پرداخت‌شده", tone: "success" },
+    { no: "پ-۱۸۹", title: "پرداخت اجاره‌ی دفتر مرکزی", party: "موسوی", day: 12, rial: 650_000_000, state: "پرداخت‌شده", tone: "success" },
+    { no: "د-۲۱۵", title: "دریافت از فولاد مبارکه", party: "فولاد مبارکه", day: 16, rial: 2_400_000_000, state: "در انتظار سند", tone: "warning" },
+  ],
+  cheque: [
+    { no: "۸۸۲۴۱۰", title: "چک پرداختی تکین‌کو", party: "تکین‌کو", day: 17, rial: 1_200_000_000, state: "سررسید امروز", tone: "warning" },
+    { no: "۴۴۱۲۰۹", title: "چک دریافتی پخش البرز", party: "پخش البرز", day: 25, rial: 950_000_000, state: "در جریان وصول", tone: "info" },
+    { no: "۳۲۰۱۷۷", title: "چک دریافتی سیمان تهران", party: "سیمان تهران", day: 10, rial: 780_000_000, state: "وصول‌شده", tone: "success" },
+  ],
+  invoice: [
+    { no: "ف-۹۰۲", title: "فروش ورق فولادی", party: "صنایع نوید", day: 14, rial: 3_150_000_000, state: "تسویه‌نشده", tone: "warning" },
+    { no: "خ-۴۱۱", title: "خرید مواد اولیه", party: "فولاد مبارکه", day: 9, rial: 2_200_000_000, state: "تسویه‌شده", tone: "success" },
+  ],
+  bank: [
+    { no: "ملت-۰۸", title: "صورت‌حساب بانک ملت آبان", party: "بانک ملت", day: 17, rial: 0, state: "۲ مغایرت", tone: "warning" },
+    { no: "پارسیان-۰۸", title: "صورت‌حساب بانک پارسیان آبان", party: "بانک پارسیان", day: 16, rial: 0, state: "تطبیق‌شده", tone: "success" },
+  ],
+};

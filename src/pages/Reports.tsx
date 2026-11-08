@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowRight, ArrowUp, Check, ChevronDown, Download, FileSpreadsheet, FileText, Filter, History, LayoutDashboard, MessageSquareText, Plus, Printer, Send, Trash2, X } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, ChevronDown, Download, FileSpreadsheet, FileText, Filter, History, LayoutDashboard, MessageSquareText, Plus, Printer, Send, Trash2, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { reports, reportGroups, type Report, type Row } from "@/data/reports";
 import { cashActual, cashForecast } from "@/data/demo";
@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CashChart, PairBars, RankBars, StackBars, Treemap, Waterfall } from "@/components/charts";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Orb } from "@/components/ai/Orb";
-import { SystemOverview } from "@/pages/Overview";
+import { SystemOverview, SystemScorecard } from "@/pages/Overview";
 import { Empty } from "@/pages/Dashboard";
 
 type Period = "aban" | "mehr" | "autumn";
@@ -187,37 +187,72 @@ function Assistant({ onReport, onExport, close }: { onReport: (id: string) => vo
   );
 }
 
-function AdvancedFilter({ report, conds, setConds }: { report: Report; conds: Cond[]; setConds: (c: Cond[]) => void }) {
-  const [draft, setDraft] = React.useState<Cond[]>(conds.length ? conds : [{ id: 1, col: report.cols[1]?.key ?? report.cols[0].key, op: ">", val: "" }]);
+const OPS: [Cond["op"], string][] = [[">", "بیشتر از"], ["<", "کمتر از"], ["=", "برابر"], ["~", "شامل"]];
+/** Advanced filter: a roomy sheet with one card per condition, a live row count and quick presets. */
+function AdvancedFilter({ report, rows, conds, setConds }: { report: Report; rows: Row[]; conds: Cond[]; setConds: (c: Cond[]) => void }) {
+  const firstNum = report.cols.find((c) => c.num)?.key ?? report.cols[0].key;
+  const blank = (): Cond => ({ id: Date.now(), col: firstNum, op: ">", val: "" });
+  const [draft, setDraft] = React.useState<Cond[]>(conds.length ? conds : [blank()]);
   const [open, setOpen] = React.useState(false);
-  React.useEffect(() => { if (open) setDraft(conds.length ? conds : [{ id: 1, col: report.cols[1]?.key ?? report.cols[0].key, op: ">", val: "" }]); }, [open, conds, report]);
-  const sel = "h-9 rounded-lg border border-input bg-surface px-2 text-[12.5px] outline-none focus:border-ring";
+  React.useEffect(() => { if (open) setDraft(conds.length ? conds : [blank()]); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const live = applyConds(rows, draft.filter((c) => c.val.trim()));
+  const upd = (id: number, p: Partial<Cond>) => setDraft(draft.map((x) => (x.id === id ? { ...x, ...p } : x)));
+  const numCol = report.cols.filter((c) => c.num && !/٪/.test(c.label));
+  const presets: [string, Cond[]][] = numCol.length ? [
+    [`${numCol[0].label} بیشتر از ۲`, [{ id: 1, col: numCol[0].key, op: ">", val: "2" }]],
+    [`${numCol[numCol.length - 1].label} کمتر از ۱`, [{ id: 2, col: numCol[numCol.length - 1].key, op: "<", val: "1" }]],
+  ] : [];
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="outline"><Filter /> فیلتر پیشرفته{conds.length ? ` (${toFa(conds.length)})` : ""}</Button>
+        <Button size="sm" variant={conds.length ? "soft" : "outline"}><Filter /> فیلتر پیشرفته{conds.length ? ` · ${toFa(conds.length)}` : ""}</Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[420px]" align="end">
-        <b className="text-[13.5px]">ردیف‌هایی را نشان بده که…</b>
-        <div className="mt-3 flex flex-col gap-2">
-          {draft.map((c, i) => (
-            <div key={c.id} className="flex items-center gap-1.5">
-              <span className="w-6 text-[11.5px] text-muted-foreground">{i ? "و" : ""}</span>
-              <select aria-label="ستون" className={cn(sel, "flex-1")} value={c.col} onChange={(e) => setDraft(draft.map((x) => (x.id === c.id ? { ...x, col: e.target.value, op: report.cols.find((k) => k.key === e.target.value)?.num ? ">" : "~" } : x)))}>
-                {report.cols.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
-              </select>
-              <select aria-label="شرط" className={sel} value={c.op} onChange={(e) => setDraft(draft.map((x) => (x.id === c.id ? { ...x, op: e.target.value as Cond["op"] } : x)))}>
-                <option value=">">بیشتر از</option><option value="<">کمتر از</option><option value="=">برابر</option><option value="~">شامل</option>
-              </select>
-              <input aria-label="مقدار" className={cn(sel, "w-24")} value={c.val} onChange={(e) => setDraft(draft.map((x) => (x.id === c.id ? { ...x, val: e.target.value } : x)))} />
-              <button aria-label="حذف شرط" onClick={() => setDraft(draft.filter((x) => x.id !== c.id))} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-danger-soft hover:text-danger"><Trash2 className="size-3.5" /></button>
-            </div>
-          ))}
+      <PopoverContent className="w-[min(520px,calc(100vw-24px))] p-0" align="end">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <Filter className="size-5 text-primary" variant="Bulk" />
+          <b className="text-[14px]">فیلتر پیشرفته</b>
+          <span className="num ms-auto rounded-full bg-muted px-2.5 py-0.5 text-[12px] font-bold">{toFa(live.length)} از {toFa(rows.length)} ردیف</span>
         </div>
-        <button onClick={() => setDraft([...draft, { id: Date.now(), col: report.cols[0].key, op: "~", val: "" }])} className="mt-2 flex items-center gap-1 text-[12.5px] font-bold text-primary"><Plus className="size-3.5" /> شرط دیگر</button>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={() => { setConds([]); setOpen(false); }}>پاک کردن</Button>
-          <Button size="sm" onClick={() => { setConds(draft.filter((c) => c.val.trim())); setOpen(false); }}>اعمال</Button>
+        <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto p-4">
+          {presets.length > 0 && (
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11.5px] text-muted-foreground">پیشنهاد:</span>
+              {presets.map(([l, c]) => <button key={l} onClick={() => setDraft(c.map((x) => ({ ...x, id: Date.now() + x.id })))} className="chip h-7 text-[12px]">{l}</button>)}
+            </div>
+          )}
+          {draft.map((c, i) => {
+            const col = report.cols.find((k) => k.key === c.col);
+            return (
+              <div key={c.id}>
+                {i > 0 && <div className="my-1 flex items-center gap-2 text-[11px] font-bold text-muted-foreground"><span className="h-px flex-1 bg-border" />و<span className="h-px flex-1 bg-border" /></div>}
+                <div className="rounded-field border border-border bg-surface-2/70 p-3">
+                  <div className="flex items-center gap-2">
+                    <select aria-label="ستون" className="h-9 min-w-0 flex-1 rounded-field border border-input bg-surface px-2.5 text-[13px] font-semibold outline-none focus:border-ring" value={c.col}
+                      onChange={(e) => upd(c.id, { col: e.target.value, op: report.cols.find((k) => k.key === e.target.value)?.num ? ">" : "~" })}>
+                      {report.cols.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+                    </select>
+                    <button aria-label="حذف شرط" onClick={() => setDraft(draft.filter((x) => x.id !== c.id))} className="grid size-9 place-items-center rounded-field text-muted-foreground hover:bg-danger-soft hover:text-danger"><Trash2 className="size-4" /></button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <div className="flex rounded-field bg-muted/80 p-0.5" role="radiogroup" aria-label="شرط">
+                      {OPS.filter(([o]) => (col?.num ? o !== "~" : o === "~" || o === "=")).map(([o, l]) => (
+                        <button key={o} role="radio" aria-checked={c.op === o} onClick={() => upd(c.id, { op: o })} className={cn("h-8 rounded-[calc(var(--r-field)-2px)] px-3 text-[12px] font-semibold text-muted-foreground", c.op === o && "bg-surface text-foreground shadow-soft")}>{l}</button>
+                      ))}
+                    </div>
+                    <div className="relative min-w-[120px] flex-1">
+                      <Input aria-label="مقدار" value={c.val} onChange={(e) => upd(c.id, { val: e.target.value })} placeholder={col?.num ? "مثلاً ۲٫۵" : "متن"} className="num h-9 pe-16" />
+                      {col?.num && <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">میلیارد</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <button onClick={() => setDraft([...draft, blank()])} className="mt-1 flex h-10 items-center justify-center gap-1.5 rounded-field border border-dashed border-border text-[12.5px] font-bold text-primary hover:bg-primary-soft/40"><Plus className="size-4" /> افزودن شرط</button>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
+          <Button size="sm" variant="ghost" onClick={() => { setConds([]); setDraft([blank()]); }}>پاک کردن همه</Button>
+          <Button size="sm" onClick={() => { setConds(draft.filter((c) => c.val.trim())); setOpen(false); }}>نمایش {toFa(live.length)} ردیف</Button>
         </div>
       </PopoverContent>
     </Popover>
@@ -291,7 +326,8 @@ export function Reports() {
   const r = reports.find((x) => x.id === id) ?? null;
   const k = periods.find((p) => p[0] === period)![2];
   const u = unitLabel(unit);
-  const rows = r ? applyConds(scaleRows(r, k, unit === "toman"), conds) : [];
+  const base = r ? scaleRows(r, k, unit === "toman") : [];
+  const rows = applyConds(base, conds);
   const pick = React.useCallback((x: string) => { setId(x); setConds([]); }, []);
   const doExport = React.useCallback(() => { const rep = reports.find((x) => x.id === "tb")!; exportCsv(rep, scaleRows(rep, 1, unit === "toman"), u); toast("فایل اکسل تراز آزمایشی دانلود شد."); }, [unit, u, toast]);
 
@@ -320,7 +356,7 @@ export function Reports() {
         </div>
       )}
       <div className="ms-auto flex flex-wrap gap-2">
-        {r && <AdvancedFilter key={r.id} report={r} conds={conds} setConds={setConds} />}
+        {r && <AdvancedFilter key={r.id} report={r} rows={base} conds={conds} setConds={setConds} />}
         <Popover>
           <PopoverTrigger asChild><Button size="sm" variant="outline"><Download /> خروجی</Button></PopoverTrigger>
           <PopoverContent className="w-52 p-1.5" align="end">
@@ -344,46 +380,76 @@ export function Reports() {
     </section>
   );
 
-  const body = !r ? <SystemOverview dense={!bento} /> : (
+  const barKey = r ? [...r.cols].reverse().find((c) => c.num && !/٪/.test(c.label))?.key : undefined;
+  const barMax = barKey ? Math.max(...rows.map((x) => Math.abs(Number(x[barKey]) || 0)), 1) : 1;
+  const table = r && rows.length > 0 && (
+    <section className="panel-data overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-[13px]">
+          <thead>
+            <tr className="bg-muted/60 text-[12px] text-muted-foreground">
+              <th className="w-10 py-3 ps-5 text-start font-semibold">#</th>
+              {r.cols.map((c) => <th key={c.key} className={cn("whitespace-nowrap px-4 py-3 font-semibold last:pe-5", c.num ? "text-end" : "text-start")}>{c.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className="border-t border-border/70 transition-colors hover:bg-primary-soft/30">
+                <td className="num py-3 ps-5 text-[12px] text-muted-foreground">{toFa(i + 1)}</td>
+                {r.cols.map((c) => {
+                  const v = row[c.key];
+                  const txt = typeof v === "number" ? (v < 0 ? `(${fa(-v)})` : fa(v)) : v;
+                  return (
+                    <td key={c.key} className={cn("px-4 py-3 last:pe-5", c.num ? "num text-end font-semibold" : "font-bold", typeof v === "number" && v < 0 && "text-muted-foreground")}>
+                      {c.key === barKey && typeof v === "number" ? (
+                        <span className="flex items-center justify-end gap-2.5"><span className="hidden h-1.5 w-20 overflow-hidden rounded-full bg-muted sm:block"><span className="block h-full rounded-full bg-primary/70" style={{ width: `${(Math.abs(v) / barMax) * 100}%` }} /></span>{txt}</span>
+                      ) : txt}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+          {rows.length > 1 && r.chart !== "waterfall" && (
+            <tfoot>
+              <tr className="border-t-2 border-border bg-surface-2/80 text-[13px]">
+                <td className="ps-5" />
+                {r.cols.map((c, i) => <td key={c.key} className={cn("px-4 py-3 font-extrabold last:pe-5", c.num ? "num text-end" : "")}>{i === 0 ? "جمع" : totals[i] !== null ? fa(totals[i]!) : ""}</td>)}
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      {r.note && <p className="border-t border-border px-5 py-2.5 text-[12px] text-muted-foreground">{r.note}</p>}
+    </section>
+  );
+  const chartCard = r && (
+    <section className="panel flex flex-col p-5">
+      <div className="mb-3 flex items-baseline justify-between">
+        <b className="text-[14px]">{bento ? "نمودار" : `${periods.find((p) => p[0] === period)![1]} ۱۴۰۵`}</b>
+        <span className="text-[12px] text-muted-foreground">میلیارد {u}</span>
+      </div>
+      {rows.length ? chart() : <Empty icon={Filter} title="با این فیلتر ردیفی باقی نمی‌ماند" action={<Button size="sm" variant="soft" onClick={() => setConds([])}>حذف فیلترها</Button>} />}
+    </section>
+  );
+  // bento leads with numbers: a summary strip, then the register beside a compact chart
+  const top = r && barKey ? [...rows].sort((x, y) => Math.abs(Number(y[barKey])) - Math.abs(Number(x[barKey])))[0] : null;
+  const summary = r && (
+    <section className="panel grid grid-cols-2 overflow-hidden sm:grid-cols-4">
+      {([["تعداد ردیف", toFa(rows.length)], ["جمع", barKey ? fa(rows.reduce((a, x) => a + (Number(x[barKey]) || 0), 0)) : "—"], ["بیشترین", top ? String(top.item) : "—"], ["دوره", periods.find((p) => p[0] === period)![1]]] as const).map(([l, v], i) => (
+        <div key={l} className={cn("p-4", i > 0 && "border-s border-border/70")}><span className="text-[12px] font-bold text-muted-foreground">{l}</span><b className="num mt-1 block truncate text-[18px] font-extrabold">{v}</b></div>
+      ))}
+    </section>
+  );
+  const body = !r ? (bento ? <SystemScorecard /> : <SystemOverview dense />) : bento ? (
     <>
-      <section className="panel p-5">
-        <div className="mb-3 flex items-baseline justify-between">
-          <b className="text-[14px]">{periods.find((p) => p[0] === period)![1]} ۱۴۰۵</b>
-          <span className="text-[12px] text-muted-foreground">میلیارد {u}</span>
-        </div>
-        {rows.length ? chart() : <Empty icon={Filter} title="با این فیلتر ردیفی باقی نمی‌ماند" action={<Button size="sm" variant="soft" onClick={() => setConds([])}>حذف فیلترها</Button>} />}
-      </section>
-      {rows.length > 0 && (
-        <section className="panel-data overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-[13px]">
-              <thead>
-                <tr className="border-b border-border text-[12px] text-muted-foreground">
-                  {r.cols.map((c) => <th key={c.key} className={cn("px-4 py-3 font-semibold", c.num ? "text-end" : "text-start")}>{c.label}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr key={i} className="border-b border-border/60 last:border-0 hover:bg-primary-soft/30">
-                    {r.cols.map((c) => {
-                      const v = row[c.key];
-                      return <td key={c.key} className={cn("px-4 py-2.5", c.num ? "num text-end font-semibold" : "font-bold", typeof v === "number" && v < 0 && "text-muted-foreground")}>{typeof v === "number" ? (v < 0 ? `(${fa(-v)})` : fa(v)) : v}</td>;
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-              {rows.length > 1 && r.chart !== "waterfall" && (
-                <tfoot>
-                  <tr className="border-t border-border bg-surface-2/80 text-[13px]">
-                    {r.cols.map((c, i) => <td key={c.key} className={cn("px-4 py-3 font-extrabold", c.num ? "num text-end" : "")}>{i === 0 ? "جمع" : totals[i] !== null ? fa(totals[i]!) : ""}</td>)}
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-          {r.note && <p className="border-t border-border px-4 py-2.5 text-[12px] text-muted-foreground">{r.note}</p>}
-        </section>
-      )}
+      {summary}
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">{table}{chartCard}</div>
+    </>
+  ) : (
+    <>
+      {chartCard}
+      {table}
     </>
   );
 

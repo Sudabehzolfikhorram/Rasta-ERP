@@ -13,6 +13,8 @@ import { Calendar } from "@/pages/Calendar";
 import { Settings } from "@/pages/Settings";
 import { Profile } from "@/pages/Profile";
 import { DocDetail } from "@/pages/DocDetail";
+import { Assistant } from "@/pages/Assistant";
+import { BaseData } from "@/pages/BaseData";
 import { Background } from "@/components/shell/Background";
 
 function Shell() {
@@ -41,6 +43,8 @@ function Shell() {
             {page === "doc" && <DocDetail key={docId ?? ""} />}
             {page === "settings" && <Settings />}
             {page === "profile" && <Profile />}
+            {page === "assistant" && <Assistant />}
+            {page === "basedata" && <BaseData />}
           </div>
         </main>
       </div>

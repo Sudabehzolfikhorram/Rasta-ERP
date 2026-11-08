@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, X } from "@/components/icons";
 import { useApp, type Page } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn, toFa } from "@/lib/utils";

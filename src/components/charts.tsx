@@ -385,3 +385,87 @@ export function Columns({ items, height = 160, color = "--ch-1", highlight }: { 
     </div>
   );
 }
+
+/** Horizontal cash bridge: each step floats from where the previous one ended. Reads top to bottom like a statement. */
+export function BridgeRows({ open, items, unit }: { open: number; items: [string, number][]; unit: string }) {
+  let run = open;
+  const steps = items.map(([l, v]) => { const from = run; run += v; return { l, v, from, to: run }; });
+  const all = [open, ...steps.flatMap((s) => [s.from, s.to])];
+  const lo = Math.min(...all) * 0.92, hi = Math.max(...all) * 1.02;
+  const pct = (v: number) => ((v - lo) / (hi - lo)) * 100;
+  const row = (label: string, from: number, to: number, kind: "total" | "in" | "out", value: string, key: string) => (
+    <div key={key} className="grid grid-cols-[96px_minmax(0,1fr)_64px] items-center gap-3">
+      <span className={cn("truncate text-[12.5px]", kind === "total" ? "font-bold" : "text-muted-foreground")}>{label}</span>
+      <div className="relative h-6 rounded-md bg-muted/50">
+        <span className="absolute inset-y-1 rounded-[5px] transition-all duration-700" style={{
+          insetInlineStart: `${pct(Math.min(from, to))}%`, width: `${Math.max(pct(Math.max(from, to)) - pct(Math.min(from, to)), 1.2)}%`,
+          background: kind === "total" ? "hsl(var(--primary))" : kind === "in" ? "hsl(var(--ch-2))" : "hsl(var(--ch-5) / .75)",
+        }} />
+      </div>
+      <b className={cn("num text-end text-[12.5px]", kind === "out" && "text-muted-foreground")}>{value}</b>
+    </div>
+  );
+  return (
+    <div className="flex flex-col gap-2">
+      {row("اول آبان", lo, open, "total", fa1(open), "open")}
+      {steps.map((s) => row(s.l, s.from, s.to, s.v >= 0 ? "in" : "out", `${s.v >= 0 ? "+" : "−"}${fa1(Math.abs(s.v))}`, s.l))}
+      {row("امروز", lo, run, "total", fa1(run), "close")}
+      <span className="num text-[11px] text-muted-foreground">میلیارد {unit}</span>
+    </div>
+  );
+}
+
+/** Concentric radial bars: one ring per item, length = share of the largest. */
+export function RadialBars({ items, size = 168, center }: { items: { label: string; value: number; color: string }[]; size?: number; center?: React.ReactNode }) {
+  const max = Math.max(...items.map((i) => i.value), 1);
+  const gap = 4, stroke = Math.max(7, (size / 2 - 26) / items.length - gap);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" role="img" aria-label={items.map((i) => `${i.label}: ${fa1(i.value)}`).join("، ")}>
+        {items.map((it, k) => {
+          const r = size / 2 - stroke / 2 - k * (stroke + gap);
+          const c = 2 * Math.PI * r, f = (it.value / max) * 0.75;
+          return (
+            <g key={it.label}>
+              <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth={stroke} strokeDasharray={`${c * 0.75} ${c}`} strokeLinecap="round" />
+              <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`hsl(var(${it.color}))`} strokeWidth={stroke} strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" style={{ transition: "stroke-dasharray .8s cubic-bezier(.16,1,.3,1)" }} />
+            </g>
+          );
+        })}
+      </svg>
+      {center && <div className="absolute inset-0 grid place-items-center text-center">{center}</div>}
+    </div>
+  );
+}
+
+/** Weekday × week heatmap; darker cell = more entries. */
+export function Heatmap({ rows, cols, values }: { rows: string[]; cols: string[]; values: number[][] }) {
+  const max = Math.max(...values.flat(), 1);
+  return (
+    <div className="grid gap-1.5" style={{ gridTemplateColumns: `28px repeat(${cols.length}, minmax(0,1fr))` }}>
+      <span />
+      {cols.map((c) => <span key={c} className="num text-center text-[10.5px] text-muted-foreground">{c}</span>)}
+      {rows.map((r, i) => (
+        <React.Fragment key={r}>
+          <span className="text-[10.5px] leading-6 text-muted-foreground">{r}</span>
+          {values[i].map((v, j) => (
+            <span key={j} title={`${r}، ${cols[j]}: ${toFa(v)} سند`} className="h-6 rounded-[5px] transition-colors"
+              style={{ background: v ? `hsl(var(--ch-1) / ${0.12 + (v / max) * 0.78})` : "hsl(var(--muted) / .7)" }} />
+          ))}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** Small column chart for stat cards: muted history, the current period in full colour. */
+export function MiniBars({ data, color = "--ch-1", className }: { data: readonly number[]; color?: string; className?: string }) {
+  const max = Math.max(...data, 1), min = Math.min(...data) * 0.7;
+  return (
+    <div className={cn("flex h-12 items-end gap-[3px]", className)} aria-hidden>
+      {data.map((v, i) => (
+        <span key={i} className="flex-1 rounded-t-[3px]" style={{ height: `${((v - min) / (max - min || 1)) * 85 + 15}%`, background: `hsl(var(${color}) / ${i === data.length - 1 ? 1 : 0.28})` }} />
+      ))}
+    </div>
+  );
+}

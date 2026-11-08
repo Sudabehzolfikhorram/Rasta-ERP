@@ -1,8 +1,7 @@
-import * as React from "react";
 import { useApp } from "@/lib/store";
 
 /** The Algonet line language: thin rails, rounded turns and junction dots.
- *  Drawn as SVG so it follows the theme. A few frosted spheres at low opacity give the glass something to blur. */
+ *  Drawn as SVG so it follows the theme. Static: no motion. A few frosted spheres at low opacity give the glass something to blur. */
 const RAILS = [
   // top start cluster
   "M150 237 H595", "M271 80 V237", "M300 237 A 218 237 0 0 0 518 0", "M394 237 V360", "M594 120 V237",
@@ -17,20 +16,9 @@ const RAILS = [
   "M1070 960 V915 A 108 108 0 0 1 1178 808 H1268", "M1110 856 H1291 V952",
 ];
 const DOTS: [number, number][] = [[271, 174], [271, 237], [394, 237], [594, 237], [767, 418], [790, 526], [985, 481], [985, 567], [956, 307], [1141, 341], [1192, 341], [1150, 481], [1098, 366], [1199, 535], [1098, 576], [1242, 576], [157, 709], [295, 775], [295, 629], [413, 775], [1110, 856], [1291, 856]];
-const RUN = [RAILS[5], RAILS[6], RAILS[14]];
 
 export function Background() {
   const { concept } = useApp();
-  const [still, setStill] = React.useState(false);
-  React.useEffect(() => {
-    const mq = matchMedia("(prefers-reduced-motion: reduce)");
-    const set = () => setStill(mq.matches || document.documentElement.dataset.motion === "off");
-    set();
-    mq.addEventListener("change", set);
-    const mo = new MutationObserver(set);
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-motion"] });
-    return () => { mq.removeEventListener("change", set); mo.disconnect(); };
-  }, []);
   // the bento concept mirrors the composition so the two concepts do not look like one page re-skinned
   const flip = concept === "bento" ? "translate(1440 0) scale(-1 1)" : undefined;
   return (
@@ -52,11 +40,6 @@ export function Background() {
             {RAILS.map((d, i) => <path key={i} d={d} />)}
             {DOTS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3.4" fill="currentColor" stroke="none" />)}
           </g>
-          {!still && RUN.map((d, i) => (
-            <circle key={i} r="2.2" className="runner">
-              <animateMotion dur={`${16 + i * 7}s`} begin={`${i * 3}s`} repeatCount="indefinite" path={d} keyPoints={i % 2 ? "1;0" : "0;1"} keyTimes="0;1" calcMode="linear" />
-            </circle>
-          ))}
         </g>
       </svg>
       <div className="grain" />

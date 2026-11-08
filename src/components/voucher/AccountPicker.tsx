@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown, Search, Sparkles } from "lucide-react";
+import { ChevronDown, Search, Sparkles } from "@/components/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { accountBy, accounts, groups, type Account } from "@/data/demo";
 import { cn, toFa } from "@/lib/utils";

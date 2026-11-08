@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Command } from "cmdk";
-import { ArrowLeft, BarChart3, CalendarDays, FilePlus2, Files, House, Keyboard, Settings2, UserRound, Sparkles } from "lucide-react";
+import { ArrowLeft, BarChart3, CalendarDays, FilePlus2, Files, House, Keyboard, Settings2, UserRound, Sparkles } from "@/components/icons";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";

@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowLeft, ArrowUpLeft, Info } from "lucide-react";
+import { ArrowDownLeft, ArrowLeft, ArrowUpLeft, Info } from "@/components/icons";
 import { Orb } from "@/components/ai/Orb";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";

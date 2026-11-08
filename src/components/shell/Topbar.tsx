@@ -1,4 +1,4 @@
-import { Bell, BellOff, CalendarClock, CheckCheck, CircleHelp, LogOut, Moon, Search, Settings2, ShieldCheck, Sun, UserRound } from "lucide-react";
+import { Bell, BellOff, CalendarClock, CheckCheck, CircleHelp, LogOut, Moon, Search, Settings2, ShieldCheck, Sun, UserRound } from "@/components/icons";
 import { useApp, type NotifKind, type Page } from "@/lib/store";
 import { companies } from "@/data/demo";
 import { Kbd } from "@/components/ui/kbd";
@@ -30,12 +30,14 @@ export function Segmented<T extends string>({ value, onChange, items, label, cla
 const titles: Record<Page, [string, string?]> = {
   dashboard: ["داشبورد"],
   voucher: ["سند جدید", "ثبت سند حسابداری"],
-  documents: ["اسناد حسابداری"],
+  documents: ["اسناد"],
   doc: ["جزئیات سند"],
   reports: ["گزارش‌ها"],
   calendar: ["تقویم مالی"],
   settings: ["تنظیمات"],
   profile: ["حساب کاربری و شرکت‌ها"],
+  assistant: ["دستیار هوشمند", "گفت‌وگو، گزارش و ثبت سند با دستیار"],
+  basedata: ["اطلاعات پایه", "بانک‌ها، حساب‌ها، صندوق‌ها و ارزها"],
 };
 
 const notifIcon: Record<NotifKind, typeof Bell> = { approve: CheckCheck, due: CalendarClock, ai: ShieldCheck, system: Settings2 };

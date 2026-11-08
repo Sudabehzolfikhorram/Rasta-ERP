@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, Check, FileImage, FileSpreadsheet, FileText, Keyboard, Mic, Paperclip, PencilLine, RotateCcw, Send, Square, Upload, Wand2, X } from "lucide-react";
+import { ArrowLeft, Check, FileImage, FileSpreadsheet, FileText, Keyboard, Mic, Paperclip, PencilLine, RotateCcw, Send, Square, Upload, Wand2, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { type Doc } from "@/data/demo";
 import { cn, group, toFa } from "@/lib/utils";

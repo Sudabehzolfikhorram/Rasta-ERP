@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, CalendarDays, Check, CircleDashed, FileImage, FileText, Info, Lock, Paperclip, Plus, Scale, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, CircleDashed, FileImage, FileText, Info, Lock, Paperclip, Plus, Scale, Sparkles, Trash2, Upload, X } from "@/components/icons";
 import { accountBy, kindLabel, type Doc, type DocKind, type DocLine } from "@/data/demo";
 import { cn, group, toEn, toFa, words } from "@/lib/utils";
 import { fmtNum, MONTHS, monthLength, TODAY, weekday, WD_SHORT } from "@/lib/jalali";

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowRight, Check, CheckCheck, FileImage, FileText, History, PencilLine, Printer, Send, Undo2, X } from "lucide-react";
+import { ArrowRight, Check, CheckCheck, FileImage, FileText, History, PencilLine, Printer, Send, Undo2, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { accountBy, accounts, kindLabel, sourceLabel, statusLabel, type Doc, type DocEvent } from "@/data/demo";
 import { cn, group, money, toEn, toFa, unitLabel } from "@/lib/utils";

@@ -1,4 +1,4 @@
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2, Sparkles } from "@/components/icons";
 import { useApp } from "@/lib/store";
 
 export function Toasts() {

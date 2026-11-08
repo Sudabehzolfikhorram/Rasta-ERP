@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CalendarCheck2, ChevronLeft, ChevronRight, Clock, FilePlus2, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { CalendarCheck2, ChevronLeft, ChevronRight, Clock, FilePlus2, Plus, Sparkles, Trash2, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { catMeta, holidays, type CalEvent, type EventCat } from "@/data/demo";
 import { cn, short, toEn, toFa, unitLabel } from "@/lib/utils";
@@ -212,6 +212,7 @@ export function Calendar() {
   };
   const title = view === "month" ? `${MONTHS[month - 1]} ۱۴۰۵` : (() => { const s = addDays(sel, -weekday(sel.m, sel.d)), e = addDays(s, 6); return `${fmtDay(s.m, s.d)} تا ${fmtDay(e.m, e.d)}`; })();
   const amt = (r?: number) => { if (!r) return null; const s = short(r, unit); return `${s.n} ${s.s} ${unitLabel(unit)}`; };
+  const amtOf = (r: number) => amt(r) ?? "";
 
   const addQuick = (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,44 +224,64 @@ export function Calendar() {
     toast(`یادآوری ${fmtDay(p.m, p.d)}${p.time ? `، ساعت ${p.time}` : ""} ثبت شد.`, "ai");
   };
 
-  /* ----- month grid ----- */
+  /* ----- month grid (bento): weeks as rows, a cash bar per day and a weekly total column ----- */
   const monthGrid = () => {
     const lead = weekday(month, 1), len = monthLength(month);
-    const cells = Math.ceil((lead + len) / 7) * 7;
+    const weeks = Math.ceil((lead + len) / 7);
+    const dayAmt = (d: number) => on(month, d).reduce((a, e) => a + (e.amount ?? 0), 0);
+    const maxAmt = Math.max(...Array.from({ length: len }, (_, i) => dayAmt(i + 1)), 1);
     return (
-      <div className="flex min-w-[720px] flex-col">
-        <div className="grid grid-cols-7 border-b border-border">
+      <div className="flex min-w-[760px] flex-col">
+        <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_96px] border-b border-border bg-muted/40">
           {WEEKDAYS.map((w, i) => <span key={w} className={cn("py-2 text-center text-[12px] font-bold text-muted-foreground", i === 6 && "text-danger")}>{w}</span>)}
+          <span className="border-s border-border/60 py-2 text-center text-[12px] font-bold text-muted-foreground">جمع هفته</span>
         </div>
-        <div className="grid grid-cols-7">
-          {Array.from({ length: cells }, (_, i) => {
-            const d = i - lead + 1;
-            if (d < 1 || d > len) return <div key={i} className="min-h-[118px] border-b border-s border-border/60 bg-muted/20" />;
-            const list = on(month, d);
-            const hol = showHol ? holidayOn(month, d) : undefined;
-            const fri = weekday(month, d) === 6;
-            const isSel = sel.m === month && sel.d === d;
-            return (
-              <div key={i} role="button" tabIndex={0} aria-label={`${fmtFull(month, d)}${list.length ? `، ${toFa(list.length)} مورد` : ""}`}
-                onClick={() => setSel({ m: month, d })} onDoubleClick={() => setCreate({ m: month, d })}
-                onKeyDown={(e) => { if (e.key === "Enter") setCreate({ m: month, d }); }}
-                className={cn("group flex min-h-[118px] cursor-pointer flex-col gap-1 border-b border-s border-border/60 p-1.5 transition-colors hover:bg-muted/40", (fri || hol) && "bg-danger-soft/25", isSel && "bg-primary-soft/40")}>
-                <div className="flex items-center gap-1">
-                  <span className={cn("num grid size-7 place-items-center rounded-full text-[13px] font-bold", (fri || hol) && "text-danger", isToday(month, d) && "bg-primary text-primary-foreground")}>{toFa(d)}</span>
-                  {settings.calendars.gregorian && <span className="num text-[10.5px] text-muted-foreground">{greg(month, d, d === 1)}</span>}
-                  {settings.calendars.hijri && <span className="num ms-auto text-[10px] text-muted-foreground">{hijri(month, d)}</span>}
-                  <button aria-label={`یادآوری برای ${fmtDay(month, d)}`} onClick={(e) => { e.stopPropagation(); setCreate({ m: month, d }); }}
-                    className={cn("grid size-6 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-surface hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100", !settings.calendars.hijri && "ms-auto")}><Plus className="size-3.5" /></button>
-                </div>
-                {hol && <span className="truncate px-1 text-[10.5px] font-semibold text-danger" title={hol.title}>تعطیل: {hol.title}</span>}
-                <div className="flex flex-col gap-0.5">
-                  {list.slice(0, 3).map((e) => <EventChip key={e.id} e={e} />)}
-                  {list.length > 3 && <button onClick={(ev) => { ev.stopPropagation(); setSel({ m: month, d }); setView("agenda"); }} className="px-1.5 text-start text-[11px] font-bold text-muted-foreground hover:text-foreground">{toFa(list.length - 3)} مورد دیگر</button>}
-                </div>
+        {Array.from({ length: weeks }, (_, w) => {
+          const ds = Array.from({ length: 7 }, (_, k) => w * 7 + k - lead + 1);
+          const total = ds.filter((d) => d >= 1 && d <= len).reduce((a, d) => a + dayAmt(d), 0);
+          const count = ds.filter((d) => d >= 1 && d <= len).reduce((a, d) => a + on(month, d).filter((e) => !e.done).length, 0);
+          return (
+            <div key={w} className="grid grid-cols-[repeat(7,minmax(0,1fr))_96px]">
+              {ds.map((d, k) => {
+                if (d < 1 || d > len) return <div key={k} className="min-h-[112px] border-b border-s border-border/60 bg-muted/20" />;
+                const list = on(month, d);
+                const hol = showHol ? holidayOn(month, d) : undefined;
+                const fri = weekday(month, d) === 6;
+                const isSel = sel.m === month && sel.d === d;
+                const amt = dayAmt(d);
+                return (
+                  <div key={k} role="button" tabIndex={0} aria-label={`${fmtFull(month, d)}${list.length ? `، ${toFa(list.length)} مورد` : ""}`}
+                    onClick={() => setSel({ m: month, d })} onDoubleClick={() => setCreate({ m: month, d })}
+                    onKeyDown={(e) => { if (e.key === "Enter") setSel({ m: month, d }); }}
+                    className={cn("group relative flex min-h-[112px] cursor-pointer flex-col gap-1 border-b border-s border-border/60 p-1.5 transition-colors hover:bg-muted/40", (fri || hol) && "bg-danger-soft/25", isSel && "bg-primary-soft/50 ring-2 ring-inset ring-primary/40")}>
+                    <div className="flex items-center gap-1">
+                      <span className={cn("num grid size-7 place-items-center rounded-full text-[13px] font-bold", (fri || hol) && "text-danger", isToday(month, d) && "bg-primary text-primary-foreground")}>{toFa(d)}</span>
+                      {settings.calendars.gregorian && <span className="num text-[10.5px] text-muted-foreground">{greg(month, d, d === 1)}</span>}
+                      <button aria-label={`یادآوری برای ${fmtDay(month, d)}`} onClick={(e) => { e.stopPropagation(); setCreate({ m: month, d }); }}
+                        className="ms-auto grid size-6 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-surface hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"><Plus className="size-3.5" /></button>
+                    </div>
+                    {hol && <span className="truncate px-1 text-[10.5px] font-semibold text-danger" title={hol.title}>تعطیل: {hol.title}</span>}
+                    <div className="flex flex-col gap-0.5">
+                      {list.slice(0, 2).map((e) => <EventChip key={e.id} e={e} />)}
+                      {list.length > 2 && <span className="px-1.5 text-[11px] font-bold text-muted-foreground">{toFa(list.length - 2)} مورد دیگر</span>}
+                    </div>
+                    {amt > 0 && (
+                      <div className="mt-auto flex items-center gap-1.5 px-0.5" title={`${amtOf(amt)} سررسید`}>
+                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-ch-5" style={{ width: `${Math.max((amt / maxAmt) * 100, 8)}%`, background: "hsl(var(--ch-5))" }} /></span>
+                        <span className="num text-[10px] font-bold text-muted-foreground">{short(amt, unit).n}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div className="flex flex-col items-center justify-center gap-0.5 border-b border-s border-border/60 bg-muted/30 px-1 text-center">
+                <b className="num text-[13px]">{total ? short(total, unit).n : "—"}</b>
+                <span className="text-[10.5px] text-muted-foreground">{total ? `${short(total, unit).s} ${unitLabel(unit)}` : ""}</span>
+                <span className="num text-[10.5px] text-muted-foreground">{toFa(count)} مورد باز</span>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -346,65 +367,178 @@ export function Calendar() {
     );
   };
 
-  const side = (
-    <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
-      <section className="panel flex flex-col gap-4 p-4">
-        <Button size="lg" className="w-full" onClick={() => setCreate(sel)}><Plus /> یادآوری جدید</Button>
-        <MiniMonth month={mini} setMonth={setMini} sel={sel} onPick={pick} has={(d) => on(d.m, d.d).some((e) => !e.done)} />
-      </section>
-      <section className="panel p-4">
-        <h3 className="mb-2.5 text-[13px] font-extrabold">تقویم‌ها</h3>
-        <ul className="flex flex-col gap-2.5">
-          {(Object.keys(catMeta) as EventCat[]).map((c) => (
-            <li key={c}>
-              <label className="flex cursor-pointer items-center gap-2.5 text-[13px]">
-                <Checkbox color={catMeta[c].color} checked={!hidden.includes(c)} onCheckedChange={() => setHidden((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))} />
-                {catMeta[c].label}
-                <span className="num ms-auto text-[11.5px] text-muted-foreground">{toFa(events.filter((e) => e.cat === c && !e.done).length)}</span>
-              </label>
-            </li>
-          ))}
-          <li className="mt-1 border-t border-border pt-2.5">
+  const filters = (
+    <section className="panel p-4">
+      <h3 className="mb-2.5 text-[13px] font-extrabold">تقویم‌ها</h3>
+      <ul className="flex flex-col gap-2.5">
+        {(Object.keys(catMeta) as EventCat[]).map((c) => (
+          <li key={c}>
             <label className="flex cursor-pointer items-center gap-2.5 text-[13px]">
-              <Checkbox color="var(--danger)" checked={showHol} onCheckedChange={(v) => setSettings({ calendars: { ...settings.calendars, holidays: !!v } })} /> تعطیلات رسمی
+              <Checkbox color={catMeta[c].color} checked={!hidden.includes(c)} onCheckedChange={() => setHidden((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))} />
+              {catMeta[c].label}
+              <span className="num ms-auto text-[11.5px] text-muted-foreground">{toFa(events.filter((e) => e.cat === c && !e.done).length)}</span>
             </label>
           </li>
-        </ul>
-      </section>
-      <section className="panel p-4">
-        <h3 className="mb-1 flex items-center gap-1.5 text-[13px] font-extrabold"><Clock className="size-4 text-muted-foreground" /> پیش رو</h3>
-        {upcoming.length ? (
-          <ul>
-            {upcoming.slice(0, 5).map((e) => (
-              <li key={e.id}>
-                <button onClick={() => pick({ m: e.m, d: e.d })} className="flex w-full items-start gap-2.5 border-t border-border/60 py-2.5 text-start first:border-t-0">
-                  <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: `hsl(${catMeta[e.cat].color})` }} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-bold">{e.title}</span>
-                    <span className="num block text-[11.5px] text-muted-foreground">{fmtDay(e.m, e.d)}{e.time ? ` · ${e.time}` : ""}{amt(e.amount) ? ` · ${amt(e.amount)}` : ""}</span>
-                  </span>
-                  {dueBadge(e)}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : <Empty icon={CalendarCheck2} title="موردی پیش رو نیست" />}
-      </section>
-    </aside>
+        ))}
+        <li className="mt-1 border-t border-border pt-2.5">
+          <label className="flex cursor-pointer items-center gap-2.5 text-[13px]">
+            <Checkbox color="var(--danger)" checked={showHol} onCheckedChange={(v) => setSettings({ calendars: { ...settings.calendars, holidays: !!v } })} /> تعطیلات رسمی
+          </label>
+        </li>
+      </ul>
+    </section>
+  );
+  const dayLabel = (d: Day) => `${WEEKDAYS[weekday(d.m, d.d)]} ${fmtDay(d.m, d.d)}`;
+  const subDates = (d: Day) => [settings.calendars.gregorian && greg(d.m, d.d, true), settings.calendars.hijri && hijri(d.m, d.d)].filter(Boolean).join(" · ");
+
+  /* ----- one row of the day timeline ----- */
+  const Task = ({ e }: { e: CalEvent }) => (
+    <li className="relative grid grid-cols-[56px_minmax(0,1fr)] gap-3">
+      <span className="num pt-3 text-end text-[12px] font-semibold text-muted-foreground">{e.time ?? "تمام روز"}</span>
+      <div className={cn("relative flex items-center gap-3 rounded-[calc(var(--r-field)+4px)] border border-border bg-surface/80 p-3 transition-colors hover:border-primary/30", e.done && "opacity-60")}
+        style={{ boxShadow: `inset -3px 0 0 hsl(${catMeta[e.cat].color})` }}>
+        <Checkbox checked={!!e.done} onCheckedChange={() => toggleEvent(e.id)} aria-label={`انجام شد: ${e.title}`} color={catMeta[e.cat].color} />
+        <div className="min-w-0 flex-1">
+          <b className={cn("block truncate text-[14px]", e.done && "line-through")}>{e.title}</b>
+          <span className="num flex flex-wrap items-center gap-x-2 text-[12px] text-muted-foreground">
+            <span style={{ color: `hsl(${catMeta[e.cat].color})` }} className="font-semibold">{catMeta[e.cat].label}</span>
+            {amt(e.amount) && <span>· {amt(e.amount)}</span>}
+          </span>
+        </div>
+        {dueBadge(e)}
+      </div>
+    </li>
   );
 
+  /* =============== Concept 1 «دستیار»: today first, the next days one tap away =============== */
+  if (!bento) {
+    const strip = Array.from({ length: 14 }, (_, i) => addDays({ m: TODAY.m, d: TODAY.d }, i));
+    const list = on(sel.m, sel.d);
+    const done = list.filter((e) => e.done).length;
+    const hol = showHol ? holidayOn(sel.m, sel.d) : undefined;
+    const next = strip.slice(1).map((d) => ({ d, list: on(d.m, d.d), hol: showHol ? holidayOn(d.m, d.d) : undefined })).filter((r) => r.list.length || r.hol).filter((r) => !(r.d.m === sel.m && r.d.d === sel.d));
+    const week = strip.slice(0, 7).flatMap((d) => on(d.m, d.d));
+    const weekAmt = week.reduce((a, e) => a + (e.amount ?? 0), 0);
+    return (
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* day strip */}
+          <section className="panel flex items-center gap-2 p-2">
+            <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto p-1" role="tablist" aria-label="روزهای پیش رو">
+              {strip.map((d) => {
+                const off = weekday(d.m, d.d) === 6 || (showHol && !!holidayOn(d.m, d.d));
+                const n = on(d.m, d.d).filter((e) => !e.done).length;
+                const isSel = d.m === sel.m && d.d === sel.d;
+                return (
+                  <button key={`${d.m}-${d.d}`} role="tab" aria-selected={isSel} onClick={() => setSel(d)}
+                    className={cn("flex w-[62px] shrink-0 flex-col items-center gap-0.5 rounded-[calc(var(--r-field)+2px)] py-2 transition-colors hover:bg-muted", isSel && "bg-primary text-primary-foreground hover:bg-primary")}>
+                    <span className={cn("text-[11px] font-semibold", isSel ? "text-primary-foreground/80" : off ? "text-danger" : "text-muted-foreground")}>{isToday(d.m, d.d) ? "امروز" : WD_SHORT[weekday(d.m, d.d)]}</span>
+                    <b className={cn("num text-[18px] leading-6", !isSel && off && "text-danger")}>{toFa(d.d)}</b>
+                    <span className="flex h-1.5 gap-0.5">{Array.from({ length: Math.min(n, 3) }).map((_, i) => <i key={i} className={cn("size-1.5 rounded-full", isSel ? "bg-white" : "bg-primary")} />)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* the selected day */}
+          <section className="panel flex flex-col p-5">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-bold text-muted-foreground">{isToday(sel.m, sel.d) ? "امروز" : relDay(sel.m, sel.d)}</p>
+                <h2 className="num text-[22px] font-extrabold">{dayLabel(sel)}</h2>
+                {subDates(sel) && <p className="num text-[12px] text-muted-foreground">{subDates(sel)}</p>}
+              </div>
+              {list.length > 0 && (
+                <div className="flex items-center gap-2.5 rounded-field bg-muted/60 px-3 py-2">
+                  <span className="relative grid size-10 place-items-center">
+                    <svg viewBox="0 0 36 36" className="absolute inset-0 -rotate-90"><circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--border))" strokeWidth="4" /><circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--success))" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(done / list.length) * 94.2} 94.2`} /></svg>
+                    <b className="num text-[11px]">{toFa(done)}/{toFa(list.length)}</b>
+                  </span>
+                  <span className="text-[12px] leading-4 text-muted-foreground">کار<br />انجام شد</span>
+                </div>
+              )}
+              <Button size="sm" variant="outline" onClick={() => setCreate(sel)}><Plus /> جدید</Button>
+            </div>
+            <form onSubmit={addQuick} className="mt-4 flex items-center gap-2.5 rounded-[calc(var(--r-field)+4px)] border border-input bg-surface/80 p-1.5 ps-3 focus-within:border-ring focus-within:ring-4 focus-within:ring-ring/15">
+              <Orb size={24} />
+              <input value={quick} onChange={(e) => setQuick(e.target.value)} aria-label="افزودن یادآوری با یک جمله" placeholder="در یک جمله بنویسید؛ مثلاً «پنجشنبه ساعت ۱۰ جلسه با حسابرس»"
+                className="h-9 min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground" />
+              <Button type="submit" size="sm" variant="ai" disabled={!quick.trim()}>افزودن</Button>
+            </form>
+            {hol && <p className="mt-4 rounded-field bg-danger-soft/60 px-3 py-2 text-[12.5px] font-semibold text-danger">تعطیل رسمی: {hol.title}</p>}
+            {list.length ? (
+              <ol className="mt-4 flex flex-col gap-2.5">{list.map((e) => <Task key={e.id} e={e} />)}</ol>
+            ) : <Empty icon={CalendarCheck2} title="برای این روز برنامه‌ای ثبت نشده" text="یادآوری را در یک جمله بنویسید یا «جدید» را بزنید." />}
+          </section>
+
+          {/* the following days: collapsed, open one to see details */}
+          <section className="panel p-2">
+            <h3 className="px-3 pb-1 pt-2 text-[13px] font-extrabold">روزهای بعد</h3>
+            {next.length ? (
+              <ul className="flex flex-col">
+                {next.map(({ d, list: l, hol: h }) => (
+                  <li key={`${d.m}-${d.d}`}>
+                    <details className="group rounded-field open:bg-muted/30">
+                      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-field px-3 py-2.5 hover:bg-muted/50">
+                        <span className={cn("num grid size-10 shrink-0 place-items-center rounded-field bg-muted text-[16px] font-extrabold", (weekday(d.m, d.d) === 6 || h) && "text-danger")}>{toFa(d.d)}</span>
+                        <span className="min-w-0 flex-1">
+                          <b className="block text-[13.5px]">{dayLabel(d)}</b>
+                          <span className="num block truncate text-[12px] text-muted-foreground">{h ? `تعطیل: ${h.title}` : l.map((e) => e.title).join("، ")}</span>
+                        </span>
+                        <span className="num rounded-full bg-muted px-2 text-[11.5px] font-bold">{toFa(l.length)}</span>
+                        <ChevronLeft className="size-4 text-muted-foreground transition-transform group-open:-rotate-90" />
+                      </summary>
+                      <ol className="flex flex-col gap-2 px-3 pb-3 pt-1">{l.map((e) => <Task key={e.id} e={e} />)}</ol>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            ) : <Empty icon={CalendarCheck2} title="در دو هفته‌ی آینده موردی نیست" />}
+          </section>
+        </div>
+
+        <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
+          <section className="panel p-4">
+            <h3 className="mb-3 text-[13px] font-extrabold">این هفته در یک نگاه</h3>
+            <div className="num grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-field bg-muted/60 py-2.5"><b className="block text-[18px]">{toFa(week.filter((e) => !e.done).length)}</b><span className="text-[11px] text-muted-foreground">کار باز</span></div>
+              <div className="rounded-field bg-muted/60 py-2.5"><b className="block text-[18px]">{short(weekAmt, unit).n}</b><span className="text-[11px] text-muted-foreground">{short(weekAmt, unit).s} {unitLabel(unit)} سررسید</span></div>
+            </div>
+            <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted">
+              {(Object.keys(catMeta) as EventCat[]).map((c) => { const k = week.filter((e) => e.cat === c).length; return k ? <span key={c} style={{ width: `${(k / week.length) * 100}%`, background: `hsl(${catMeta[c].color})` }} title={catMeta[c].label} /> : null; })}
+            </div>
+          </section>
+          <section className="panel p-4"><MiniMonth month={mini} setMonth={setMini} sel={sel} onPick={pick} has={(d) => on(d.m, d.d).some((e) => !e.done)} /></section>
+          {filters}
+        </aside>
+        <NewReminder open={!!create} onOpenChange={(o) => !o && setCreate(null)} at={create ?? sel} />
+      </div>
+    );
+  }
+
+  /* =============== Concept 2 «پیشخوان»: a financial month planner =============== */
+  const monthEv = shown.filter((e) => e.m === month);
+  const monthAmt = monthEv.reduce((a, e) => a + (e.amount ?? 0), 0);
+  const selList = on(sel.m, sel.d);
+  const selHol = showHol ? holidayOn(sel.m, sel.d) : undefined;
+  const kpi: [string, string, string][] = [
+    ["سررسیدهای ماه", toFa(monthEv.filter((e) => e.amount).length), "--ch-1"],
+    ["مبلغ سررسیدها", `${short(monthAmt, unit).n} ${short(monthAmt, unit).s}`, "--ch-5"],
+    ["انجام‌شده", `${toFa(monthEv.filter((e) => e.done).length)} از ${toFa(monthEv.length)}`, "--ch-2"],
+    ["روز تعطیل", toFa(holidays.filter((h) => h.m === month).length + Array.from({ length: monthLength(month) }, (_, i) => i + 1).filter((d) => weekday(month, d) === 6).length), "--danger"],
+  ];
   return (
-    <div className={cn("grid gap-5", bento ? "xl:grid-cols-[minmax(0,1fr)_290px]" : "xl:grid-cols-[290px_minmax(0,1fr)]")}>
-      {!bento && side}
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
       <div className="flex min-w-0 flex-col gap-4">
-        {!bento && (
-          <form onSubmit={addQuick} className="hero flex items-center gap-3 p-3 ps-4">
-            <Orb size={30} />
-            <input value={quick} onChange={(e) => setQuick(e.target.value)} aria-label="افزودن یادآوری با یک جمله" placeholder="یادآوری را در یک جمله بنویسید؛ مثلاً «پنجشنبه ساعت ۱۰ جلسه با حسابرس»"
-              className="h-10 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground" />
-            <Button type="submit" variant="ai" disabled={!quick.trim()}><Plus /> افزودن</Button>
-          </form>
-        )}
+        <section className="panel grid grid-cols-2 overflow-hidden sm:grid-cols-4">
+          {kpi.map(([l, v, c], i) => (
+            <div key={l} className={cn("flex items-center gap-3 p-4", i > 0 && "sm:border-s sm:border-border/70")}>
+              <span className="h-9 w-1 rounded-full" style={{ background: `hsl(var(${c}))` }} />
+              <span><span className="block text-[12px] font-bold text-muted-foreground">{l}</span><b className="num text-[19px] font-extrabold">{v}</b></span>
+            </div>
+          ))}
+        </section>
         <section className="panel-data flex min-w-0 flex-col overflow-hidden">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
             <Button size="sm" variant="outline" onClick={() => pick({ m: TODAY.m, d: TODAY.d })}>امروز</Button>
@@ -416,15 +550,56 @@ export function Calendar() {
               <h2 className="num text-[17px] font-extrabold leading-6">{view === "agenda" ? `از ${fmtDay(sel.m, sel.d)}` : title}</h2>
               {settings.calendars.gregorian && view === "month" && <p className="num text-[11.5px] text-muted-foreground">{gregRange(month)}</p>}
             </div>
-            <Segmented className="ms-auto" label="نما" value={view} onChange={setView} items={[["month", "ماه"], ["week", "هفته"], ["agenda", "برنامه"]]} />
+            <Segmented className="ms-auto" label="نما" value={view} onChange={setView} items={[["month", "ماه"], ["week", "هفته"], ["agenda", "فهرست"]]} />
+            <Button size="sm" onClick={() => setCreate(sel)}><Plus /> یادآوری</Button>
           </div>
           <div className="overflow-x-auto">
             {view === "month" ? monthGrid() : view === "week" ? weekGrid() : <div className="p-2">{agenda()}</div>}
           </div>
-          {view === "month" && <p className="border-t border-border px-4 py-2 text-[11.5px] text-muted-foreground">برای افزودن یادآوری روی روز دوبار کلیک کنید یا دکمه‌ی + را بزنید.</p>}
+          {view === "month" && <p className="border-t border-border px-4 py-2 text-[11.5px] text-muted-foreground">نوار پایین هر روز مبلغ سررسیدهای آن روز را نشان می‌دهد. برای افزودن یادآوری روی روز دوبار کلیک کنید.</p>}
         </section>
       </div>
-      {bento && side}
+      <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
+        <section className="panel p-4">
+          <p className="text-[12px] font-bold text-muted-foreground">{isToday(sel.m, sel.d) ? "امروز" : relDay(sel.m, sel.d)}</p>
+          <h3 className="num text-[17px] font-extrabold">{dayLabel(sel)}</h3>
+          {subDates(sel) && <p className="num text-[11.5px] text-muted-foreground">{subDates(sel)}</p>}
+          {selHol && <p className="mt-2 rounded-field bg-danger-soft/60 px-2.5 py-1.5 text-[12px] font-semibold text-danger">تعطیل: {selHol.title}</p>}
+          {selList.length ? (
+            <ul className="mt-3 flex flex-col gap-2">
+              {selList.map((e) => (
+                <li key={e.id} className="flex items-start gap-2.5 rounded-field border border-border/70 p-2.5">
+                  <Checkbox checked={!!e.done} onCheckedChange={() => toggleEvent(e.id)} color={catMeta[e.cat].color} aria-label={`انجام شد: ${e.title}`} />
+                  <span className="min-w-0 flex-1">
+                    <b className={cn("block text-[13px]", e.done && "text-muted-foreground line-through")}>{e.title}</b>
+                    <span className="num text-[11.5px] text-muted-foreground">{e.time ?? "تمام روز"}{amt(e.amount) ? ` · ${amt(e.amount)}` : ""}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : <Empty icon={CalendarCheck2} title="موردی ثبت نشده" action={<Button size="sm" variant="soft" onClick={() => setCreate(sel)}><Plus /> یادآوری</Button>} />}
+        </section>
+        <section className="panel p-4">
+          <h3 className="mb-1 flex items-center gap-1.5 text-[13px] font-extrabold"><Clock className="size-4 text-muted-foreground" /> پیش رو</h3>
+          {upcoming.length ? (
+            <ul>
+              {upcoming.slice(0, 4).map((e) => (
+                <li key={e.id}>
+                  <button onClick={() => pick({ m: e.m, d: e.d })} className="flex w-full items-start gap-2.5 border-t border-border/60 py-2.5 text-start first:border-t-0">
+                    <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: `hsl(${catMeta[e.cat].color})` }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-bold">{e.title}</span>
+                      <span className="num block text-[11.5px] text-muted-foreground">{fmtDay(e.m, e.d)}{amt(e.amount) ? ` · ${amt(e.amount)}` : ""}</span>
+                    </span>
+                    {dueBadge(e)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : <Empty icon={CalendarCheck2} title="موردی پیش رو نیست" />}
+        </section>
+        {filters}
+      </aside>
       <NewReminder open={!!create} onOpenChange={(o) => !o && setCreate(null)} at={create ?? sel} />
     </div>
   );

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Bell, CalendarDays, FileCog, Palette, AlarmClock } from "lucide-react";
+import { Add, Bell, CalendarDays, FileCog, Lock, Palette, AlarmClock, TickCircle } from "@/components/icons";
 import { useApp, type Channel, type NotifKind } from "@/lib/store";
 import { Segmented } from "@/components/shell/Topbar";
 import { cn, group, toEn, toFa } from "@/lib/utils";
@@ -7,6 +7,10 @@ import { MONTHS } from "@/lib/jalali";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { monthLength } from "@/lib/jalali";
 
 export function Row({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
@@ -47,7 +51,7 @@ function useSections() {
         <Row title="کانسپت"><Segmented label="کانسپت" value={concept} onChange={setConcept} items={[["assist", "دستیار"], ["bento", "پیشخوان"]]} /></Row>
         <Row title="حالت نمایش"><Segmented label="حالت نمایش" value={theme} onChange={setTheme} items={[["light", "روشن"], ["dark", "تیره"]]} /></Row>
         <Row title="واحد نمایش مبلغ" note="در داشبورد و گزارش‌ها"><Segmented label="واحد نمایش" value={unit} onChange={setUnit} items={[["rial", "ریال"], ["toman", "تومان"]]} /></Row>
-        <Row title="جلوه‌های حرکتی" note="حرکت پس‌زمینه و انیمیشن‌ها"><Switch checked={settings.motion} onCheckedChange={(v) => { setSettings({ motion: v }); toast(v ? "جلوه‌های حرکتی فعال شد." : "جلوه‌های حرکتی غیرفعال شد."); }} aria-label="جلوه‌های حرکتی" /></Row>
+        <Row title="جلوه‌های حرکتی" note="انیمیشن دستیار و جابه‌جایی صفحه‌ها"><Switch checked={settings.motion} onCheckedChange={(v) => { setSettings({ motion: v }); toast(v ? "جلوه‌های حرکتی فعال شد." : "جلوه‌های حرکتی غیرفعال شد."); }} aria-label="جلوه‌های حرکتی" /></Row>
       </>
     ),
     docs: (
@@ -82,12 +86,7 @@ function useSections() {
         <Row title="نمایش تاریخ میلادی" note="کنار روزهای تقویم مالی"><Switch checked={cal.gregorian} onCheckedChange={(v) => setSettings({ calendars: { ...cal, gregorian: v } })} aria-label="نمایش تاریخ میلادی" /></Row>
         <Row title="نمایش تاریخ قمری"><Switch checked={cal.hijri} onCheckedChange={(v) => setSettings({ calendars: { ...cal, hijri: v } })} aria-label="نمایش تاریخ قمری" /></Row>
         <Row title="تعطیلات رسمی" note="روزهای تعطیل در تقویم قرمز نمایش داده می‌شوند"><Switch checked={cal.holidays} onCheckedChange={(v) => setSettings({ calendars: { ...cal, holidays: v } })} aria-label="تعطیلات رسمی" /></Row>
-        <Row title="شروع سال مالی" note="سال مالی ۱۴۰۵">
-          <Select label="ماه شروع سال مالی" value={settings.fiscalStart} onChange={(v) => setSettings({ fiscalStart: +v })} options={MONTHS.map((m, i) => [i + 1, `۱ ${m}`])} />
-        </Row>
-        <Row title="دوره‌های مالی" note="مهر بسته است؛ آبان باز است">
-          <div className="flex flex-wrap gap-1.5">{MONTHS.slice(6, 9).map((m, i) => <span key={m} className={cn("rounded-field px-2.5 py-1 text-[12px] font-bold", i === 0 ? "bg-muted text-muted-foreground" : i === 1 ? "bg-success-soft text-success" : "bg-muted/60 text-muted-foreground")}>{m}: {i === 0 ? "بسته" : i === 1 ? "باز" : "آینده"}</span>)}</div>
-        </Row>
+        <FiscalYears />
       </>
     ),
     reminders: (
@@ -155,5 +154,117 @@ export function Settings() {
         </section>
       ))}
     </div>
+  );
+}
+
+/* ---------- fiscal years: list, period timeline and a custom-year dialog ---------- */
+type FY = { id: string; title: string; start: [number, number, number]; end: [number, number, number]; state: "closed" | "open" | "draft"; custom?: boolean };
+const fmtD = ([y, m, d]: [number, number, number]) => `${toFa(d)} ${MONTHS[m - 1]} ${toFa(y)}`;
+const monthsBetween = (a: [number, number, number], b: [number, number, number]) => (b[0] - a[0]) * 12 + (b[1] - a[1]) + (b[2] >= monthLength(b[1]) - 1 ? 1 : 0);
+
+function FiscalYears() {
+  const { settings, setSettings, toast } = useApp();
+  const [years, setYears] = React.useState<FY[]>([
+    { id: "y1404", title: "سال مالی ۱۴۰۴", start: [1404, 1, 1], end: [1404, 12, 29], state: "closed" },
+    { id: "y1405", title: "سال مالی ۱۴۰۵", start: [1405, settings.fiscalStart, 1], end: [1405, 12, 29], state: "open" },
+  ]);
+  const [periods, setPeriods] = React.useState<("closed" | "open" | "future")[]>(MONTHS.map((_, i) => (i < 7 ? "closed" : i === 7 ? "open" : "future")));
+  const [dlg, setDlg] = React.useState(false);
+  const cur = years.find((y) => y.state === "open")!;
+  return (
+    <div className="flex flex-col gap-4 border-t border-border/70 py-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-[200px] flex-1">
+          <div className="text-[14px] font-bold">سال‌های مالی</div>
+          <div className="text-[12.5px] text-muted-foreground">هر سال مالی می‌تواند ۱۲ ماهه یا با بازه‌ی دلخواه باشد.</div>
+        </div>
+        <Button size="sm" variant="soft" onClick={() => setDlg(true)}><Add /> سال مالی جدید</Button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {years.map((y) => (
+          <div key={y.id} className={cn("rounded-[calc(var(--r-field)+4px)] border p-4", y.state === "open" ? "border-primary/40 bg-primary-soft/40" : "border-border bg-surface/60")}>
+            <div className="flex items-center gap-2">
+              <b className="text-[14px]">{y.title}</b>
+              <Badge className="ms-auto" tone={y.state === "open" ? "success" : y.state === "closed" ? "neutral" : "info"}>{y.state === "open" ? "جاری" : y.state === "closed" ? "بسته‌شده" : "آماده‌ی شروع"}</Badge>
+            </div>
+            <p className="num mt-1.5 text-[12.5px] text-muted-foreground">{fmtD(y.start)} تا {fmtD(y.end)}</p>
+            <p className="num text-[12px] text-muted-foreground">{toFa(monthsBetween(y.start, y.end) || 12)} ماه{y.custom ? " · سفارشی" : ""}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-[calc(var(--r-field)+4px)] border border-border bg-surface/60 p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <b className="text-[13.5px]">دوره‌های {cur.title}</b>
+          <span className="text-[12px] text-muted-foreground">برای بستن یا باز کردن، روی ماه بزنید.</span>
+          <label className="ms-auto flex items-center gap-2 text-[12.5px]"><span className="text-muted-foreground">ماه شروع</span>
+            <Select label="ماه شروع سال مالی" value={settings.fiscalStart} onChange={(v) => { setSettings({ fiscalStart: +v }); setYears((x) => x.map((y) => (y.id === "y1405" ? { ...y, start: [1405, +v, 1] } : y))); }} options={MONTHS.map((m, i) => [i + 1, m])} />
+          </label>
+        </div>
+        <ol className="grid grid-cols-3 gap-1.5 sm:grid-cols-6 xl:grid-cols-12">
+          {MONTHS.map((m, i) => {
+            const st = periods[i];
+            return (
+              <li key={m}>
+                <button disabled={st === "future"} onClick={() => { setPeriods((p) => p.map((x, j) => (j === i ? (x === "closed" ? "open" : "closed") : x))); toast(`دوره‌ی ${m} ${st === "closed" ? "باز" : "بسته"} شد.`); }}
+                  className={cn("flex w-full flex-col items-center gap-1 rounded-field border px-1 py-2 text-[12px] font-bold transition-colors", st === "closed" ? "border-border bg-muted/70 text-muted-foreground" : st === "open" ? "border-success/40 bg-success-soft text-success" : "border-dashed border-border text-muted-foreground/70")}>
+                  {st === "closed" ? <Lock className="size-4" /> : st === "open" ? <TickCircle className="size-4" variant="Bulk" /> : <span className="size-4" />}
+                  {m}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="mt-3 flex flex-wrap gap-4 text-[11.5px] text-muted-foreground">
+          <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-[3px] bg-muted-foreground/40" />بسته</span>
+          <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-[3px] bg-success" />باز</span>
+          <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-[3px] border border-dashed border-muted-foreground" />آینده</span>
+        </div>
+      </div>
+      {dlg && <NewFiscalYear onClose={() => setDlg(false)} onSave={(y) => { setYears((x) => [...x, y]); setDlg(false); toast(`${y.title} تعریف شد.`, "success"); }} />}
+    </div>
+  );
+}
+
+function NewFiscalYear({ onClose, onSave }: { onClose: () => void; onSave: (y: FY) => void }) {
+  const [mode, setMode] = React.useState<"standard" | "custom">("standard");
+  const [title, setTitle] = React.useState("سال مالی ۱۴۰۶");
+  const [start, setStart] = React.useState<[number, number, number]>([1406, 1, 1]);
+  const [end, setEnd] = React.useState<[number, number, number]>([1406, 12, 29]);
+  const effEnd: [number, number, number] = mode === "standard" ? (start[1] === 1 ? [start[0], 12, 29] : [start[0] + 1, start[1] - 1, monthLength(start[1] - 1)]) : end;
+  const len = monthsBetween(start, effEnd);
+  const bad = mode === "custom" && (len < 1 || len > 18);
+  const dateRow = (v: [number, number, number], set: (x: [number, number, number]) => void, label: string) => (
+    <div className="flex flex-col gap-1.5">
+      <span className="field-label">{label}</span>
+      <div className="grid grid-cols-[72px_minmax(0,1fr)_86px] gap-2">
+        <Input type="number" min={1} max={monthLength(v[1])} value={v[2]} onChange={(e) => set([v[0], v[1], Math.min(Math.max(+e.target.value || 1, 1), monthLength(v[1]))])} className="num" aria-label={`${label}: روز`} />
+        <Select label={`${label}: ماه`} value={v[1]} onChange={(m) => set([v[0], +m, Math.min(v[2], monthLength(+m))])} options={MONTHS.map((m, i) => [i + 1, m])} />
+        <Input type="number" min={1404} max={1410} value={v[0]} onChange={(e) => set([+e.target.value || 1406, v[1], v[2]])} className="num" aria-label={`${label}: سال`} />
+      </div>
+    </div>
+  );
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent aria-describedby={undefined} className="top-[10vh] w-[min(520px,calc(100vw-32px))]">
+        <DialogTitle className="border-b border-border px-6 py-4 text-[16px] font-extrabold">سال مالی جدید</DialogTitle>
+        <div className="flex flex-col gap-4 px-6 py-5">
+          <label className="flex flex-col gap-1.5"><span className="field-label">عنوان</span><Input value={title} onChange={(e) => setTitle(e.target.value)} /></label>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="نوع سال مالی">
+            {([["standard", "۱۲ ماهه", "از ماه شروع، دوازده ماه"], ["custom", "سفارشی", "تاریخ شروع و پایان دلخواه"]] as const).map(([k, l, n]) => (
+              <button key={k} role="radio" aria-checked={mode === k} onClick={() => setMode(k)} className={cn("rounded-field border p-3 text-start transition-colors", mode === k ? "border-primary bg-primary-soft/60" : "border-border hover:bg-muted/50")}>
+                <b className={cn("block text-[13.5px]", mode === k && "text-primary")}>{l}</b><span className="text-[12px] text-muted-foreground">{n}</span>
+              </button>
+            ))}
+          </div>
+          {dateRow(start, setStart, "تاریخ شروع")}
+          {mode === "custom" ? dateRow(end, setEnd, "تاریخ پایان") : <p className="num rounded-field bg-muted/60 px-3 py-2 text-[12.5px] text-muted-foreground">پایان: {fmtD(effEnd)}</p>}
+          <p className={cn("num text-[12.5px]", bad ? "font-semibold text-danger" : "text-muted-foreground")}>{bad ? "طول سال مالی باید بین ۱ تا ۱۸ ماه باشد." : `طول سال مالی: ${toFa(len)} ماه · ${toFa(len)} دوره‌ی ماهانه ساخته می‌شود.`}</p>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border px-6 py-3.5">
+          <Button variant="ghost" onClick={onClose}>انصراف</Button>
+          <Button disabled={bad || !title.trim()} onClick={() => onSave({ id: `y${Date.now()}`, title: title.trim(), start, end: effEnd, state: "draft", custom: mode === "custom" })}>تعریف سال مالی</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

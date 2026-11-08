@@ -1,7 +1,8 @@
 import * as React from "react";
-import { CheckCheck, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "lucide-react";
+import { CheckCheck, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
-import { accounts, kindLabel, sourceLabel, statusLabel, type Doc, type DocKind, type DocStatus } from "@/data/demo";
+import { accounts, catRows, docCats, kindLabel, sourceLabel, statusLabel, type Doc, type DocKind, type DocStatus } from "@/data/demo";
+import { DataTable } from "@/components/ui/data-table";
 import { cn, money, toEn, toFa, unitLabel } from "@/lib/utils";
 import { dayIndex, diffDays, fmtDay, relDay } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ function parseQuery(q: string): Parsed {
 }
 
 function AssistDocuments() {
-  const { docs, setDocStatus, toast, unit, openDoc, startVoucher } = useApp();
+  const { docs, setDocStatus, toast, unit, openDoc } = useApp();
   const [q, setQ] = React.useState("");
   const [applied, setApplied] = React.useState<Parsed>({ label: [] });
   const [thinking, setThinking] = React.useState(false);
@@ -69,7 +70,7 @@ function AssistDocuments() {
             <Search className="pointer-events-none absolute end-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           </div>
           <Button type="submit" className="h-11">جست‌وجو</Button>
-          <Button type="button" variant="outline" className="hidden h-11 sm:inline-flex" onClick={() => startVoucher()}><FilePlus2 /> سند جدید</Button>
+          
         </form>
         <div className="mt-3 flex flex-wrap items-center gap-2 ps-[52px]">
           {applied.label.length ? (
@@ -128,7 +129,7 @@ function AssistDocuments() {
    Concept 2 «پیشخوان»: a dense register with filters and bulk actions
    ===================================================================== */
 function BentoDocuments() {
-  const { docs, setDocStatus, startVoucher, toast, unit, openDoc } = useApp();
+  const { docs, setDocStatus, toast, unit, openDoc } = useApp();
   const [tab, setTab] = React.useState<Tab>("all");
   const [kinds, setKinds] = React.useState<DocKind[]>([]);
   const [when, setWhen] = React.useState<When>("all");
@@ -156,7 +157,6 @@ function BentoDocuments() {
   return (
     <div className="grid gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
       <aside className="panel flex h-fit flex-col gap-4 p-4 lg:sticky lg:top-4" aria-label="فیلتر اسناد">
-        <Button onClick={() => startVoucher()}><FilePlus2 /> سند جدید</Button>
         <div>
           <h3 className="mb-1.5 text-[12px] font-bold text-muted-foreground">وضعیت</h3>
           <div role="tablist" aria-label="وضعیت سند" className="flex flex-col gap-0.5">
@@ -208,7 +208,7 @@ function BentoDocuments() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-[13px]">
               <thead>
-                <tr className="border-b border-border text-[12px] text-muted-foreground">
+                <tr className="border-b border-border bg-muted/60 text-[12px] text-muted-foreground">
                   <th className="w-10 px-3 py-3"><Checkbox aria-label="انتخاب همه" checked={allOn ? true : someOn ? "indeterminate" : false} onCheckedChange={() => setSel(allOn ? [] : list.map((d) => d.id))} /></th>
                   <th className="px-2 py-3 text-start font-semibold">شماره</th>
                   <th className="px-2 py-3 text-start font-semibold">تاریخ</th>
@@ -221,7 +221,7 @@ function BentoDocuments() {
               </thead>
               <tbody>
                 {list.map((d) => (
-                  <tr key={d.id} onClick={() => openDoc(d.id)} className={cn("cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-primary-soft/40", d.fresh && "animate-flash", sel.includes(d.id) && "bg-primary-soft/50")}>
+                  <tr key={d.id} onClick={() => openDoc(d.id)} className={cn("cursor-pointer border-b border-border/60 [&>td]:py-3.5 transition-colors last:border-0 hover:bg-primary-soft/40", d.fresh && "animate-flash", sel.includes(d.id) && "bg-primary-soft/50")}>
                     <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                       <Checkbox aria-label={`انتخاب سند ${docNo(d.m, d.seq)}`} checked={sel.includes(d.id)} onCheckedChange={() => setSel((x) => (x.includes(d.id) ? x.filter((y) => y !== d.id) : [...x, d.id]))} />
                     </td>
@@ -255,8 +255,54 @@ function BentoDocuments() {
   );
 }
 
+/** Category strip + «سند جدید»: shared header for every document category. */
+function DocHeader() {
+  const { docCat, setDocCat, docs, startVoucher } = useApp();
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <nav className="panel flex min-w-0 flex-1 gap-1 overflow-x-auto p-1.5" aria-label="دسته‌های اسناد">
+        {docCats.map((c) => (
+          <button key={c.id} onClick={() => setDocCat(c.id)} aria-current={docCat === c.id ? "page" : undefined}
+            className={cn("flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", docCat === c.id && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary")}>
+            {c.label}<span className="num text-[11.5px] opacity-70">{toFa(c.id === "acc" ? docs.length : c.count)}</span>
+          </button>
+        ))}
+      </nav>
+      <Button className="h-12 px-5" onClick={() => startVoucher()}><FilePlus2 /> سند جدید</Button>
+    </div>
+  );
+}
+
+function CategoryList({ cat }: { cat: string }) {
+  const { unit, toast } = useApp();
+  const meta = docCats.find((c) => c.id === cat)!;
+  const rows = catRows[cat] ?? [];
+  return (
+    <section className="panel flex flex-col gap-4 p-5">
+      <div className="flex flex-wrap items-center gap-3 rounded-field border border-info/25 bg-info-soft/50 px-4 py-3 text-[12.5px]">
+        <b className="text-info">نمونه</b>
+        <span className="text-muted-foreground">در این نسخه فقط «اسناد حسابداری» صفحه‌ی جزئیات و فرایند کامل دارد. این فهرست برای نمایش ساختار است.</span>
+      </div>
+      <DataTable caption={meta.label} rowKey={(r) => r.no} rows={rows} onRow={(r) => toast(`جزئیات «${r.title}» در نسخه‌ی بعد فعال می‌شود.`)}
+        empty={<Empty icon={Search} title="موردی ثبت نشده" />}
+        columns={[
+          { key: "no", label: "شماره", className: "w-28", render: (r) => <span className="font-semibold">{r.no}</span> },
+          { key: "title", label: "شرح", render: (r) => <span><b className="block">{r.title}</b><span className="text-[12px] text-muted-foreground">{r.party}</span></span> },
+          { key: "day", label: "تاریخ", hide: "sm", render: (r) => <span className="text-muted-foreground">{fmtDay(8, r.day)}</span> },
+          { key: "amt", label: `مبلغ (${unitLabel(unit)})`, align: "end", hide: "sm", render: (r) => (r.rial ? <b>{money(r.rial, unit)}</b> : <span className="text-muted-foreground">—</span>) },
+          { key: "state", label: "وضعیت", render: (r) => <Badge tone={r.tone}>{r.state}</Badge> },
+        ]} />
+    </section>
+  );
+}
+
 export function Documents() {
-  const { concept } = useApp();
-  return concept === "bento" ? <BentoDocuments /> : <AssistDocuments />;
+  const { concept, docCat } = useApp();
+  return (
+    <div className="flex flex-col gap-4">
+      <DocHeader />
+      {docCat !== "acc" ? <CategoryList cat={docCat} /> : concept === "bento" ? <BentoDocuments /> : <AssistDocuments />}
+    </div>
+  );
 }
 

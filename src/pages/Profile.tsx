@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Building2, Check, KeyRound, Mail, Phone, Plus, ShieldCheck, Users } from "lucide-react";
+import { Building2, Check, KeyRound, Mail, Phone, Plus, ShieldCheck, Users } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { companies as seed, users, type Company } from "@/data/demo";
 import { cn, toFa } from "@/lib/utils";

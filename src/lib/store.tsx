@@ -3,7 +3,7 @@ import type { Unit } from "./utils";
 import { companies, seedDocs, seedEvents, seedHistory, type CalEvent, type Doc, type DocEvent } from "@/data/demo";
 
 export type Concept = "assist" | "bento";
-export type Page = "dashboard" | "voucher" | "documents" | "doc" | "reports" | "calendar" | "settings" | "profile";
+export type Page = "dashboard" | "voucher" | "documents" | "doc" | "reports" | "calendar" | "settings" | "profile" | "assistant" | "basedata";
 export type Theme = "light" | "dark";
 export type Pinned = { id: string; title: string; rows: [string, string][]; note: string };
 type Toast = { id: number; text: string; tone?: "success" | "ai" };
@@ -21,31 +21,36 @@ export type ChatMsg = { who: "me" | "ai"; text: string };
 export type Chat = { id: string; title: string; when: string; scope: "home" | "reports" | "doc"; msgs: ChatMsg[] };
 export type Notif = { id: string; kind: NotifKind; title: string; detail: string; when: string; read?: boolean; doc?: string; page?: Page };
 
-const PAGES: Page[] = ["dashboard", "voucher", "documents", "doc", "reports", "calendar", "settings", "profile"];
+const PAGES: Page[] = ["dashboard", "voucher", "documents", "doc", "reports", "calendar", "settings", "profile", "assistant", "basedata"];
 
-export const WIDGETS: Record<Concept, { id: string; title: string }[]> = {
+export type WidgetDef = { id: string; title: string; desc: string };
+export const WIDGETS: Record<Concept, WidgetDef[]> = {
   assist: [
-    { id: "kpis", title: "شاخص‌های اصلی" },
-    { id: "decisions", title: "کارهای منتظر اقدام" },
-    { id: "agenda", title: "برنامه‌ی این هفته" },
-    { id: "recent", title: "آخرین اسناد" },
-    { id: "cash", title: "پیش‌بینی نقدینگی" },
+    { id: "kpis", title: "شاخص‌های اصلی", desc: "نقد و بانک، دریافتنی، پرداختنی و سود با روند ۳۰ روز" },
+    { id: "decisions", title: "کارهای منتظر اقدام", desc: "اسنادی که تأیید یا بررسی شما را لازم دارند" },
+    { id: "agenda", title: "برنامه‌ی این هفته", desc: "سررسیدها و یادآوری‌های هفت روز پیش رو" },
+    { id: "recent", title: "آخرین اسناد", desc: "پنج سند آخر با وضعیت و مبلغ" },
+    { id: "cash", title: "پیش‌بینی نقدینگی", desc: "موجودی واقعی و پیش‌بینی ۲ هفته‌ی آینده" },
+    { id: "approvals", title: "وضعیت اسناد آبان", desc: "سهم اسناد تأییدشده، منتظر و پیش‌نویس" },
+    { id: "close", title: "چک‌لیست پایان دوره", desc: "کارهای باقی‌مانده برای بستن آبان" },
   ],
   bento: [
-    { id: "cash", title: "موجودی نقد و بانک" },
-    { id: "minis", title: "شاخص‌ها" },
-    { id: "approvals", title: "وضعیت اسناد آبان" },
-    { id: "month", title: "تقویم آبان" },
-    { id: "aging", title: "سنی مطالبات" },
-    { id: "spend", title: "ترکیب هزینه‌ها" },
-    { id: "recent", title: "آخرین اسناد" },
-    { id: "decisions", title: "کارهای منتظر اقدام" },
-    { id: "close", title: "چک‌لیست پایان دوره" },
+    { id: "stats", title: "شاخص‌های مالی", desc: "چهار کارت با هدف، مقایسه و روند" },
+    { id: "cash", title: "موجودی نقد و بانک", desc: "موجودی واقعی و پیش‌بینی ۲ هفته‌ی آینده" },
+    { id: "month", title: "تقویم آبان", desc: "روزهای سررسید و تعطیلات ماه" },
+    { id: "flow", title: "گردش نقدی آبان", desc: "از موجودی اول ماه تا امروز، قدم‌به‌قدم" },
+    { id: "spend", title: "ترکیب هزینه‌ها", desc: "سهم هر هزینه از کل هزینه‌های آبان" },
+    { id: "aging", title: "سنی مطالبات", desc: "مطالبات هر مشتری بر اساس روزهای گذشته" },
+    { id: "heat", title: "فعالیت ثبت سند", desc: "تعداد سند در هر روز هفته و هر هفته" },
+    { id: "approvals", title: "وضعیت اسناد آبان", desc: "سهم اسناد تأییدشده، منتظر و پیش‌نویس" },
+    { id: "recent", title: "آخرین اسناد", desc: "پنج سند آخر با وضعیت و مبلغ" },
+    { id: "close", title: "چک‌لیست پایان دوره", desc: "کارهای باقی‌مانده برای بستن آبان" },
+    { id: "decisions", title: "کارهای منتظر اقدام", desc: "اسنادی که تأیید یا بررسی شما را لازم دارند" },
   ],
 };
 const DEFAULT_WIDGETS: Record<Concept, string[]> = {
-  assist: ["kpis", "decisions", "agenda", "recent"],
-  bento: ["cash", "month", "minis", "approvals", "aging", "spend", "recent", "close", "decisions"],
+  assist: ["kpis", "decisions", "agenda", "recent", "cash"],
+  bento: ["stats", "cash", "month", "flow", "spend", "aging", "recent", "approvals", "heat"],
 };
 
 const seedChats: Chat[] = [
@@ -92,6 +97,8 @@ type Ctx = {
   notifs: Notif[]; readNotif: (id?: string) => void;
   company: string; setCompany: (id: string) => void;
   widgets: string[]; setWidgets: (w: string[]) => void;
+  chatSeed: { id?: string; ask?: string; n: number } | null; openAssistant: (seed?: { id?: string; ask?: string }) => void;
+  docCat: string; setDocCat: (c: string) => void;
 };
 
 const AppCtx = React.createContext<Ctx | null>(null);
@@ -116,7 +123,7 @@ const stamp = () => `۱۷ آبان · ${now().replace("امروز ", "")}`;
 
 function loadWidgets(): Record<Concept, string[]> {
   try {
-    const raw = JSON.parse(localStorage.getItem("rasta-widgets-v4") ?? "null");
+    const raw = JSON.parse(localStorage.getItem("rasta-widgets-v5") ?? "null");
     if (raw && Array.isArray(raw.assist) && Array.isArray(raw.bento)) return raw;
   } catch { /* storage blocked */ }
   return DEFAULT_WIDGETS;
@@ -136,6 +143,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [voucherSeed, setVoucherSeed] = React.useState<Ctx["voucherSeed"]>(null);
   const [docs, setDocs] = React.useState<Doc[]>(() => seedDocs.map((d) => ({ ...d, history: seedHistory(d) })));
   const [docId, setDocId] = React.useState<string | null>(init.doc);
+  const [chatSeed, setChatSeed] = React.useState<{ id?: string; ask?: string; n: number } | null>(null);
+  const [docCat, setDocCat] = React.useState("acc");
   const [events, setEvents] = React.useState<CalEvent[]>(seedEvents);
   const [calDay, setCalDay] = React.useState<Ctx["calDay"]>(null);
   const [reportSeed, setReportSeed] = React.useState<string | null>(null);
@@ -232,10 +241,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     removeChat: (id) => setChats((x) => x.filter((c) => c.id !== id)),
     notifs, readNotif: (id) => setNotifs((x) => x.map((n) => (!id || n.id === id ? { ...n, read: true } : n))),
     company, setCompany,
+    chatSeed, openAssistant: (seed) => { setChatSeed({ ...(seed ?? {}), n: Date.now() }); go("assistant"); },
+    docCat, setDocCat: (c) => { setDocCat(c); go("documents"); },
     widgets: widgetMap[concept],
     setWidgets: (w) => setWidgetMap((m) => {
       const next = { ...m, [concept]: w };
-      try { localStorage.setItem("rasta-widgets-v4", JSON.stringify(next)); } catch { /* ignore */ }
+      try { localStorage.setItem("rasta-widgets-v5", JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     }),
   };
