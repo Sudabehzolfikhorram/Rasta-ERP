@@ -1,16 +1,17 @@
 import * as React from "react";
 import { Command } from "cmdk";
-import { ArrowLeft, BarChart3, CalendarDays, FilePlus2, Files, House, Keyboard, Loader2, Settings2, Sparkles } from "lucide-react";
+import { ArrowLeft, BarChart3, CalendarDays, FilePlus2, Files, House, Keyboard, Settings2, UserRound, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { useApp } from "@/lib/store";
+import { Orb } from "@/components/ai/Orb";
 import { money, unitLabel } from "@/lib/utils";
 
-type Answer = { title: string; line: string; rows: [string, string][]; note: string; id: string; report?: string };
+export type Answer = { title: string; line: string; rows: [string, string][]; note: string; id: string; report?: string };
 
 /** Demo agent: a few intents answered with real-looking tools (synthetic data). */
-function answerFor(q: string, unit: "rial" | "toman"): Answer | null {
+export function answerFor(q: string, unit: "rial" | "toman"): Answer | null {
   const u = unitLabel(unit);
   if (/صورت.?حساب|مشتری/.test(q))
     return {
@@ -84,7 +85,7 @@ export function CommandPalette() {
         <DialogTitle className="sr-only">از راستا بپرسید</DialogTitle>
         <Command shouldFilter={false} label="فرمان راستا" className="flex flex-col">
           <div className="flex items-center gap-3 border-b border-border px-5">
-            <span className="ai-edge grid size-7 place-items-center rounded-full text-white"><Sparkles className="size-4" /></span>
+            <Orb size={28} busy={thinking} />
             <Command.Input
               value={q}
               onValueChange={(v) => { setQ(v); setAnswer(null); }}
@@ -98,7 +99,7 @@ export function CommandPalette() {
           {(thinking || answer) && (
             <div className="border-b border-border bg-ai-soft/40 px-5 py-4">
               {thinking ? (
-                <p className="flex items-center gap-2 text-[13px] text-ai-ink"><Loader2 className="size-4 animate-spin" /> در حال خواندن اسناد…</p>
+                <p className="flex items-center gap-2 text-[13px] text-ai-ink"><Orb size={18} busy /> در حال خواندن اسناد…</p>
               ) : answer && (
                 <div className="animate-in fade-in-0 slide-in-from-top-1">
                   <div className="flex items-center justify-between gap-2">
@@ -137,13 +138,14 @@ export function CommandPalette() {
               ))}
             </Command.Group>
             <Command.Group heading="برو به" className="cmd-group">
-              <Command.Item onSelect={run(() => go("dashboard"))} className="cmd-item"><House /> امروز</Command.Item>
-              <Command.Item onSelect={run(() => startVoucher())} className="cmd-item"><FilePlus2 /> سند تازه با دستیار</Command.Item>
-              <Command.Item onSelect={run(() => startVoucher({ manual: true }))} className="cmd-item"><Keyboard /> سند تازه، دستی</Command.Item>
+              <Command.Item onSelect={run(() => go("dashboard"))} className="cmd-item"><House /> داشبورد</Command.Item>
+              <Command.Item onSelect={run(() => startVoucher())} className="cmd-item"><FilePlus2 /> سند جدید با دستیار</Command.Item>
+              <Command.Item onSelect={run(() => startVoucher({ manual: true }))} className="cmd-item"><Keyboard /> سند جدید، دستی</Command.Item>
               <Command.Item onSelect={run(() => go("documents"))} className="cmd-item"><Files /> اسناد</Command.Item>
               <Command.Item onSelect={run(() => go("reports"))} className="cmd-item"><BarChart3 /> گزارش‌ها</Command.Item>
               <Command.Item onSelect={run(() => openCalendar())} className="cmd-item"><CalendarDays /> تقویم مالی</Command.Item>
               <Command.Item onSelect={run(() => go("settings"))} className="cmd-item"><Settings2 /> تنظیمات</Command.Item>
+              <Command.Item onSelect={run(() => go("profile"))} className="cmd-item"><UserRound /> حساب کاربری و شرکت‌ها</Command.Item>
             </Command.Group>
           </Command.List>
           <div className="flex items-center gap-4 border-t border-border px-5 py-2.5 text-[11.5px] text-muted-foreground">

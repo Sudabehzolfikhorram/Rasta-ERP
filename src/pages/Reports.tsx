@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowUp, Check, ChevronDown, Download, FileSpreadsheet, FileText, Filter, Loader2, MessageSquareText, Plus, Printer, Send, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, ChevronDown, Download, FileSpreadsheet, FileText, Filter, History, LayoutDashboard, MessageSquareText, Plus, Printer, Send, Trash2, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { reports, reportGroups, type Report, type Row } from "@/data/reports";
 import { cashActual, cashForecast } from "@/data/demo";
@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CashChart, PairBars, RankBars, StackBars, Treemap, Waterfall } from "@/components/charts";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Orb } from "@/components/ai/Orb";
+import { SystemOverview } from "@/pages/Overview";
+import { Empty } from "@/pages/Dashboard";
 
 type Period = "aban" | "mehr" | "autumn";
 const periods: [Period, string, number][] = [["aban", "آبان", 1], ["mehr", "مهر", 0.92], ["autumn", "پاییز تا امروز", 1.92]];
@@ -62,12 +66,12 @@ function JobCard({ job, onFinish }: { job: Job; onFinish: (j: Job) => void }) {
   }, [i]);
   const all = ["پخش البرز", "پتروشیمی مارون", "سیمان تهران", "فولاد مبارکه"];
   return (
-    <div className="rounded-2xl border border-border bg-surface/80 p-3.5 animate-rise">
+    <div className="rounded-field border border-border bg-surface p-3.5 animate-rise">
       <ol className="flex flex-col gap-2">
         {job.steps.map((s, k) => (
           <li key={s} className={cn("flex items-center gap-2.5 text-[12.5px] transition-colors", k > i && "text-muted-foreground/70")}>
             <span className={cn("grid size-5 shrink-0 place-items-center rounded-full transition-colors duration-300", k < i ? "bg-ai text-white" : k === i ? "bg-ai-soft text-ai-ink" : "bg-muted")}>
-              {k < i ? <Check className="size-3" strokeWidth={3} /> : k === i ? <Loader2 className="size-3 animate-spin" /> : null}
+              {k < i ? <Check className="size-3" strokeWidth={3} /> : k === i ? <Orb size={14} busy /> : null}
             </span>
             <span className={cn("flex-1", k === i && "font-bold")}>{s}</span>
           </li>
@@ -85,7 +89,7 @@ function JobCard({ job, onFinish }: { job: Job; onFinish: (j: Job) => void }) {
                 {all.map((c) => (
                   <li key={c}>
                     <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-[12.5px] hover:bg-muted">
-                      <input type="checkbox" className="size-4 accent-[hsl(var(--primary))]" checked={to.includes(c)} onChange={() => setTo((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))} />
+                      <Checkbox checked={to.includes(c)} onCheckedChange={() => setTo((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))} />
                       <span className="flex-1">{c}</span>
                       <span className="text-[11px] text-muted-foreground">ایمیل و پیامک</span>
                     </label>
@@ -93,7 +97,7 @@ function JobCard({ job, onFinish }: { job: Job; onFinish: (j: Job) => void }) {
                 ))}
               </ul>
               <Button size="sm" className="mt-2 w-full" disabled={!to.length || sent === "sending"} onClick={() => { setSent("sending"); setTimeout(() => { setSent("yes"); toast(`صورت‌حساب مهر برای ${toFa(to.length)} مشتری فرستاده شد.`, "ai"); }, 1100); }}>
-                {sent === "sending" ? <Loader2 className="animate-spin" /> : <Send />} ارسال برای {toFa(to.length)} مشتری
+                {sent === "sending" ? <Orb size={16} busy /> : <Send />} ارسال برای {toFa(to.length)} مشتری
               </Button>
             </div>
           )}
@@ -105,40 +109,78 @@ function JobCard({ job, onFinish }: { job: Job; onFinish: (j: Job) => void }) {
 }
 
 function Assistant({ onReport, onExport, close }: { onReport: (id: string) => void; onExport: () => void; close?: () => void }) {
+  const { chats, startChat, addMsg } = useApp();
   const [msgs, setMsgs] = React.useState<({ who: "me"; text: string } | { who: "ai"; job?: Job; text?: string; key: number })[]>([]);
   const [text, setText] = React.useState("");
+  const [showHistory, setShowHistory] = React.useState(false);
+  const chatId = React.useRef<string | null>(null);
   const end = React.useRef<HTMLDivElement>(null);
+  const past = chats.filter((c) => c.scope === "reports");
   React.useEffect(() => { end.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [msgs]);
   const run = (ask: string) => {
     if (!ask.trim()) return;
     const hit = JOBS.find((j) => j.re.test(ask));
-    setMsgs((m) => [...m, { who: "me", text: ask }, hit ? { who: "ai", job: hit.make(ask), key: Date.now() } : { who: "ai", text: "این کار را هنوز بلد نیستم. یکی از پیشنهادهای زیر را امتحان کنید.", key: Date.now() }]);
+    if (!chatId.current) chatId.current = startChat("reports", ask); else addMsg(chatId.current, { who: "me", text: ask });
+    setMsgs((m) => [...m, { who: "me", text: ask }, hit ? { who: "ai", job: hit.make(ask), key: Date.now() } : { who: "ai", text: "این کار در این نسخه پشتیبانی نمی‌شود. یکی از پیشنهادهای زیر را امتحان کنید.", key: Date.now() }]);
     setText("");
+    setShowHistory(false);
   };
-  const finish = React.useCallback((j: Job) => { if (j.report) onReport(j.report); if (j.kind === "export") setTimeout(onExport, 200); }, [onReport, onExport]);
+  const finish = React.useCallback((j: Job) => {
+    if (chatId.current) addMsg(chatId.current, { who: "ai", text: j.done });
+    if (j.report) onReport(j.report);
+    if (j.kind === "export") setTimeout(onExport, 200);
+  }, [onReport, onExport, addMsg]);
+  const openPast = (id: string) => {
+    const c = chats.find((x) => x.id === id); if (!c) return;
+    chatId.current = c.id;
+    setMsgs(c.msgs.map((m, k) => (m.who === "me" ? { who: "me", text: m.text } : { who: "ai", text: m.text, key: k })));
+    setShowHistory(false);
+  };
   return (
     <section className="panel flex h-full min-h-[520px] flex-col overflow-hidden" aria-label="دستیار گزارش">
       <div className="flex items-center gap-2 border-b border-border/70 px-4 py-3">
-        <span className="ai-edge grid size-7 place-items-center rounded-full text-white"><Sparkles className="size-3.5" /></span>
+        <Orb size={28} />
         <b className="text-[14px]">دستیار گزارش</b>
-        {close && <button aria-label="بستن دستیار" onClick={close} className="ms-auto grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted"><X className="size-4" /></button>}
+        <div className="ms-auto flex gap-1">
+          <button aria-label="گفت‌وگوی جدید" title="گفت‌وگوی جدید" onClick={() => { chatId.current = null; setMsgs([]); setShowHistory(false); }} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"><Plus className="size-4" /></button>
+          <button aria-label="گفت‌وگوهای قبلی" aria-pressed={showHistory} title="گفت‌وگوهای قبلی" onClick={() => setShowHistory(!showHistory)} className={cn("grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground", showHistory && "bg-primary-soft text-primary")}><History className="size-4" /></button>
+          {close && <button aria-label="بستن دستیار" onClick={close} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted"><X className="size-4" /></button>}
+        </div>
       </div>
-      <div className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
-        {msgs.length === 0 && <p className="text-[13px] leading-7 text-muted-foreground">کاری را بگویید که چند قدم دارد؛ قدم‌ها را اینجا می‌بینید و پیش از ارسال هر چیزی، از شما می‌پرسم.</p>}
-        {msgs.map((m, k) => m.who === "me" ? (
-          <div key={k} className="ms-8 rounded-2xl rounded-ss-md bg-primary px-3.5 py-2.5 text-[13px] leading-6 text-primary-foreground animate-rise">{m.text}</div>
-        ) : m.job ? <JobCard key={m.key} job={m.job} onFinish={finish} /> : (
-          <div key={m.key} className="me-8 rounded-2xl bg-muted px-3.5 py-2.5 text-[13px] leading-6 animate-rise">{m.text}</div>
-        ))}
-        <div ref={end} />
-      </div>
+      {showHistory ? (
+        <div className="flex-1 overflow-y-auto p-3">
+          <button onClick={() => setShowHistory(false)} className="mb-2 flex items-center gap-1 px-1 text-[12.5px] font-bold text-muted-foreground hover:text-foreground"><ArrowRight className="size-4" /> بازگشت</button>
+          {past.length ? (
+            <ul className="flex flex-col gap-0.5">
+              {past.map((c) => (
+                <li key={c.id}><button onClick={() => openPast(c.id)} className="w-full rounded-field px-3 py-2 text-start hover:bg-muted"><span className="block truncate text-[13px] font-semibold">{c.title}</span><span className="num text-[11.5px] text-muted-foreground">{c.when}</span></button></li>
+              ))}
+            </ul>
+          ) : <Empty icon={History} title="هنوز گفت‌وگویی ندارید" />}
+        </div>
+      ) : (
+        <div className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
+          {msgs.length === 0 && (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <Orb size={56} />
+              <p className="max-w-[260px] text-[13px] leading-7 text-muted-foreground">کار چندمرحله‌ای را بنویسید. مراحل را همین‌جا می‌بینید و پیش از هر ارسالی تأیید شما گرفته می‌شود.</p>
+            </div>
+          )}
+          {msgs.map((m, k) => m.who === "me" ? (
+            <div key={k} className="ms-8 rounded-[calc(var(--r-field)+4px)] rounded-ss-md bg-primary px-3.5 py-2.5 text-[13px] leading-6 text-primary-foreground animate-rise">{m.text}</div>
+          ) : m.job ? <JobCard key={m.key} job={m.job} onFinish={finish} /> : (
+            <div key={m.key} className="num me-8 rounded-[calc(var(--r-field)+4px)] border border-border bg-surface px-3.5 py-2.5 text-[13px] leading-6 animate-rise">{m.text}</div>
+          ))}
+          <div ref={end} />
+        </div>
+      )}
       <div className="border-t border-border/70 p-3">
         <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
           {SUGGEST.map((s) => <button key={s} onClick={() => run(s)} className="chip h-auto shrink-0 py-1 text-[11.5px]">{s}</button>)}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); run(text); }} className="flex gap-2">
-          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="مثلاً: صورت‌حساب مهر را بفرست" aria-label="پیام به دستیار گزارش" className="rounded-full" />
-          <Button type="submit" size="icon" variant="ai" aria-label="فرستادن"><ArrowUp /></Button>
+          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="مثلاً: صورت‌حساب مهر را بفرست" aria-label="پیام به دستیار گزارش" />
+          <Button type="submit" size="icon" variant="ai" aria-label="ارسال"><ArrowUp /></Button>
         </form>
       </div>
     </section>
@@ -192,20 +234,69 @@ function applyConds(rows: Row[], conds: Cond[]) {
   }));
 }
 
+function Tree({ id, pick }: { id: string; pick: (x: string) => void }) {
+  return (
+    <nav className="panel no-print h-fit p-3 lg:sticky lg:top-4" aria-label="فهرست گزارش‌ها">
+      <button onClick={() => pick("overview")} aria-current={id === "overview" ? "page" : undefined}
+        className={cn("mb-1 flex w-full items-center gap-2 rounded-field px-3 py-2 text-start text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", id === "overview" && "bg-primary-soft font-bold text-primary hover:bg-primary-soft hover:text-primary")}>
+        <LayoutDashboard className="size-4" /> نمای کلی سیستم
+      </button>
+      {reportGroups.map((g) => (
+        <div key={g} className="mb-2">
+          <div className="flex items-center gap-1 px-2 pb-1 pt-2 text-[12px] font-bold text-muted-foreground"><ChevronDown className="size-3" />{g}</div>
+          <ul className="ms-3 border-s border-border ps-1.5">
+            {reports.filter((x) => x.group === g).map((x) => (
+              <li key={x.id}>
+                <button onClick={() => pick(x.id)} aria-current={x.id === id ? "page" : undefined}
+                  className={cn("w-full rounded-field px-3 py-2 text-start text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", x.id === id && "bg-primary-soft font-bold text-primary hover:bg-primary-soft hover:text-primary")}>{x.title}</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+function Picker({ id, pick }: { id: string; pick: (x: string) => void }) {
+  const [open, setOpen] = React.useState(false);
+  const title = id === "overview" ? "نمای کلی سیستم" : reports.find((x) => x.id === id)?.title;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-2 rounded-field px-2 py-1 text-[17px] font-extrabold hover:bg-muted" aria-label="انتخاب گزارش">{title}<ChevronDown className="size-4 text-muted-foreground" /></button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-1.5">
+        <button onClick={() => { pick("overview"); setOpen(false); }} className={cn("flex w-full items-center gap-2 rounded-field px-3 py-2 text-start text-[13px] hover:bg-muted", id === "overview" && "font-bold text-primary")}><LayoutDashboard className="size-4" /> نمای کلی سیستم</button>
+        {reportGroups.map((g) => (
+          <div key={g}>
+            <div className="px-3 pb-0.5 pt-2 text-[11.5px] font-bold text-muted-foreground">{g}</div>
+            {reports.filter((x) => x.group === g).map((x) => (
+              <button key={x.id} onClick={() => { pick(x.id); setOpen(false); }} className={cn("w-full rounded-field px-3 py-1.5 text-start text-[13px] hover:bg-muted", x.id === id && "font-bold text-primary")}>{x.title}</button>
+            ))}
+          </div>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function Reports() {
-  const { reportSeed, unit, toast } = useApp();
-  const [id, setId] = React.useState(reportSeed ?? "pl");
+  const { reportSeed, unit, toast, concept } = useApp();
+  const bento = concept === "bento";
+  const [id, setId] = React.useState(reportSeed ?? "overview");
   const [period, setPeriod] = React.useState<Period>("aban");
   const [conds, setConds] = React.useState<Cond[]>([]);
   const [chatOpen, setChatOpen] = React.useState(false);
-  const r = reports.find((x) => x.id === id)!;
+  const r = reports.find((x) => x.id === id) ?? null;
   const k = periods.find((p) => p[0] === period)![2];
   const u = unitLabel(unit);
-  const rows = applyConds(scaleRows(r, k, unit === "toman"), conds);
+  const rows = r ? applyConds(scaleRows(r, k, unit === "toman"), conds) : [];
   const pick = React.useCallback((x: string) => { setId(x); setConds([]); }, []);
   const doExport = React.useCallback(() => { const rep = reports.find((x) => x.id === "tb")!; exportCsv(rep, scaleRows(rep, 1, unit === "toman"), u); toast("فایل اکسل تراز آزمایشی دانلود شد."); }, [unit, u, toast]);
 
   const chart = () => {
+    if (!r) return null;
     const div = unit === "toman" ? 10 : 1;
     switch (r.chart) {
       case "waterfall": return <Waterfall items={rows.map((x) => [String(x.item), x.v as number])} total="سود" unit={u} />;
@@ -216,68 +307,53 @@ export function Reports() {
       case "cash": return <div className="flex h-[260px] flex-col"><CashChart actual={cashActual} forecast={cashForecast} scale={1 / div} unit={u} minH={240} /></div>;
     }
   };
-  const totals = r.cols.map((c) => (c.num && !/٪/.test(c.label) ? rows.reduce((a, x) => a + (typeof x[c.key] === "number" ? (x[c.key] as number) : 0), 0) : null));
+  const totals = r ? r.cols.map((c) => (c.num && !/٪/.test(c.label) ? rows.reduce((a, x) => a + (typeof x[c.key] === "number" ? (x[c.key] as number) : 0), 0) : null)) : [];
 
-  return (
-    <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)_330px]">
-      {/* tree */}
-      <nav className="panel no-print h-fit p-3 lg:sticky lg:top-4" aria-label="فهرست گزارش‌ها">
-        {reportGroups.map((g) => (
-          <div key={g} className="mb-2">
-            <div className="flex items-center gap-1 px-2 pb-1 pt-2 text-[11.5px] font-semibold text-muted-foreground"><ChevronDown className="size-3" />{g}</div>
-            <ul className="ms-3 border-s border-border ps-1.5">
-              {reports.filter((x) => x.group === g).map((x) => (
-                <li key={x.id}>
-                  <button onClick={() => pick(x.id)} aria-current={x.id === id ? "page" : undefined}
-                    className={cn("w-full rounded-xl px-3 py-2 text-start text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", x.id === id && "bg-primary-soft font-bold text-primary hover:bg-primary-soft hover:text-primary")}>{x.title}</button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </nav>
+  const toolbar = (
+    <section className="panel no-print flex flex-wrap items-center gap-2 p-3">
+      {bento ? <h2 className="px-2 text-[17px] font-extrabold">{r?.title ?? "نمای کلی سیستم"}</h2> : <Picker id={id} pick={pick} />}
+      {r && (
+        <div className="flex rounded-[calc(var(--r-field)+4px)] bg-muted/80 p-1" role="radiogroup" aria-label="دوره">
+          {periods.map(([p, l]) => (
+            <button key={p} role="radio" aria-checked={period === p} onClick={() => setPeriod(p)} className={cn("h-7 rounded-field px-3 text-[12.5px] font-semibold text-muted-foreground", period === p && "bg-surface text-foreground shadow-soft")}>{l}</button>
+          ))}
+        </div>
+      )}
+      <div className="ms-auto flex flex-wrap gap-2">
+        {r && <AdvancedFilter key={r.id} report={r} conds={conds} setConds={setConds} />}
+        <Popover>
+          <PopoverTrigger asChild><Button size="sm" variant="outline"><Download /> خروجی</Button></PopoverTrigger>
+          <PopoverContent className="w-52 p-1.5" align="end">
+            {r && <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] hover:bg-muted" onClick={() => { exportCsv(r, rows, u); toast(`فایل «${r.title}» دانلود شد.`); }}><FileSpreadsheet className="size-4 text-success" /> اکسل</button>}
+            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] hover:bg-muted" onClick={() => window.print()}><FileText className="size-4 text-danger" /> PDF</button>
+            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] hover:bg-muted" onClick={() => window.print()}><Printer className="size-4" /> چاپ</button>
+          </PopoverContent>
+        </Popover>
+        {bento && <Button size="sm" variant="ai" onClick={() => setChatOpen(true)}><MessageSquareText /> دستیار گزارش</Button>}
+      </div>
+      {r && conds.length > 0 && (
+        <div className="flex w-full flex-wrap gap-1.5 px-2">
+          {conds.map((c) => (
+            <span key={c.id} className="flex items-center gap-1 rounded-field bg-primary-soft px-2.5 py-0.5 text-[12px] text-primary">
+              {r.cols.find((x) => x.key === c.col)?.label} {c.op === ">" ? "بیشتر از" : c.op === "<" ? "کمتر از" : c.op === "=" ? "برابر" : "شامل"} {c.val}
+              <button aria-label="حذف شرط" onClick={() => setConds(conds.filter((x) => x.id !== c.id))}><X className="size-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 
-      {/* report */}
-      <div className="flex min-w-0 flex-col gap-4">
-        <section className="panel no-print flex flex-wrap items-center gap-2 p-3">
-          <h2 className="px-2 text-[17px] font-extrabold">{r.title}</h2>
-          <div className="flex rounded-full bg-muted/80 p-1" role="radiogroup" aria-label="دوره">
-            {periods.map(([p, l]) => (
-              <button key={p} role="radio" aria-checked={period === p} onClick={() => setPeriod(p)} className={cn("h-7 rounded-full px-3 text-[12.5px] font-semibold text-muted-foreground", period === p && "bg-surface text-foreground shadow-soft")}>{l}</button>
-            ))}
-          </div>
-          <div className="ms-auto flex flex-wrap gap-2">
-            <AdvancedFilter key={r.id} report={r} conds={conds} setConds={setConds} />
-            <Popover>
-              <PopoverTrigger asChild><Button size="sm" variant="outline"><Download /> خروجی</Button></PopoverTrigger>
-              <PopoverContent className="w-52 p-1.5" align="end">
-                <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] hover:bg-muted" onClick={() => { exportCsv(r, rows, u); toast(`فایل «${r.title}» دانلود شد.`); }}><FileSpreadsheet className="size-4 text-success" /> اکسل</button>
-                <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] hover:bg-muted" onClick={() => window.print()}><FileText className="size-4 text-danger" /> PDF</button>
-                <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] hover:bg-muted" onClick={() => window.print()}><Printer className="size-4" /> چاپ</button>
-              </PopoverContent>
-            </Popover>
-            <Button size="sm" variant="ai" className="xl:hidden" onClick={() => setChatOpen(true)}><MessageSquareText /> دستیار</Button>
-          </div>
-          {conds.length > 0 && (
-            <div className="flex w-full flex-wrap gap-1.5 px-2">
-              {conds.map((c) => (
-                <span key={c.id} className="flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-0.5 text-[12px] text-primary">
-                  {r.cols.find((x) => x.key === c.col)?.label} {c.op === ">" ? "بیشتر از" : c.op === "<" ? "کمتر از" : c.op === "=" ? "برابر" : "شامل"} {c.val}
-                  <button aria-label="حذف شرط" onClick={() => setConds(conds.filter((x) => x.id !== c.id))}><X className="size-3" /></button>
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="panel p-5">
-          <div className="mb-3 flex items-baseline justify-between">
-            <b className="text-[14px]">{periods.find((p) => p[0] === period)![1]} ۱۴۰۵</b>
-            <span className="text-[12px] text-muted-foreground">میلیارد {u}</span>
-          </div>
-          {rows.length ? chart() : <p className="py-10 text-center text-[13px] text-muted-foreground">با این فیلتر ردیفی نمی‌ماند.</p>}
-        </section>
-
+  const body = !r ? <SystemOverview dense={!bento} /> : (
+    <>
+      <section className="panel p-5">
+        <div className="mb-3 flex items-baseline justify-between">
+          <b className="text-[14px]">{periods.find((p) => p[0] === period)![1]} ۱۴۰۵</b>
+          <span className="text-[12px] text-muted-foreground">میلیارد {u}</span>
+        </div>
+        {rows.length ? chart() : <Empty icon={Filter} title="با این فیلتر ردیفی باقی نمی‌ماند" action={<Button size="sm" variant="soft" onClick={() => setConds([])}>حذف فیلترها</Button>} />}
+      </section>
+      {rows.length > 0 && (
         <section className="panel-data overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-[13px]">
@@ -307,14 +383,27 @@ export function Reports() {
           </div>
           {r.note && <p className="border-t border-border px-4 py-2.5 text-[12px] text-muted-foreground">{r.note}</p>}
         </section>
-      </div>
-
-      <div className="no-print hidden xl:block"><div className="sticky top-4 h-[calc(100vh-120px)]"><Assistant onReport={pick} onExport={doExport} /></div></div>
-      {chatOpen && (
-        <div className="no-print fixed inset-y-4 end-4 z-50 w-[min(380px,calc(100vw-32px))] animate-rise xl:hidden">
-          <Assistant onReport={pick} onExport={doExport} close={() => setChatOpen(false)} />
-        </div>
       )}
+    </>
+  );
+
+  if (bento) {
+    return (
+      <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <Tree id={id} pick={pick} />
+        <div className="flex min-w-0 flex-col gap-4">{toolbar}{body}</div>
+        {chatOpen && (
+          <div className="no-print fixed inset-y-4 end-4 z-50 w-[min(400px,calc(100vw-32px))] animate-rise">
+            <Assistant onReport={pick} onExport={doExport} close={() => setChatOpen(false)} />
+          </div>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
+      <div className="no-print xl:sticky xl:top-4 xl:h-[calc(100vh-120px)]"><Assistant onReport={pick} onExport={doExport} /></div>
+      <div className="flex min-w-0 flex-col gap-4">{toolbar}{body}</div>
     </div>
   );
 }

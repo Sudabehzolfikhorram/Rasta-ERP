@@ -191,9 +191,9 @@ export function VoucherEditor({ doc, setDoc, inUnit, setInUnit }: { doc: Doc; se
           </label>
           <div className="flex flex-col gap-1">
             <span className="field-label">ورود مبلغ به</span>
-            <div role="radiogroup" aria-label="واحد ورود مبلغ" className="flex h-11 w-fit items-center rounded-full bg-muted p-1 text-[12.5px]">
+            <div role="radiogroup" aria-label="واحد ورود مبلغ" className="flex h-11 w-fit items-center rounded-[calc(var(--r-field)+4px)] bg-muted p-1 text-[12.5px]">
               {(["toman", "rial"] as const).map((u) => (
-                <button key={u} role="radio" aria-checked={inUnit === u} onClick={() => setInUnit(u)} className={cn("h-9 rounded-full px-4 font-semibold text-muted-foreground", inUnit === u && "bg-surface text-foreground shadow-soft")}>
+                <button key={u} role="radio" aria-checked={inUnit === u} onClick={() => setInUnit(u)} className={cn("h-9 rounded-field px-4 font-semibold text-muted-foreground", inUnit === u && "bg-surface text-foreground shadow-soft")}>
                   {u === "toman" ? "تومان" : "ریال"}
                 </button>
               ))}

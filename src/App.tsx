@@ -11,10 +11,12 @@ import { Documents } from "@/pages/Documents";
 import { Reports } from "@/pages/Reports";
 import { Calendar } from "@/pages/Calendar";
 import { Settings } from "@/pages/Settings";
+import { Profile } from "@/pages/Profile";
+import { DocDetail } from "@/pages/DocDetail";
 import { Background } from "@/components/shell/Background";
 
 function Shell() {
-  const { page, openPalette, voucherSeed, reportSeed, calDay } = useApp();
+  const { page, openPalette, voucherSeed, reportSeed, calDay, docId, concept } = useApp();
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(); }
@@ -30,13 +32,15 @@ function Shell() {
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col gap-5">
           <Topbar />
-          <div key={page} className="flex min-w-0 flex-col gap-5 animate-rise">
+          <div key={`${page}-${concept}`} className="flex min-w-0 flex-col gap-5 animate-rise">
             {page === "dashboard" && <Dashboard />}
-            {page === "voucher" && <Voucher key={voucherSeed?.n ?? 0} />}
+            {page === "voucher" && <Voucher key={`${voucherSeed?.n ?? 0}-${concept}`} />}
             {page === "documents" && <Documents />}
             {page === "reports" && <Reports key={reportSeed ?? ""} />}
             {page === "calendar" && <Calendar key={calDay ? `${calDay.m}-${calDay.d}` : ""} />}
+            {page === "doc" && <DocDetail key={docId ?? ""} />}
             {page === "settings" && <Settings />}
+            {page === "profile" && <Profile />}
           </div>
         </main>
       </div>

@@ -2,7 +2,7 @@ import * as React from "react";
 import { useApp } from "@/lib/store";
 
 /** The Algonet line language: thin rails, rounded turns and junction dots.
- *  Drawn as SVG so it follows the theme; soft colour glows sit underneath so glass has something to blur. */
+ *  Drawn as SVG so it follows the theme. A few frosted spheres at low opacity give the glass something to blur. */
 const RAILS = [
   // top start cluster
   "M150 237 H595", "M271 80 V237", "M300 237 A 218 237 0 0 0 518 0", "M394 237 V360", "M594 120 V237",
@@ -35,9 +35,10 @@ export function Background() {
   const flip = concept === "bento" ? "translate(1440 0) scale(-1 1)" : undefined;
   return (
     <div className="bg-field" aria-hidden>
-      <div className="glow g1" />
-      <div className="glow g2" />
-      <div className="glow g3" />
+      <div className="wash" />
+      <div className="sphere s1" />
+      <div className="sphere s2" />
+      <div className="sphere s3" />
       <svg viewBox="0 0 1440 1024" preserveAspectRatio="xMidYMid slice">
         <defs>
           <radialGradient id="fadeR" cx="50%" cy="50%" r="70%">
@@ -52,7 +53,7 @@ export function Background() {
             {DOTS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3.4" fill="currentColor" stroke="none" />)}
           </g>
           {!still && RUN.map((d, i) => (
-            <circle key={i} r="2.6" className="runner" opacity="0.8">
+            <circle key={i} r="2.2" className="runner">
               <animateMotion dur={`${16 + i * 7}s`} begin={`${i * 3}s`} repeatCount="indefinite" path={d} keyPoints={i % 2 ? "1;0" : "0;1"} keyTimes="0;1" calcMode="linear" />
             </circle>
           ))}

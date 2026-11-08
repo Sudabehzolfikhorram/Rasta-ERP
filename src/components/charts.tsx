@@ -221,7 +221,7 @@ export function Treemap({ items, unit, onPick, height = 260 }: { items: [string,
   const rows: [string, number][][] = [[], []];
   let acc = 0;
   for (const it of sorted) { (acc < total * 0.62 ? rows[0] : rows[1]).push(it); acc += it[1]; }
-  const shades = ["--seq-4", "--seq-3", "--cat-4", "--cat-5", "--cat-3", "--cat-1", "--cat-2"];
+  const shades = ["--ch-1", "--ch-2", "--ch-3", "--ch-4", "--ch-5", "--ch-6", "--ch-1"];
   let k = 0;
   return (
     <div ref={ref} className="w-full" style={{ height: H }}>
@@ -236,10 +236,10 @@ export function Treemap({ items, unit, onPick, height = 260 }: { items: [string,
               const shade = shades[k++ % shades.length];
               const el = (
                 <button key={l} onClick={() => onPick?.(l)} title={l}
-                  className="absolute overflow-hidden rounded-xl p-2.5 text-start text-[hsl(var(--tm-ink))] transition-[filter] hover:brightness-110"
-                  style={{ right: x + 2, width: cw - 4, top: 2, height: rh - 4, background: `hsl(var(${shade}))` }}>
+                  className="absolute overflow-hidden rounded-xl border p-2.5 text-start text-foreground transition-[background-color] hover:brightness-[1.03]"
+                  style={{ right: x + 2, width: cw - 4, top: 2, height: rh - 4, background: `hsl(var(${shade}) / 0.16)`, borderColor: `hsl(var(${shade}) / 0.35)`, boxShadow: `inset 3px 0 0 hsl(var(${shade}))` }}>
                   <div className="truncate text-[12.5px] font-bold">{l}</div>
-                  {rh > 52 && cw > 64 && <div className="num truncate text-[11.5px] opacity-90">{toFa(Math.round((v / total) * 100))}٪{cw > 170 ? ` · ${fa1(v, 2)} ${unit}` : ""}</div>}
+                  {rh > 52 && cw > 64 && <div className="num truncate text-[11.5px] text-muted-foreground">{toFa(Math.round((v / total) * 100))}٪{cw > 170 ? ` · ${fa1(v, 2)} ${unit}` : ""}</div>}
                 </button>
               );
               x += cw;
@@ -282,15 +282,15 @@ export function PairBars({ items, keys }: { items: { label: string; a: number; b
   return (
     <div>
       <div className="mb-3 flex gap-4 text-[11.5px] text-muted-foreground">
-        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-[hsl(var(--seq-2))]" />{keys[0]}</span>
-        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-primary" />{keys[1]}</span>
+        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-ch-6" />{keys[0]}</span>
+        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-ch-1" />{keys[1]}</span>
       </div>
       <div className="flex h-[220px] items-end gap-3 border-b border-border">
         {items.map((it) => (
           <div key={it.label} className="flex h-full flex-1 flex-col justify-end">
             <div className="flex flex-1 items-end justify-center gap-1">
-              <span className="w-1/3 max-w-5 rounded-t-md bg-[hsl(var(--seq-2))] transition-[height] duration-500" style={{ height: `${(it.a / max) * 100}%` }} title={`${keys[0]}: ${fa1(it.a, 2)}`} />
-              <span className="w-1/3 max-w-5 rounded-t-md bg-primary transition-[height] duration-500" style={{ height: `${(it.b / max) * 100}%` }} title={`${keys[1]}: ${fa1(it.b, 2)}`} />
+              <span className="w-1/3 max-w-5 rounded-t-md bg-ch-6 transition-[height] duration-500" style={{ height: `${(it.a / max) * 100}%` }} title={`${keys[0]}: ${fa1(it.a, 2)}`} />
+              <span className="w-1/3 max-w-5 rounded-t-md bg-ch-1 transition-[height] duration-500" style={{ height: `${(it.b / max) * 100}%` }} title={`${keys[1]}: ${fa1(it.b, 2)}`} />
             </div>
           </div>
         ))}
@@ -322,13 +322,66 @@ export function RankBars({ items }: { items: [string, number][] }) {
   const max = Math.max(...items.map(([, v]) => Math.abs(v)));
   return (
     <ul className="flex flex-col gap-2.5">
-      {items.map(([l, v]) => (
+      {items.map(([l, v], i) => (
         <li key={l} className="grid grid-cols-[130px_1fr_auto] items-center gap-3 text-[12.5px]">
           <span className="truncate font-semibold" title={l}>{l}</span>
-          <span className="h-2.5 rounded-full bg-muted"><span className="block h-full rounded-full bg-primary/80 transition-[width] duration-500" style={{ width: `${(Math.abs(v) / max) * 100}%` }} /></span>
+          <span className="h-2.5 rounded-full bg-muted"><span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${(Math.abs(v) / max) * 100}%`, background: v < 0 ? "hsl(var(--ch-6))" : `hsl(var(--ch-${(i % 5) + 1}))` }} /></span>
           <b className="num min-w-[56px] whitespace-nowrap">{v < 0 ? `(${fa1(-v, 2)})` : fa1(v, 2)}</b>
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Donut with a legend; values are counts or shares. */
+export function Donut({ items, size = 132, center }: { items: { label: string; value: number; color: string }[]; size?: number; center?: React.ReactNode }) {
+  const total = items.reduce((a, x) => a + x.value, 0) || 1;
+  const stroke = Math.round(size * 0.14), r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  let off = 0;
+  return (
+    <div className="flex flex-wrap items-center gap-5">
+      <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90" role="img" aria-label={items.map((x) => `${x.label} ${toFa(x.value)}`).join("، ")}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth={stroke} />
+          {items.map((x) => {
+            const len = (x.value / total) * c;
+            const el = <circle key={x.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`hsl(var(${x.color}))`} strokeWidth={stroke} strokeDasharray={`${Math.max(len - 2, 0)} ${c}`} strokeDashoffset={-off} />;
+            off += len;
+            return el;
+          })}
+        </svg>
+        <div className="absolute inset-0 grid place-items-center text-center">{center}</div>
+      </div>
+      <ul className="flex min-w-[140px] flex-1 flex-col gap-2 text-[12.5px]">
+        {items.map((x) => (
+          <li key={x.label} className="flex items-center gap-2">
+            <i className="size-2.5 shrink-0 rounded-sm" style={{ background: `hsl(var(${x.color}))` }} />
+            <span className="flex-1 truncate">{x.label}</span>
+            <b className="num">{toFa(x.value)}</b>
+            <span className="num w-10 text-end text-muted-foreground">{toFa(Math.round((x.value / total) * 100))}٪</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Simple vertical columns with labels under each bar (activity per day). */
+export function Columns({ items, height = 160, color = "--ch-1", highlight }: { items: { label: string; value: number }[]; height?: number; color?: string; highlight?: number }) {
+  const max = Math.max(...items.map((x) => x.value), 1);
+  return (
+    <div>
+      <div className="flex items-end gap-1.5 border-b border-border" style={{ height }}>
+        {items.map((x, i) => (
+          <div key={i} className="group relative flex h-full flex-1 flex-col justify-end">
+            <span className="num pointer-events-none absolute inset-x-0 -top-0 text-center text-[10.5px] font-bold opacity-0 transition-opacity group-hover:opacity-100" style={{ top: `${(1 - x.value / max) * 100 - 12}%` }}>{toFa(x.value)}</span>
+            <span className="mx-auto w-full max-w-6 rounded-t-[5px] transition-[height] duration-500" style={{ height: `${(x.value / max) * 100}%`, minHeight: x.value ? 3 : 0, background: `hsl(var(${color}) / ${highlight === i ? 1 : 0.55})` }} title={`${x.label}: ${toFa(x.value)}`} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex gap-1.5">
+        {items.map((x, i) => <span key={i} className={cn("num flex-1 truncate text-center text-[10.5px] text-muted-foreground", highlight === i && "font-bold text-foreground")}>{x.label}</span>)}
+      </div>
+    </div>
   );
 }

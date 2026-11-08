@@ -1,3 +1,4 @@
+import { fmtDay } from "@/lib/jalali";
 // All figures are synthetic demo data for the design concept.
 
 export type AccountGroup = { id: string; label: string; path: string };
@@ -52,11 +53,12 @@ export type DocSource = "ai" | "voice" | "file" | "manual";
 export type DocLine = { id: number; account: string | null; desc: string; debit: number; credit: number; ai?: boolean };
 export type Doc = {
   id: string; seq: number; m: number; d: number; title: string; kind: DocKind; status: DocStatus; source: DocSource;
-  lines: DocLine[]; attachments: string[]; by: string; fresh?: boolean;
+  lines: DocLine[]; attachments: string[]; by: string; fresh?: boolean; history?: DocEvent[];
 };
+export type DocEvent = { at: string; who: string; text: string; tone?: "ai" | "ok" | "warn" };
 
 export const kindLabel: Record<DocKind, string> = { receipt: "دریافت", payment: "پرداخت", transfer: "انتقال", cheque: "چک", general: "عمومی" };
-export const statusLabel: Record<DocStatus, string> = { draft: "پیش‌نویس", pending: "منتظر تأیید", posted: "ثبت‌شده" };
+export const statusLabel: Record<DocStatus, string> = { draft: "پیش‌نویس", pending: "منتظر تأیید", posted: "تأییدشده" };
 export const sourceLabel: Record<DocSource, string> = { ai: "دستیار", voice: "پیام صوتی", file: "از فایل", manual: "دستی" };
 
 let lid = 1000;
@@ -87,13 +89,13 @@ const wave = (start: number, end: number, n = 30, wob = 0.04, seed = 1) =>
   });
 
 export const kpis = [
-  { id: "cash", label: "نقد و بانک", rial: 48_250_000_000, delta: 6.2, good: true, today: "امروز ۵ میلیارد آمد", series: wave(36, 48.25, 30, 0.05, 1),
+  { id: "cash", label: "موجودی نقد و بانک", rial: 48_250_000_000, delta: 6.2, good: true, today: "امروز ۵ میلیارد آمد", series: wave(36, 48.25, 30, 0.05, 1),
     why: { line: "بیشترِ افزایش از دریافت پتروشیمی مارون است.", parts: [["دریافت پتروشیمی مارون", "+۵ میلیارد"], ["پرداخت به تکین‌کو", "−۴ میلیارد"], ["کارمزد بانکی", "−۱۲ میلیون"]] } },
-  { id: "ar", label: "طلب از مشتریان", rial: 12_800_000_000, delta: -2.1, good: false, today: "این هفته ۵۰۰ میلیون کم شد", series: wave(15.2, 12.8, 30, 0.06, 2),
+  { id: "ar", label: "حساب‌های دریافتنی", rial: 12_800_000_000, delta: -2.1, good: false, today: "این هفته ۵۰۰ میلیون کم شد", series: wave(15.2, 12.8, 30, 0.06, 2),
     why: { line: "دو مشتری بزرگ بخشی از بدهی‌شان را دادند.", parts: [["پتروشیمی مارون", "−۵ میلیارد"], ["پخش البرز", "+۳٫۲ میلیارد"]] } },
-  { id: "ap", label: "بدهی به تأمین‌کنندگان", rial: 9_400_000_000, delta: -4.0, good: true, today: "این ماه ۴ میلیارد کم شد", series: wave(13.4, 9.4, 30, 0.04, 3),
+  { id: "ap", label: "حساب‌های پرداختنی", rial: 9_400_000_000, delta: -4.0, good: true, today: "این ماه ۴ میلیارد کم شد", series: wave(13.4, 9.4, 30, 0.04, 3),
     why: { line: "بخشی از بدهی تکین‌کو تسویه شد.", parts: [["تکین‌کو", "−۴ میلیارد"]] } },
-  { id: "pl", label: "سود آبان تا امروز", rial: 3_150_000_000, delta: 11.0, good: true, today: "امروز ۲۱۰ میلیون بیشتر شد", series: wave(0.2, 3.15, 30, 0.03, 4),
+  { id: "pl", label: "سود خالص آبان", rial: 3_150_000_000, delta: 11.0, good: true, today: "امروز ۲۱۰ میلیون بیشتر شد", series: wave(0.2, 3.15, 30, 0.03, 4),
     why: { line: "فروش بیشتر شد و هزینه‌ی حمل ۱۸٪ بالا رفت.", parts: [["فروش محصولات", "+۹۰۰ میلیون"], ["هزینه‌ی حمل‌ونقل", "−۹۲ میلیون"]] } },
 ] as const;
 
@@ -115,12 +117,12 @@ export type EventCat = "tax" | "cheque" | "loan" | "close" | "cash" | "reminder"
 export type CalEvent = { id: string; m: number; d: number; time?: string; title: string; cat: EventCat; amount?: number; done?: boolean; auto?: boolean; note?: string };
 
 export const catMeta: Record<EventCat, { label: string; color: string }> = {
-  tax: { label: "مالیات و بیمه", color: "var(--cat-1)" },
-  cheque: { label: "چک", color: "var(--cat-2)" },
-  loan: { label: "وام و قسط", color: "var(--cat-3)" },
-  close: { label: "بستن دوره", color: "var(--cat-4)" },
-  cash: { label: "نقدینگی", color: "var(--cat-5)" },
-  reminder: { label: "یادآوری", color: "var(--cat-6)" },
+  tax: { label: "مالیات و بیمه", color: "var(--ch-5)" },
+  cheque: { label: "چک", color: "var(--ch-1)" },
+  loan: { label: "وام و قسط", color: "var(--ch-3)" },
+  close: { label: "پایان دوره", color: "var(--ch-2)" },
+  cash: { label: "نقدینگی", color: "var(--ch-4)" },
+  reminder: { label: "یادآوری‌های من", color: "var(--ch-6)" },
 };
 
 export const seedEvents: CalEvent[] = [
@@ -139,11 +141,44 @@ export const seedEvents: CalEvent[] = [
   { id: "e13", m: 8, d: 28, title: "پرداخت حقوق آبان", cat: "close", amount: 3_800_000_000, auto: true },
   { id: "e14", m: 8, d: 30, title: "لیست بیمه‌ی مهر", cat: "tax", amount: 1_100_000_000, auto: true, note: "چک‌لیست آماده است" },
   { id: "e15", m: 8, d: 30, title: "مالیات حقوق مهر", cat: "tax", amount: 420_000_000, auto: true },
-  { id: "e16", m: 8, d: 30, title: "بستن دوره‌ی آبان", cat: "close", auto: true },
+  { id: "e16", m: 8, d: 30, title: "پایان دوره‌ی مالی آبان", cat: "close", auto: true },
   { id: "e17", m: 9, d: 5, title: "قسط وام بانک ملت", cat: "loan", amount: 850_000_000, auto: true },
   { id: "e18", m: 9, d: 12, title: "سررسید ضمانت‌نامه‌ی حسن انجام کار", cat: "loan", auto: true },
   { id: "e19", m: 9, d: 30, title: "لیست بیمه‌ی آبان", cat: "tax", auto: true },
   { id: "e20", m: 9, d: 30, title: "مالیات حقوق آبان", cat: "tax", auto: true },
   { id: "e21", m: 10, d: 5, title: "قسط وام بانک ملت", cat: "loan", amount: 850_000_000, auto: true },
   { id: "e22", m: 10, d: 15, title: "اظهارنامه‌ی ارزش افزوده‌ی پاییز", cat: "tax", auto: true },
+];
+
+/** A believable trail for the seed documents: who made it, how, and what happened next. */
+export function seedHistory(d: Doc): DocEvent[] {
+  const day = fmtDay(d.m, d.d);
+  const how = d.source === "file" ? "از روی فایل پیوست ساخته شد" : d.source === "voice" ? "از پیام صوتی ساخته شد" : d.source === "ai" ? "دستیار پیش‌نویس را ساخت" : "به‌صورت دستی وارد شد";
+  const h: DocEvent[] = [{ at: `${day} · ۰۹:۱۲`, who: d.by, text: how, tone: d.source === "manual" ? undefined : "ai" }];
+  h.push({ at: `${day} · ۰۹:۱۳`, who: "بررسی سند", text: "تراز، حساب‌ها و تکراری‌بودن بررسی شد", tone: "ok" });
+  if (d.status !== "draft") h.push({ at: `${day} · ۰۹:۱۵`, who: d.by, text: d.status === "pending" ? "برای تأیید مدیر مالی فرستاده شد" : "ثبت شد" , tone: d.status === "pending" ? "warn" : "ok" });
+  if (d.status === "posted" && d.lines[0].debit >= 500_000_000) h.push({ at: `${day} · ۱۱:۴۰`, who: "سارا احمدی", text: "تأیید کرد", tone: "ok" });
+  return h;
+}
+
+/* ---------- people, companies, notifications ---------- */
+export const users = [
+  { name: "سارا احمدی", role: "مدیر مالی", docs: 18, last: "همین حالا", active: true },
+  { name: "علی رضایی", role: "حسابدار", docs: 27, last: "۲۰ دقیقه پیش", active: true },
+  { name: "مریم کاظمی", role: "حسابدار", docs: 14, last: "دیروز", active: true },
+  { name: "رضا موسوی", role: "خزانه‌دار", docs: 9, last: "۲ روز پیش", active: true },
+  { name: "نگار صادقی", role: "حسابرس داخلی", docs: 0, last: "۵ روز پیش", active: false },
+];
+export type Company = { id: string; name: string; nid: string; year: string; role: string; docs: number; color: string };
+export const companies: Company[] = [
+  { id: "c1", name: "صنایع آریا گستر", nid: "۱۰۱۰۳۲۸۴۵۷۱", year: "۱۴۰۵", role: "مدیر مالی", docs: 312, color: "var(--ch-1)" },
+  { id: "c2", name: "بازرگانی نوین پارس", nid: "۱۴۰۰۶۹۱۲۳۰۸", year: "۱۴۰۵", role: "مدیر مالی", docs: 128, color: "var(--ch-2)" },
+  { id: "c3", name: "پخش سپهر شرق", nid: "۱۰۸۶۱۷۷۴۹۲۳", year: "۱۴۰۴", role: "ناظر", docs: 941, color: "var(--ch-3)" },
+];
+
+/* official holidays shown on the calendar (Fridays are added by the grid) */
+export const holidays: { m: number; d: number; title: string }[] = [
+  { m: 8, d: 22, title: "شهادت حضرت فاطمه (س)" },
+  { m: 10, d: 2, title: "ولادت امام علی (ع)" },
+  { m: 10, d: 16, title: "مبعث حضرت رسول (ص)" },
 ];

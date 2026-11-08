@@ -10,21 +10,21 @@ export function Sidebar() {
   const pending = docs.filter((d) => d.status === "pending").length;
   const todayLeft = events.filter((e) => e.m === TODAY.m && e.d === TODAY.d && !e.done).length;
   const items: Item[] = [
-    { id: "dashboard", label: "امروز", icon: House },
+    { id: "dashboard", label: "داشبورد", icon: House },
     { id: "documents", label: "اسناد", icon: Files, count: pending },
     { id: "reports", label: "گزارش‌ها", icon: BarChart3 },
     { id: "calendar", label: "تقویم", icon: CalendarDays, count: todayLeft },
   ];
 
   const NavBtn = ({ n }: { n: Item }) => {
-    const active = n.id === page;
+    const active = n.id === page || (n.id === "documents" && page === "doc");
     return (
       <button
         onClick={() => go(n.id)}
         aria-current={active ? "page" : undefined}
         aria-label={n.label}
         className={cn(
-          "relative flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-[14px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground",
+          "relative flex h-11 w-full items-center gap-3 rounded-field px-3 text-[14px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground",
           active && "bg-primary-soft font-bold text-primary hover:bg-primary-soft hover:text-primary",
         )}
       >
@@ -49,7 +49,7 @@ export function Sidebar() {
         aria-label="منوی اصلی"
       >
         <div className="mb-6 flex items-center gap-3 px-1">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary text-[18px] font-black text-primary-foreground">ر</span>
+          <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-primary text-[18px] font-black text-primary-foreground" aria-hidden>ر</span>
           <div className="whitespace-nowrap leading-tight opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100">
             <div className="text-[16px] font-extrabold">راستا</div>
             <div className="num text-[11.5px] text-muted-foreground">سال مالی ۱۴۰۵</div>
@@ -57,30 +57,30 @@ export function Sidebar() {
         </div>
         <button
           onClick={() => startVoucher()}
-          aria-label="سند تازه"
-          className={cn("ai-edge mb-4 flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-[14px] font-bold text-white shadow-soft transition-[filter] hover:brightness-110", page === "voucher" && "ring-2 ring-ai/40 ring-offset-2 ring-offset-transparent")}
+          aria-label="سند جدید"
+          className={cn("ai-edge mb-4 flex h-11 w-full items-center gap-3 rounded-field px-3 text-[14px] font-bold text-white shadow-soft transition-[filter] hover:brightness-110", page === "voucher" && "ring-2 ring-ai/40 ring-offset-2 ring-offset-transparent")}
         >
           <FilePlus2 className="size-5 shrink-0" strokeWidth={1.9} />
-          <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100">سند تازه</span>
+          <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100">سند جدید</span>
         </button>
         <nav className="flex flex-col gap-1">
           {items.map((n) => <NavBtn key={n.id} n={n} />)}
         </nav>
         <div className="mt-auto flex flex-col gap-1">
           <NavBtn n={{ id: "settings", label: "تنظیمات", icon: Settings2 }} />
-          <div className="mt-2 flex items-center gap-3 px-1.5">
+          <button onClick={() => go("profile")} aria-label="حساب کاربری" className={cn("mt-2 flex items-center gap-3 rounded-field px-1.5 py-1 text-start hover:bg-muted/70", page === "profile" && "bg-primary-soft")}>
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface text-[12.5px] font-bold shadow-soft">س</span>
             <div className="whitespace-nowrap leading-tight opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100">
               <div className="text-[13px] font-bold">سارا احمدی</div>
               <div className="text-[11.5px] text-muted-foreground">مدیر مالی</div>
             </div>
-          </div>
+          </button>
         </div>
       </aside>
 
       {/* phones: bottom bar */}
       <nav aria-label="منوی اصلی" className="panel fixed inset-x-3 bottom-3 z-40 flex items-center justify-around rounded-full px-2 py-1.5 md:hidden">
-        {[items[0], items[1], { id: "voucher" as Page, label: "سند تازه", icon: FilePlus2 }, items[2], items[3]].map((n) => (
+        {[items[0], items[1], { id: "voucher" as Page, label: "سند جدید", icon: FilePlus2 }, items[2], items[3]].map((n) => (
           <button key={n.id} onClick={() => (n.id === "voucher" ? startVoucher() : go(n.id))} aria-label={n.label} aria-current={page === n.id ? "page" : undefined}
             className={cn("grid size-11 place-items-center rounded-full text-muted-foreground", page === n.id && "bg-primary-soft text-primary", n.id === "voucher" && "ai-edge text-white")}>
             <n.icon className="size-5" />

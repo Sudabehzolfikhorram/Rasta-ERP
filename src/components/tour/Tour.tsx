@@ -8,22 +8,23 @@ type Step = { target: string; title: string; body: string };
 
 const steps: Partial<Record<Page, Step[]>> = {
   dashboard: [
-    { target: "hero", title: "از اینجا شروع کنید", body: "خلاصه‌ی امروز در یک نگاه. روی هر عبارت خط‌دار بزنید تا جزئیاتش باز شود." },
-    { target: "kpis", title: "هر عدد یک «چرا؟» دارد", body: "روی نمودار بروید تا عدد هر روز را ببینید. «چرا؟» می‌گوید عدد از کدام اسناد آمده." },
-    { target: "inbox", title: "تصمیم با شماست", body: "دستیار پیش‌نویس و هشدار آماده می‌کند. هر ردیف فقط یک تصمیم از شما می‌خواهد." },
-    { target: "command", title: "هر کاری، از یک جا", body: "Ctrl K را بزنید: بپرسید، به صفحه‌ای بروید یا سند را در یک جمله بگویید." },
-    { target: "nav", title: "منو", body: "نشانگر را روی منو ببرید تا باز شود. «سند تازه» همیشه بالای منوست." },
+    { target: "hero", title: "دستیار، بخش اصلی داشبورد", body: "بپرسید یا رویداد مالی را بنویسید. گفت‌وگوهای قبلی کنار همین بخش ذخیره می‌ماند." },
+    { target: "kpis", title: "شاخص‌ها با توضیح", body: "روی نمودار بروید تا عدد هر روز را ببینید. نماد i نشان می‌دهد عدد از کدام اسناد آمده است." },
+    { target: "inbox", title: "کارهای منتظر اقدام", body: "دستیار پیش‌نویس و هشدار آماده می‌کند. هر ردیف فقط یک تصمیم از شما می‌خواهد." },
+    { target: "command", title: "دسترسی سریع", body: "Ctrl K را بزنید: بپرسید، به صفحه‌ای بروید یا سند را در یک جمله بنویسید." },
+    { target: "nav", title: "منوی اصلی", body: "نشانگر را روی منو ببرید تا باز شود. «سند جدید» همیشه بالای منوست." },
   ],
   voucher: [
-    { target: "entry", title: "سه راه برای ثبت", body: "بنویسید، با صدا بگویید یا عکس فیش را بیندازید. دستیار فقط چیزهایی را می‌پرسد که لازم است." },
-    { target: "rail", title: "سند جلوی چشمتان ساخته می‌شود", body: "هر چیزی که دستیار می‌فهمد اینجا روشن می‌شود. برای تغییر، روی همان مورد بزنید." },
-    { target: "command", title: "دستی هم می‌شود", body: "از بالای صفحه «دستی» را بزنید تا فرم کامل باز شود." },
+    { target: "entry", title: "سه روش ثبت", body: "بنویسید، با صدا بگویید یا مدرک را بارگذاری کنید. دستیار فقط اطلاعات ناقص را می‌پرسد." },
+    { target: "rail", title: "خلاصه‌ی سند", body: "هر اطلاعاتی که دستیار تشخیص می‌دهد اینجا ثبت می‌شود. برای تغییر، روی همان مورد بزنید." },
+    { target: "guard", title: "بررسی سند", body: "پیش از ثبت، تراز، حساب‌ها، تکراری‌بودن و پیوست کنترل می‌شود." },
+    { target: "command", title: "دسترسی سریع", body: "از هر صفحه با Ctrl K می‌توانید سند جدید بسازید." },
   ],
 };
 
 export function Tour() {
   const { tour, setTour, page } = useApp();
-  const list = steps[page] ?? [];
+  const list = (steps[page] ?? []).filter((s) => typeof document === "undefined" || document.querySelector(`[data-tour="${s.target}"]`));
   const [i, setI] = React.useState(0);
   const [rect, setRect] = React.useState<DOMRect | null>(null);
   const cardRef = React.useRef<HTMLDivElement>(null);
