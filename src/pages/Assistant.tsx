@@ -7,6 +7,7 @@ import { Orb } from "@/components/ai/Orb";
 import { MicButton, VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
 import { useVoice } from "@/lib/voice";
 import { answerFor } from "@/components/ai/CommandPalette";
+import { followUps } from "@/components/ai/followups";
 import { ACCEPT } from "@/components/voucher/analyze";
 import { Empty } from "./Dashboard";
 
@@ -176,6 +177,16 @@ export function Assistant() {
                 </li>
               ))}
               {thinking && <Thinking />}
+              {!thinking && chat.msgs[chat.msgs.length - 1]?.who === "ai" && (() => {
+                const asked = chat.msgs.filter((m) => m.who === "me").map((m) => m.text);
+                const next = followUps(answerFor(asked[asked.length - 1] ?? "", unit)?.id, asked);
+                return (
+                  <li className="flex flex-wrap items-center gap-2 animate-rise" aria-label="پرسش‌های بعدی">
+                    <span className="text-[12px] font-semibold text-muted-foreground">بعدش بپرسید:</span>
+                    {next.map((s) => <button key={s} onClick={() => send(s, chat.id)} className="chip h-8 bg-surface text-[12.5px]">{s}</button>)}
+                  </li>
+                );
+              })()}
               <div ref={endRef} />
             </ol>
           ) : (

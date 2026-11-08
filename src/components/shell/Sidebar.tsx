@@ -22,7 +22,7 @@ export function Sidebar() {
   ];
   const isActive = (id: Page) => id === page || (id === "documents" && (page === "doc" || page === "voucher"));
 
-  const NavBtn = ({ n }: { n: Item }) => {
+  const navBtn = (n: Item) => {
     const active = isActive(n.id);
     return (
       <button
@@ -64,7 +64,7 @@ export function Sidebar() {
         <nav className="flex flex-col gap-1">
           {items.map((n) => (
             <div key={n.id}>
-              <NavBtn n={n} />
+              {navBtn(n)}
               {n.id === "documents" && (
                 <ul className="ms-[22px] mt-0.5 hidden flex-col border-s border-border ps-2 group-hover/rail:flex group-focus-within/rail:flex" aria-label="دسته‌های اسناد">
                   {docCats.map((c) => {
@@ -100,7 +100,7 @@ export function Sidebar() {
           ))}
         </nav>
         <div className="mt-auto flex flex-col gap-1 pt-4">
-          <NavBtn n={{ id: "settings", label: "تنظیمات", icon: Settings2 }} />
+          {navBtn({ id: "settings", label: "تنظیمات", icon: Settings2 })}
           <button onClick={() => go("profile")} aria-label="حساب کاربری" className={cn("mt-2 flex items-center gap-3 rounded-field px-1.5 py-1 text-start hover:bg-muted/70", page === "profile" && "bg-primary-soft")}>
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface text-[12.5px] font-bold shadow-soft">س</span>
             <div className={cn(reveal, "leading-tight")}>

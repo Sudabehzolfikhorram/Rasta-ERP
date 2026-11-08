@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Unit } from "./utils";
-import { companies, seedDocs, seedEvents, seedHistory, type CalEvent, type Doc, type DocEvent } from "@/data/demo";
+import { catMeta, companies, seedDocs, seedEvents, seedHistory, type CalEvent, type Doc, type DocEvent } from "@/data/demo";
 
 export type Concept = "assist" | "bento";
 export type Page = "dashboard" | "voucher" | "documents" | "doc" | "reports" | "calendar" | "settings" | "profile" | "assistant" | "basedata";
@@ -10,7 +10,7 @@ type Toast = { id: number; text: string; tone?: "success" | "ai" };
 export type NotifKind = "approve" | "due" | "ai" | "system";
 export type Channel = "app" | "email" | "sms";
 export type Settings = {
-  codeLen: [number, number, number]; approvalLimit: number; inputUnit: "toman" | "rial"; motion: boolean;
+  codeLen: [number, number, number]; approvalLimit: number; motion: boolean;
   calendars: { gregorian: boolean; hijri: boolean; holidays: boolean; weekStart: "sat" | "sun" };
   fiscalStart: number;
   reminders: { lead: number; digest: string; tax: boolean; cheque: boolean; loan: boolean; close: boolean };
@@ -89,7 +89,7 @@ type Ctx = {
   startVoucher: (seed?: { text?: string; doc?: Doc; manual?: boolean; file?: File }) => void;
   docs: Doc[]; saveDoc: (d: Doc, note?: string) => void; setDocStatus: (ids: string[], s: Doc["status"], note?: string) => void; nextSeq: () => number;
   docId: string | null; openDoc: (id: string) => void;
-  events: CalEvent[]; addEvent: (e: CalEvent) => void; toggleEvent: (id: string) => void; removeEvent: (id: string) => void;
+  events: CalEvent[]; addEvent: (e: CalEvent) => void; cats: string[]; addCat: (label: string, color: string) => string; toggleEvent: (id: string) => void; removeEvent: (id: string) => void;
   calDay: { m: number; d: number } | null; openCalendar: (day?: { m: number; d: number }) => void;
   reportSeed: string | null; openReport: (id: string) => void;
   settings: Settings; setSettings: (s: Partial<Settings>) => void;
@@ -105,7 +105,7 @@ type Ctx = {
 const AppCtx = React.createContext<Ctx | null>(null);
 export const useApp = () => React.useContext(AppCtx)!;
 
-function readHash(): { concept: Concept; page: Page; theme: Theme; doc: string | null } {
+function readHash(): { concept: Concept; page: Page; theme: Theme; doc: string | null; sub: string | null } {
   const h = new URLSearchParams(location.hash.slice(1));
   const sys = typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   const t = h.get("theme");
@@ -116,6 +116,7 @@ function readHash(): { concept: Concept; page: Page; theme: Theme; doc: string |
     concept: h.get("concept") === "bento" ? "bento" : "assist",
     page: PAGES.includes(p) && (p !== "doc" || doc) ? p : "dashboard",
     doc,
+    sub: h.get("sub"),
   };
 }
 
@@ -145,9 +146,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [docs, setDocs] = React.useState<Doc[]>(() => seedDocs.map((d) => ({ ...d, history: seedHistory(d) })));
   const [docId, setDocId] = React.useState<string | null>(init.doc);
   const [chatSeed, setChatSeed] = React.useState<{ id?: string; ask?: string; n: number } | null>(null);
-  const [docCat, setDocCat] = React.useState("acc");
-  const [baseTab, setBaseTab] = React.useState("home");
+  const [docCat, setDocCat] = React.useState(init.page === "documents" && init.sub ? init.sub : "acc");
+  const [baseTab, setBaseTab] = React.useState(init.page === "basedata" && init.sub ? init.sub : "home");
   const [events, setEvents] = React.useState<CalEvent[]>(seedEvents);
+  const [cats, setCats] = React.useState<string[]>(() => Object.keys(catMeta));
   const [calDay, setCalDay] = React.useState<Ctx["calDay"]>(null);
   const [reportSeed, setReportSeed] = React.useState<string | null>(null);
   const [chats, setChats] = React.useState<Chat[]>(seedChats);
@@ -155,7 +157,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = React.useState(companies[0].id);
   const [widgetMap, setWidgetMap] = React.useState(loadWidgets);
   const [settings, setSettingsState] = React.useState<Settings>({
-    codeLen: [1, 3, 6], approvalLimit: 500_000_000, inputUnit: "toman", motion: true,
+    codeLen: [1, 3, 6], approvalLimit: 500_000_000, motion: true,
     calendars: { gregorian: true, hijri: false, holidays: true, weekStart: "sat" },
     fiscalStart: 1,
     reminders: { lead: 1, digest: "۰۸:۰۰", tax: true, cheque: true, loan: true, close: true },
@@ -173,8 +175,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     el.dataset.theme = theme;
     el.dataset.motion = settings.motion ? "on" : "off";
     el.style.colorScheme = theme;
-    history.replaceState(null, "", `#concept=${concept}&theme=${theme}&page=${page}${page === "doc" && docId ? `&doc=${docId}` : ""}`);
-  }, [concept, theme, page, docId, settings.motion]);
+    const sub = page === "documents" && docCat !== "acc" ? docCat : page === "basedata" && baseTab !== "home" ? baseTab : "";
+    history.replaceState(null, "", `#concept=${concept}&theme=${theme}&page=${page}${page === "doc" && docId ? `&doc=${docId}` : ""}${sub ? `&sub=${sub}` : ""}`);
+  }, [concept, theme, page, docId, settings.motion, docCat, baseTab]);
 
   React.useEffect(() => {
     const onHash = () => { const h = readHash(); setPage(h.page); setConcept(h.concept); setTheme(h.theme); if (h.doc) setDocId(h.doc); };
@@ -228,6 +231,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     docId, openDoc: (id) => { setDocId(id); go("doc"); },
     events,
     addEvent: (e) => setEvents((x) => [...x, e]),
+    cats,
+    addCat: (label, color) => {
+      const hit = Object.entries(catMeta).find(([, v]) => v.label === label);
+      if (hit) return hit[0];
+      const id = `c${Date.now()}`;
+      catMeta[id] = { label, color, custom: true };
+      setCats((x) => [...x, id]);
+      return id;
+    },
     toggleEvent: (id) => setEvents((x) => x.map((e) => (e.id === id ? { ...e, done: !e.done } : e))),
     removeEvent: (id) => setEvents((x) => x.filter((e) => e.id !== id)),
     calDay, openCalendar: (day) => { setCalDay(day ?? null); go("calendar"); },

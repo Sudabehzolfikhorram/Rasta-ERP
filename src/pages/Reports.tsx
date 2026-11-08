@@ -56,6 +56,14 @@ const JOBS: { re: RegExp; make: (ask: string) => Job }[] = [
   { re: /معوق|۶۰|بدهکار|سنی/, make: (ask) => ({ id: "aging", ask, report: "aging", params: { report: "سنی مطالبات", range: "تا ۱۷ آبان ۱۴۰۵", people: DEBTORS, items: ["جاری", "۱ تا ۶۰ روز", "بیش از ۶۰ روز"] }, steps: ["خواندن مانده‌ی مشتری‌ها", "دسته‌بندی بر اساس عمر طلب"], done: "دو مشتری بیش از ۶۰ روز بدهکارند: سیمان تهران (۱٫۱ میلیارد) و پتروشیمی مارون (۰٫۳۸ میلیارد ریال)." }) },
 ];
 const SUGGEST = ["صورت‌حساب مهر مشتری‌های بدهکار را آماده کن", "هزینه‌های آبان را با مهر مقایسه کن", "تراز آزمایشی آبان را اکسل بگیر", "کدام مشتری‌ها بیش از ۶۰ روز بدهکارند؟"];
+/** What usually comes next after each report job, so the chips follow the conversation. */
+const NEXT_JOB: Record<string, string[]> = {
+  statements: ["کدام مشتری‌ها بیش از ۶۰ روز بدهکارند؟", "چرا سود آبان بالا رفت؟", "تراز آزمایشی آبان را اکسل بگیر"],
+  aging: ["صورت‌حساب مهر مشتری‌های بدهکار را آماده کن", "تراز آزمایشی آبان را اکسل بگیر", "هزینه‌های آبان را با مهر مقایسه کن"],
+  expcmp: ["چرا سود آبان بالا رفت؟", "تراز آزمایشی آبان را اکسل بگیر", "کدام مشتری‌ها بیش از ۶۰ روز بدهکارند؟"],
+  tb: ["هزینه‌های آبان را با مهر مقایسه کن", "چرا سود آبان بالا رفت؟", "صورت‌حساب مهر مشتری‌های بدهکار را آماده کن"],
+  pl: ["هزینه‌های آبان را با مهر مقایسه کن", "تراز آزمایشی آبان را اکسل بگیر", "کدام مشتری‌ها بیش از ۶۰ روز بدهکارند؟"],
+};
 
 function JobCard({ job, onFinish, onDownload }: { job: Job; onFinish: (j: Job) => void; onDownload: (f: Fmt, report: string, people: string[]) => void }) {
   const [phase, setPhase] = React.useState<"confirm" | "run" | "cancel">("confirm");
@@ -189,7 +197,7 @@ function Assistant({ onReport, onExport, onDownload, close }: { onReport: (id: s
           {msgs.length === 0 && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <Orb size={56} />
-              <p className="max-w-[260px] text-[13px] leading-7 text-muted-foreground">کار چندمرحله‌ای را بنویسید. مراحل را همین‌جا می‌بینید و پیش از هر ارسالی تأیید شما گرفته می‌شود.</p>
+              <p className="max-w-[260px] text-[13px] leading-7 text-muted-foreground">کار چندمرحله‌ای را بنویسید. مراحل را همین‌جا می‌بینید و پیش از اجرا، بازه و موارد را برای تأیید نشانتان می‌دهم.</p>
             </div>
           )}
           {msgs.map((m, k) => m.who === "me" ? (
@@ -201,8 +209,13 @@ function Assistant({ onReport, onExport, onDownload, close }: { onReport: (id: s
         </div>
       )}
       <div className="border-t border-border/70 p-3">
-        <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
-          {SUGGEST.map((s) => <button key={s} onClick={() => run(s)} className="chip h-auto shrink-0 py-1 text-[11.5px]">{s}</button>)}
+        <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1" aria-label="پیشنهادهای بعدی">
+          {(() => {
+            const asked = msgs.filter((m) => m.who === "me").map((m) => m.text);
+            const lastJob = [...msgs].reverse().find((m) => m.who === "ai" && m.job) as { job?: Job } | undefined;
+            const pool = (lastJob?.job?.report && NEXT_JOB[lastJob.job.report]) || SUGGEST;
+            return pool.filter((s) => !asked.includes(s)).map((s) => <button key={s} onClick={() => run(s)} className="chip h-auto shrink-0 py-1 text-[11.5px]">{s}</button>);
+          })()}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); run(text); }} className="flex gap-2">
           <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="مثلاً: صورت‌حساب مهر را آماده کن" aria-label="پیام به دستیار گزارش" />

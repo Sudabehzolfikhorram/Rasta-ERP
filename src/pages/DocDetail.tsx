@@ -113,11 +113,20 @@ function DocAssistant({ doc, big }: { doc: Doc; big?: boolean }) {
         {busy && <li className="shimmer-text text-[12.5px] font-semibold">در حال بررسی…</li>}
         <li ref={end} aria-hidden />
       </ol>
-      {msgs.length < 2 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {SUGGEST(doc).slice(0, big ? 4 : 2).map((s) => <button key={s} onClick={() => send(s)} className="chip h-auto min-h-7 py-1 text-start text-[12px]">{s}</button>)}
-        </div>
-      )}
+      {!busy && !msgs.some((m) => m.state === "open") && (() => {
+        // suggestions follow the conversation: what was already asked drops out, and after a change the next likely edits come up
+        const asked = msgs.filter((m) => m.who === "me").map((m) => m.text);
+        const kindOf = (t: string) => (/مبلغ/.test(t) ? "amt" : /تاریخ/.test(t) ? "date" : /بانک|حساب/.test(t) ? "bank" : /شرح/.test(t) ? "desc" : t);
+        const done = new Set(asked.map(kindOf));
+        const left = SUGGEST(doc).filter((s) => !done.has(kindOf(s)));
+        if (!left.length) return null;
+        return (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {asked.length > 0 && <span className="text-[11.5px] font-semibold text-muted-foreground">تغییر بعدی:</span>}
+            {left.slice(0, big ? 3 : 2).map((s) => <button key={s} onClick={() => send(s)} className="chip h-auto min-h-7 py-1 text-start text-[12px]">{s}</button>)}
+          </div>
+        );
+      })()}
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="mt-3 flex items-center gap-1.5 rounded-[calc(var(--r-field)+2px)] border border-input bg-surface p-1 ps-3 focus-within:border-ring focus-within:ring-4 focus-within:ring-ring/15">
         <input value={text} onChange={(e) => setText(e.target.value)} aria-label="درخواست تغییر سند" placeholder="مثلاً: تاریخ را ۱۵ آبان کن" className="h-9 min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground" />
         <Button type="submit" size="sm" variant="ai" disabled={!text.trim() || busy} aria-label="ارسال"><Send /></Button>

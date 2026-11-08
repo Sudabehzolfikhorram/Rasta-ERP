@@ -11,7 +11,7 @@ import { VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
 import { Orb } from "@/components/ai/Orb";
 import { answer, facts, linesFor, nextSlot, questionFor, understand, type Draft, type Slot } from "@/components/voucher/agent";
 import { ACCEPT, analyzeFile, sampleReceipt, type Analysis } from "@/components/voucher/analyze";
-import { balanceDoc, blankLine, buildChecks, ChecksList, docBalanced, docNo, docTotal, VoucherEditor, type InUnit } from "@/components/voucher/VoucherEditor";
+import { balanceDoc, blankLine, buildChecks, ChecksList, docBalanced, docNo, docTotal, VoucherEditor } from "@/components/voucher/VoucherEditor";
 
 type Phase = "input" | "reading" | "asking" | "review";
 type Via = "text" | "voice" | "file";
@@ -359,7 +359,6 @@ export function Voucher() {
   const [draft, setDraft] = React.useState<Draft | null>(null);
   const [force, setForce] = React.useState<Slot | null>(null);
   const [history, setHistory] = React.useState<string[]>([]);
-  const [inUnit, setInUnit] = React.useState<InUnit>(settings.inputUnit);
   const [dupOk, setDupOk] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const pendingText = React.useRef("");
@@ -475,7 +474,7 @@ export function Voucher() {
         {!busy && draft && slot && slot !== "limit" && <Ask inline draft={draft} slot={slot} limit={settings.approvalLimit} onAnswer={onAnswer} history={history} />}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className={cn("min-w-0 transition-opacity", busy && "pointer-events-none opacity-60")}>
-            <VoucherEditor doc={doc} setDoc={setDoc} inUnit={inUnit} setInUnit={setInUnit} />
+            <VoucherEditor doc={doc} setDoc={setDoc} />
           </div>
           <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">{sideActions}{guard}</aside>
         </div>
@@ -529,7 +528,7 @@ export function Voucher() {
                 <button aria-label="برداشتن از پیوست" onClick={() => { setDocState((d) => ({ ...d, attachments: d.attachments.filter((x) => x !== file.name) })); setFile(null); }} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
               </div>
             )}
-            <VoucherEditor doc={doc} setDoc={setDoc} inUnit={inUnit} setInUnit={setInUnit} />
+            <VoucherEditor doc={doc} setDoc={setDoc} />
           </div>
           <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">{sideActions}{guard}</aside>
         </div>

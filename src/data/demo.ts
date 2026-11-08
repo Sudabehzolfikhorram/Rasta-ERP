@@ -113,10 +113,11 @@ export const cashActual = [38, 39.5, 39, 41, 40.2, 42.8, 43.1, 42.4, 44.9, 46.1,
 export const cashForecast = [48.25, 47.6, 49.1, 50.3, 48.8, 45.9, 44.2, 46.5, 48.7, 50.9, 52.4, 53.1];
 
 /* ---------- calendar ---------- */
-export type EventCat = "tax" | "cheque" | "loan" | "close" | "cash" | "reminder";
+/** Built-in categories plus any the user adds from the reminder form. */
+export type EventCat = string;
 export type CalEvent = { id: string; m: number; d: number; time?: string; title: string; cat: EventCat; amount?: number; done?: boolean; auto?: boolean; note?: string };
 
-export const catMeta: Record<EventCat, { label: string; color: string }> = {
+export const catMeta: Record<EventCat, { label: string; color: string; custom?: boolean }> = {
   tax: { label: "مالیات و بیمه", color: "var(--ch-5)" },
   cheque: { label: "چک", color: "var(--ch-1)" },
   loan: { label: "وام و قسط", color: "var(--ch-3)" },
@@ -124,6 +125,7 @@ export const catMeta: Record<EventCat, { label: string; color: string }> = {
   cash: { label: "نقدینگی", color: "var(--ch-4)" },
   reminder: { label: "یادآوری‌های من", color: "var(--ch-6)" },
 };
+export const CAT_SWATCHES = ["var(--ch-1)", "var(--ch-2)", "var(--ch-3)", "var(--ch-4)", "var(--ch-5)", "var(--ch-6)"];
 
 export const seedEvents: CalEvent[] = [
   { id: "e1", m: 7, d: 15, title: "اظهارنامه‌ی ارزش افزوده‌ی تابستان", cat: "tax", done: true, auto: true },

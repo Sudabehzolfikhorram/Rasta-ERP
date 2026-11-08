@@ -1,10 +1,12 @@
 import * as React from "react";
-import { Add, ArrowLeft2, ArrowSwapVertical, Bank, Call, Category2, ChevronRight, Building2, CalendarCheck2, Card, EmptyWallet, Global, Location, Lock, MoneyChange, PencilLine, People, Receipt1, Search, TaskSquare, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
+import { Add, ChevronLeft, Sparkles, X, ArrowLeft2, ArrowSwapVertical, Bank, Call, Category2, ChevronRight, Building2, CalendarCheck2, Card, EmptyWallet, Global, Location, Lock, MoneyChange, PencilLine, People, Receipt1, Search, TaskSquare, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
 import { StatCard, type Tone } from "@/components/ui/stat";
 import { useApp } from "@/lib/store";
 import { users } from "@/data/demo";
 import { cn, group, short, toEn, toFa } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { AmountInput, tomanLine } from "@/components/ui/amount";
+import { Orb } from "@/components/ai/Orb";
 import { SimpleSelect } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -90,7 +92,7 @@ const RowActions = ({ onEdit, onDelete, lockReason, label }: { onEdit: () => voi
 
 /* ---------- page ---------- */
 export function BaseData() {
-  const { toast, baseTab } = useApp();
+  const { toast, baseTab, setBaseTab, concept } = useApp();
   const tab = (TABS.some((t) => t[0] === baseTab) ? baseTab : "home") as Tab;
   const [hub, setHub] = React.useState<string | null>(null);
   React.useEffect(() => setHub(null), [tab]);
@@ -237,7 +239,7 @@ export function BaseData() {
       </button>
     );
   };
-  const HomeGrid = () => (
+  const homeGrid = (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <section className="panel p-5">
         <h3 className="mb-3 text-[15px] font-extrabold">بانک‌ها و موسسه‌ها</h3>
@@ -261,6 +263,11 @@ export function BaseData() {
       </div>
     </div>
   );
+
+  if (concept === "assist") {
+    return <AssistBase tab={tab} banks={banks} branches={branches} accounts={accounts} boxes={boxes} rates={rates} hub={hub} setHub={setHub}
+      setEdit={setEdit} setTab={(t) => { setHub(null); setBaseTab(t); }} addLabel={addLabel[tab]} form={edit && forms[edit.tab]} />;
+  }
 
   const hubBank = banks.find((b) => b.id === hub);
   if (hubBank) {
@@ -356,7 +363,7 @@ export function BaseData() {
           {stats[tab].map((x) => <StatCard key={x.l} label={x.l} value={x.v} unit={x.u} sub={x.sub} icon={x.i} tone={x.t} progress={x.p} />)}
         </div>
       </section>
-      {tab === "home" ? <HomeGrid /> : (
+      {tab === "home" ? homeGrid : (
       <section className="panel flex min-w-0 flex-col gap-4 p-5">
         {tab !== "currency" && (
           <label className="relative block max-w-sm">
@@ -449,8 +456,10 @@ function BoxForm({ rec, rates, onSave, onCancel }: { rec?: Box; rates: Rate[]; o
       <Field label="محل فیزیکی"><Input value={b.place} onChange={(e) => setB({ ...b, place: e.target.value })} /></Field>
       <Field label="صندوق‌دار" hint="از میان کاربران فعال"><SimpleSelect label="صندوق‌دار" value={b.cashier} onChange={(v) => setB({ ...b, cashier: v })} options={users.filter((u) => u.active).map((u) => [u.name, `${u.name} · ${u.role}`])} /></Field>
       <Field label="ارز صندوق"><SimpleSelect label="ارز صندوق" value={b.currency} onChange={(v) => setB({ ...b, currency: v })} options={CURRENCIES.map(([n]) => [n, n])} /></Field>
-      <Field label="موجودی اولیه" hint={rate && code !== "IRR" ? `معادل ${group(Math.round(b.opening * rate))} ریال با نرخ ${group(rate)}` : "صفر یا بیشتر"}>
-        <Input dir="ltr" inputMode="numeric" value={group(b.opening)} onChange={(e) => setB({ ...b, opening: parseInt(toEn(e.target.value).replace(/\D/g, "") || "0", 10) })} className="num text-left font-bold" />
+      <Field label="موجودی اولیه" hint={rate && code !== "IRR" ? `معادل ${group(Math.round(b.opening * rate))} ریال با نرخ ${group(rate)}` : undefined}>
+        {rate && code !== "IRR"
+          ? <Input dir="ltr" inputMode="numeric" value={group(b.opening)} onChange={(e) => setB({ ...b, opening: parseInt(toEn(e.target.value).replace(/\D/g, "") || "0", 10) })} className="num text-left font-bold" />
+          : <AmountInput label="موجودی اولیه به ریال" value={b.opening} onChange={(v) => setB({ ...b, opening: v })} />}
       </Field>
       <Field label="شرح" wide><Input value={b.desc} onChange={(e) => setB({ ...b, desc: e.target.value })} /></Field>
       <label className="flex items-center justify-between gap-3 rounded-field border border-border px-4 py-3 sm:col-span-2"><span className="text-[13.5px] font-semibold">صندوق فعال است</span><Switch checked={b.active} onCheckedChange={(v) => setB({ ...b, active: v })} aria-label="صندوق فعال" /></label>
@@ -464,7 +473,7 @@ function RateForm({ onSave, onCancel }: { onSave: (r: Rate) => void; onCancel: (
     <FormDialog open onOpenChange={(o) => !o && onCancel()} title="ثبت نرخ ارز" canSave={r.rate > 0} onSave={() => onSave(r)}>
       <Field label="ارز"><SimpleSelect label="ارز" value={r.cur} onChange={(v) => setR({ ...r, cur: v })} options={CURRENCIES.slice(1).map(([n, c]) => [c, n])} /></Field>
       <Field label="تاریخ اثر"><Input value={r.date} onChange={(e) => setR({ ...r, date: e.target.value })} className="num" /></Field>
-      <Field label="نرخ به ریال"><Input dir="ltr" inputMode="numeric" value={group(r.rate)} onChange={(e) => setR({ ...r, rate: parseInt(toEn(e.target.value).replace(/\D/g, "") || "0", 10) })} className="num text-left font-bold" autoFocus /></Field>
+      <Field label="نرخ به ریال"><AmountInput label="نرخ به ریال" value={r.rate} onChange={(v) => setR({ ...r, rate: v })} autoFocus /></Field>
       <label className="flex items-center gap-2.5 self-end pb-2.5 text-[13.5px] font-semibold"><Checkbox checked={r.inverse} onCheckedChange={(v) => setR({ ...r, inverse: !!v })} /> نرخ معکوس است</label>
     </FormDialog>
   );
@@ -494,10 +503,289 @@ function CurrencyTab({ rates }: { rates: Rate[] }) {
           <Field label="ارز"><SimpleSelect label="ارز محاسبه" value={cur} onChange={setCur} options={CURRENCIES.slice(1).map(([n, c]) => [c, n])} /></Field>
           <Field label="مبلغ"><Input dir="ltr" value={group(amount)} readOnly={fixed === "amount"} onChange={(e) => setAmount(num(e.target.value))} className="num text-left" /></Field>
           <Field label="نرخ"><Input dir="ltr" value={group(rate)} readOnly={fixed === "rate"} onChange={(e) => setRate(num(e.target.value))} className="num text-left" /></Field>
-          <Field label="مبلغ به ارز عملیاتی (ریال)"><Input dir="ltr" value={group(rial)} readOnly={fixed === "rial"} onChange={(e) => { const v = num(e.target.value); if (fixed === "amount" && amount) setRate(Math.round(v / amount)); else if (rate) setAmount(Math.round(v / rate)); }} className={cn("num text-left font-bold", fixed === "rial" && "bg-muted/60")} /></Field>
+          <Field label="مبلغ به ارز عملیاتی (ریال)" hint={rial ? tomanLine(rial) : undefined}><Input dir="ltr" value={group(rial)} readOnly={fixed === "rial"} onChange={(e) => { const v = num(e.target.value); if (fixed === "amount" && amount) setRate(Math.round(v / amount)); else if (rate) setAmount(Math.round(v / rate)); }} className={cn("num text-left font-bold", fixed === "rial" && "bg-muted/60")} /></Field>
           <Field label="عامل ثابت" hint="فیلدی که هنگام تغییر دو فیلد دیگر قفل می‌ماند"><SimpleSelect label="عامل ثابت" value={fixed} onChange={(v) => setFixed(v as typeof fixed)} options={[["rial", "مبلغ به ارز عملیاتی"], ["rate", "نرخ"], ["amount", "مبلغ"]]} /></Field>
         </div>
       </div>
     </div>
+  );
+}
+
+/* =====================================================================
+   «دستیار» concept: an explorer. A tree of every bank, branch, account and box on the side,
+   a question box on top, and visual cards in place of tables.
+   ===================================================================== */
+const BANK_TONE: Record<string, string> = { b1: "--ch-1", b2: "--ch-3", b3: "--ch-2", b4: "--ch-4", b5: "--ch-6" };
+const toneOf = (bank: string) => BANK_TONE[bank] ?? "--ch-5";
+const amt = (r: number) => `${short(r, "rial").n} ${short(r, "rial").s}`;
+
+type AssistProps = {
+  tab: Tab; banks: BankRec[]; branches: Branch[]; accounts: Account[]; boxes: Box[]; rates: Rate[];
+  hub: string | null; setHub: (id: string | null) => void;
+  setEdit: (e: { tab: Tab; id: string | null; bank?: string }) => void;
+  setTab: (t: Tab) => void; addLabel: string; form: React.ReactNode;
+};
+
+function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub, setEdit, setTab, addLabel, form }: AssistProps) {
+  const [open, setOpen] = React.useState<string[]>(["b1"]);
+  const [ask, setAsk] = React.useState("");
+  const [answer, setAnswer] = React.useState<{ text: string; ids?: string[] } | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const bankName = (id: string) => banks.find((b) => b.id === id)?.name ?? "—";
+  const balOf = (ids: string[]) => ids.reduce((x, id) => x + (BAL[id] ?? 0), 0);
+
+  // a tiny rule-based reader: enough to show the idea of asking the base data a question
+  const run = (s = ask) => {
+    const t = s.trim(); if (!t) return;
+    setAsk(t); setBusy(true);
+    window.setTimeout(() => {
+      setBusy(false);
+      const bank = banks.find((b) => t.includes(b.name.replace("بانک ", "").replace("‌ی", "")) || t.includes(b.name));
+      if (/دسته.?چک|چک/.test(t)) {
+        const xs = accounts.filter((a) => a.cheque && (!bank || a.bank === bank.id));
+        const left = xs.flatMap((a) => a.books).reduce((x, b) => x + b.sheets - b.used, 0);
+        setTab("accounts"); setAnswer({ text: `${toFa(xs.length)} حساب${bank ? ` در ${bank.name}` : ""} دسته‌چک دارد و ${toFa(left)} برگ چک باقی مانده است.`, ids: xs.map((a) => a.id) });
+      } else if (bank) {
+        setHub(bank.id); setOpen((x) => [...new Set([...x, bank.id])]);
+      } else if (/صندوق|تنخواه/.test(t)) {
+        setTab("boxes"); setAnswer({ text: `${toFa(boxes.length)} صندوق دارید با موجودی اولیه‌ی ${amt(boxes.reduce((x, b) => x + b.opening, 0))} ریال.` });
+      } else if (/نرخ|دلار|یورو|درهم|ارز/.test(t)) {
+        setTab("currency"); setAnswer({ text: `آخرین نرخ دلار ${group(rates.find((r) => r.cur === "USD")?.rate ?? 0)} ریال است (${rates[0]?.date}).` });
+      } else if (/شعبه|شهر/.test(t)) {
+        setTab("branches"); setAnswer({ text: `${toFa(branches.length)} شعبه در ${toFa(new Set(branches.map((r) => r.city)).size)} شهر دارید.` });
+      } else if (/مانده|موجودی|حساب/.test(t)) {
+        setTab("accounts"); setAnswer({ text: `مانده‌ی همه‌ی حساب‌های بانکی ${amt(balOf(accounts.map((a) => a.id)))} ریال است؛ بیشترینش در ${bankName([...accounts].sort((a, b) => (BAL[b.id] ?? 0) - (BAL[a.id] ?? 0))[0].bank)}.` });
+      } else setAnswer({ text: "این را هنوز بلد نیستم. مثلاً بپرسید «حساب‌های ملت با دسته‌چک» یا «نرخ دلار»." });
+    }, 420);
+  };
+
+  const hubBank = banks.find((b) => b.id === hub);
+  const accountCard = (a: Account) => {
+    const c = toneOf(a.bank);
+    const left = a.books.reduce((x, b) => x + b.sheets - b.used, 0), all = a.books.reduce((x, b) => x + b.sheets, 0);
+    return (
+      <button key={a.id} onClick={() => setEdit({ tab: "accounts", id: a.id })} className={cn("group relative isolate flex min-h-[168px] flex-col overflow-hidden rounded-[18px] p-4 text-start text-white shadow-soft transition-transform hover:-translate-y-0.5", answer?.ids && !answer.ids.includes(a.id) && "opacity-40")}
+        style={{ background: `linear-gradient(135deg, hsl(var(${c})) 0%, hsl(var(${c}) / .78) 55%, hsl(var(${c}) / .6) 100%)` }}>
+        <span aria-hidden className="absolute -end-10 -top-12 -z-10 size-40 rounded-full bg-white/10" />
+        <span aria-hidden className="absolute -bottom-16 -start-6 -z-10 size-40 rounded-full bg-white/10" />
+        <span className="flex items-center gap-2 text-[12px] font-semibold text-white/85"><Bank className="size-4" variant="Bulk" />{bankName(a.bank)}<span className="ms-auto rounded-full bg-white/20 px-2 py-0.5 text-[11px]">{a.type}</span></span>
+        <b className="mt-2 text-[15px]">{a.name}</b>
+        <span dir="ltr" className="num mt-1 text-end font-mono text-[14px] tracking-[0.12em] text-white/90">{a.no.replace(/(.{4})/g, "$1 ").trim()}</span>
+        <span className="num mt-auto flex items-end justify-between gap-2 pt-3">
+          <span><span className="block text-[11px] text-white/75">مانده</span><b className="text-[17px]">{group(BAL[a.id] ?? 0)}</b> <span className="text-[11px] text-white/75">ریال</span></span>
+          {a.cheque && <span className="text-end text-[11px] text-white/80">{toFa(left)} از {toFa(all)} برگ<span className="mt-1 block h-1 w-20 overflow-hidden rounded-full bg-white/25"><i className="block h-full rounded-full bg-white" style={{ width: `${(left / Math.max(all, 1)) * 100}%` }} /></span></span>}
+        </span>
+      </button>
+    );
+  };
+
+  const views: Record<Tab, React.ReactNode> = {
+    home: (
+      <>
+        <section className="panel p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-[15px] font-extrabold"><Sparkles className="size-4 text-ai" /> خلاصه‌ی دستیار</h3>
+          <ul className="num flex flex-col gap-2.5 text-[13.5px]">
+            <li className="flex gap-2"><i className="mt-2 size-1.5 shrink-0 rounded-full bg-ch-1" />مانده‌ی کل حساب‌های بانکی <b>{amt(balOf(accounts.map((a) => a.id)))} ریال</b> است و {toFa(Math.round(((BAL.a2 ?? 0) / Math.max(balOf(accounts.map((a) => a.id)), 1)) * 100))}٪ آن در پارسیان جاری است.</li>
+            {accounts.filter((a) => a.books.some((b) => b.used / b.sheets > 0.5)).slice(0, 1).map((a) => (
+              <li key={a.id} className="flex gap-2"><i className="mt-2 size-1.5 shrink-0 rounded-full bg-warning" />دسته‌چک «{a.name}» بیش از نیمه مصرف شده؛ برای سفارش دسته‌چک بعدی وقت خوبی است.</li>
+            ))}
+            <li className="flex gap-2"><i className="mt-2 size-1.5 shrink-0 rounded-full bg-ch-2" />{toFa(banks.filter((b) => !b.used).length)} بانک تعریف شده ولی هنوز حسابی در آن‌ها ندارید.</li>
+          </ul>
+        </section>
+        <section className="flex flex-col gap-3">
+          <h3 className="px-1 text-[15px] font-extrabold">حساب‌های بانکی</h3>
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{accounts.map(accountCard)}</div>
+        </section>
+      </>
+    ),
+    banks: (
+      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        {banks.map((b) => {
+          const c = toneOf(b.id), acc = accounts.filter((a) => a.bank === b.id);
+          return (
+            <button key={b.id} onClick={() => setHub(b.id)} className="panel group flex flex-col overflow-hidden p-0 text-start transition-shadow hover:shadow-lift">
+              <span className="flex items-center gap-3 p-4" style={{ background: `linear-gradient(135deg, hsl(var(${c}) / .18), transparent)` }}>
+                <span className="grid size-11 place-items-center rounded-[14px]" style={{ background: `hsl(var(${c}) / .2)`, color: `hsl(var(${c}))` }}><Bank className="size-6" variant="Bulk" /></span>
+                <span className="min-w-0 flex-1"><b className="block truncate text-[15px]">{b.name}</b><span className="num text-[11.5px] text-muted-foreground">کد {b.code} · {b.type}</span></span>
+                {b.used && <Lock className="size-4 text-muted-foreground" aria-label="در حال استفاده" />}
+              </span>
+              <span className="num flex items-center justify-between gap-2 border-t border-border/70 px-4 py-3 text-[12.5px] text-muted-foreground">
+                <span>{toFa(branches.filter((r) => r.bank === b.id).length)} شعبه · {toFa(acc.length)} حساب</span>
+                <b className="text-foreground">{acc.length ? `${amt(balOf(acc.map((a) => a.id)))} ریال` : "—"}</b>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    ),
+    branches: (
+      <div className="flex flex-col gap-4">
+        {[...new Set(branches.map((r) => r.city))].map((city) => (
+          <section key={city} className="flex flex-col gap-2">
+            <h3 className="flex items-center gap-1.5 px-1 text-[14px] font-extrabold"><Location className="size-4 text-primary" variant="Bulk" />{city}<span className="num text-[12px] font-medium text-muted-foreground">{toFa(branches.filter((r) => r.city === city).length)} شعبه</span></h3>
+            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+              {branches.filter((r) => r.city === city).map((r) => (
+                <button key={r.id} onClick={() => setEdit({ tab: "branches", id: r.id })} className="panel flex flex-col gap-2 p-4 text-start transition-shadow hover:shadow-lift" style={{ boxShadow: `inset -3px 0 0 hsl(var(${toneOf(r.bank)}))` }}>
+                  <span className="text-[11.5px] font-bold" style={{ color: `hsl(var(${toneOf(r.bank)}))` }}>{bankName(r.bank)}</span>
+                  <b className="text-[14.5px]">{r.name} <span className="num text-[12px] font-normal text-muted-foreground">کد {r.code}</span></b>
+                  <span className="text-[12px] text-muted-foreground">{r.address}</span>
+                  <span className="num flex items-center gap-1 text-[12px] text-muted-foreground"><Call className="size-3.5" />{r.phone} · {toFa(accounts.filter((a) => a.branch === r.id).length)} حساب</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    ),
+    accounts: <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{accounts.map(accountCard)}</div>,
+    boxes: (
+      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        {boxes.map((x) => (
+          <button key={x.id} onClick={() => setEdit({ tab: "boxes", id: x.id })} className="panel flex flex-col gap-3 p-4 text-start transition-shadow hover:shadow-lift">
+            <span className="flex items-center gap-3">
+              <span className="grid size-11 place-items-center rounded-[14px] bg-ch-2/15 text-ch-2"><EmptyWallet className="size-6" variant="Bulk" /></span>
+              <span className="min-w-0 flex-1"><b className="block truncate text-[15px]">{x.name}</b><span className="text-[12px] text-muted-foreground">{x.place}</span></span>
+              <Badge tone={x.active ? "success" : "neutral"}>{x.active ? "فعال" : "غیرفعال"}</Badge>
+            </span>
+            <span className="num flex items-end justify-between gap-2 rounded-field bg-muted/50 px-3 py-2.5">
+              <span className="flex items-center gap-2 text-[12.5px]"><span className="grid size-7 place-items-center rounded-full bg-primary-soft text-[12px] font-bold text-primary">{x.cashier[0]}</span>{x.cashier}</span>
+              <span className="text-end"><b className="block text-[14px]">{group(x.opening)} <span className="text-[11px] font-normal text-muted-foreground">ریال</span></b><span className="text-[11px] text-muted-foreground">{tomanLine(x.opening)}</span></span>
+            </span>
+          </button>
+        ))}
+      </div>
+    ),
+    currency: (
+      <>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {CURRENCIES.slice(1).map(([n, code]) => {
+            const r = rates.find((x) => x.cur === code);
+            return (
+              <div key={code} className="panel flex flex-col gap-2 p-4">
+                <span className="flex items-center gap-2"><span dir="ltr" className="grid h-8 min-w-12 place-items-center rounded-[10px] bg-primary-soft px-2 text-[12px] font-extrabold text-primary">{code}</span><b className="text-[14px]">{n}</b></span>
+                <b className="num text-[22px] font-extrabold tracking-tight">{r ? group(r.rate) : "—"} <span className="text-[12px] font-normal text-muted-foreground">ریال</span></b>
+                <span className="num text-[12px] text-muted-foreground">{r ? `${tomanLine(r.rate)} · ${r.date}` : "نرخی ثبت نشده"}</span>
+              </div>
+            );
+          })}
+        </div>
+        <section className="panel p-5"><CurrencyTab rates={rates} /></section>
+      </>
+    ),
+  };
+
+  return (
+    <>
+      <section className="hero p-5">
+        <form onSubmit={(e) => { e.preventDefault(); run(); }} className="flex flex-wrap items-center gap-3">
+          <Orb size={40} busy={busy} />
+          <div className="relative min-w-[220px] flex-1">
+            <Input value={ask} onChange={(e) => setAsk(e.target.value)} aria-label="پرسش از اطلاعات پایه" placeholder="از اطلاعات پایه بپرسید؛ مثلاً «حساب‌های ملت با دسته‌چک»" className="h-12 pe-10 text-[14.5px]" />
+            <Search className="pointer-events-none absolute end-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
+          <Button type="submit" className="h-11" disabled={!ask.trim()}>بپرس</Button>
+          <Button type="button" variant="outline" className="h-11" onClick={() => setEdit({ tab: tab === "home" ? "banks" : tab, id: null })}><Add /> {addLabel}</Button>
+        </form>
+        <div className="mt-3 flex flex-wrap items-center gap-2 ps-[52px]">
+          {answer ? (
+            <>
+              <span className="num text-[13px] font-semibold">{answer.text}</span>
+              <button onClick={() => { setAnswer(null); setAsk(""); }} className="flex items-center gap-1 text-[12px] font-semibold text-muted-foreground hover:text-foreground"><X className="size-3.5" /> پاک کردن</button>
+            </>
+          ) : ["حساب‌های ملت با دسته‌چک", "مانده‌ی حساب‌ها", "نرخ دلار", "صندوق‌ها"].map((s) => <button key={s} onClick={() => run(s)} className="chip h-7 bg-surface text-[12px]">{s}</button>)}
+        </div>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-[270px_minmax(0,1fr)]">
+        <aside className="panel flex h-fit flex-col gap-1 p-3 lg:sticky lg:top-4" aria-label="درخت اطلاعات پایه">
+          <button onClick={() => { setAnswer(null); setHub(null); setTab("home"); }} className={cn("flex h-9 items-center gap-2 rounded-field px-2.5 text-[13px] font-bold hover:bg-muted", tab === "home" && !hub && "bg-primary-soft text-primary hover:bg-primary-soft")}><Category2 className="size-4" variant={tab === "home" && !hub ? "Bulk" : "Linear"} /> نمای کلی</button>
+          <p className="mt-2 px-2.5 text-[11.5px] font-bold text-muted-foreground">بانک‌ها</p>
+          {banks.map((b) => {
+            const isOpen = open.includes(b.id);
+            const br = branches.filter((r) => r.bank === b.id);
+            return (
+              <div key={b.id}>
+                <div className={cn("flex h-9 items-center rounded-field hover:bg-muted", hub === b.id && "bg-primary-soft text-primary hover:bg-primary-soft")}>
+                  <button aria-label={isOpen ? `بستن ${b.name}` : `باز کردن ${b.name}`} aria-expanded={isOpen} onClick={() => setOpen((x) => (isOpen ? x.filter((y) => y !== b.id) : [...x, b.id]))} className="grid size-7 place-items-center text-muted-foreground" disabled={!br.length}>
+                    {br.length ? <ChevronLeft className={cn("size-3.5 transition-transform", isOpen && "-rotate-90")} /> : <i className="size-1 rounded-full bg-border" />}
+                  </button>
+                  <button onClick={() => { setAnswer(null); setHub(b.id); }} className="flex min-w-0 flex-1 items-center gap-2 pe-2 text-start text-[13px] font-semibold">
+                    <i className="size-2 shrink-0 rounded-full" style={{ background: `hsl(var(${toneOf(b.id)}))` }} /><span className="truncate">{b.name}</span>
+                    <span className="num ms-auto text-[11px] text-muted-foreground">{toFa(accounts.filter((a) => a.bank === b.id).length)}</span>
+                  </button>
+                </div>
+                {isOpen && br.length > 0 && (
+                  <ul className="ms-[18px] border-s border-border/80 ps-2">
+                    {br.map((r) => (
+                      <li key={r.id}>
+                        <button onClick={() => setEdit({ tab: "branches", id: r.id })} className="flex h-8 w-full items-center gap-1.5 rounded-field px-2 text-[12.5px] text-muted-foreground hover:bg-muted hover:text-foreground"><Building2 className="size-3.5" />{r.name}</button>
+                        {accounts.filter((a) => a.branch === r.id).map((a) => (
+                          <button key={a.id} onClick={() => setEdit({ tab: "accounts", id: a.id })} className="ms-4 flex h-7 w-[calc(100%-1rem)] items-center gap-1.5 rounded-field px-2 text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground"><Card className="size-3.5" /><span className="truncate">{a.name}</span></button>
+                        ))}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+          <div className="my-2 border-t border-border/70" />
+          {([["branches", "شعبه‌ها", Building2, branches.length], ["accounts", "حساب‌های بانکی", Card, accounts.length], ["boxes", "صندوق‌ها", EmptyWallet, boxes.length], ["currency", "ارزها و نرخ‌ها", MoneyChange, rates.length]] as [Tab, string, IconType, number][]).map(([k, l, I, n]) => (
+            <button key={k} onClick={() => { setAnswer(null); setHub(null); setTab(k); }} className={cn("flex h-9 items-center gap-2 rounded-field px-2.5 text-[13px] font-semibold hover:bg-muted", tab === k && !hub && "bg-primary-soft text-primary hover:bg-primary-soft")}>
+              <I className="size-4" variant={tab === k && !hub ? "Bulk" : "Linear"} />{l}<span className="num ms-auto text-[11px] text-muted-foreground">{toFa(n)}</span>
+            </button>
+          ))}
+        </aside>
+
+        <div className="flex min-w-0 flex-col gap-4">
+          {hubBank ? (() => {
+            const c = toneOf(hubBank.id);
+            const acc = accounts.filter((a) => a.bank === hubBank.id), br = branches.filter((r) => r.bank === hubBank.id);
+            return (
+              <>
+                <section className="panel relative isolate overflow-hidden p-5">
+                  <span aria-hidden className="absolute inset-0 -z-10" style={{ background: `linear-gradient(120deg, hsl(var(${c}) / .2), transparent 60%)` }} />
+                  <div className="flex flex-wrap items-center gap-4">
+                    <span className="grid size-14 place-items-center rounded-[16px]" style={{ background: `hsl(var(${c}) / .2)`, color: `hsl(var(${c}))` }}><Bank className="size-7" variant="Bulk" /></span>
+                    <div className="min-w-[200px] flex-1">
+                      <h2 className="text-[20px] font-extrabold">{hubBank.name}</h2>
+                      <p className="num text-[12.5px] text-muted-foreground">کد {hubBank.code} · {hubBank.type}{hubBank.swift ? ` · ${hubBank.swift}` : ""}</p>
+                    </div>
+                    <div className="num text-end"><span className="block text-[12px] text-muted-foreground">مانده‌ی حساب‌ها</span><b className="text-[22px] font-extrabold">{acc.length ? amt(balOf(acc.map((a) => a.id))) : "—"}</b> <span className="text-[12px] text-muted-foreground">{acc.length ? "ریال" : ""}</span></div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}><Add /> افتتاح حساب</Button>
+                    <Button variant="outline" onClick={() => setEdit({ tab: "branches", id: null, bank: hubBank.id })}><Add /> شعبه‌ی جدید</Button>
+                    <Button variant="ghost" onClick={() => setEdit({ tab: "banks", id: hubBank.id })}><PencilLine /> ویرایش بانک</Button>
+                  </div>
+                </section>
+                <section className="flex flex-col gap-3">
+                  <h3 className="px-1 text-[15px] font-extrabold">حساب‌ها <span className="num text-[12px] font-medium text-muted-foreground">{toFa(acc.length)}</span></h3>
+                  {acc.length ? <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{acc.map(accountCard)}</div> : <div className="panel"><Empty icon={Card} title="حسابی در این بانک ندارید" action={<Button size="sm" variant="soft" onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}>افتتاح حساب</Button>} /></div>}
+                </section>
+                <section className="flex flex-col gap-3">
+                  <h3 className="px-1 text-[15px] font-extrabold">شعبه‌ها <span className="num text-[12px] font-medium text-muted-foreground">{toFa(br.length)}</span></h3>
+                  {br.length ? (
+                    <ol className="panel relative flex flex-col gap-0 p-4">
+                      {br.map((r, i) => (
+                        <li key={r.id} className="relative flex gap-3 pb-4 last:pb-0">
+                          {i < br.length - 1 && <span aria-hidden className="absolute start-[15px] top-8 h-[calc(100%-24px)] w-px bg-border" />}
+                          <span className="grid size-8 shrink-0 place-items-center rounded-full" style={{ background: `hsl(var(${c}) / .16)`, color: `hsl(var(${c}))` }}><Building2 className="size-4" variant="Bulk" /></span>
+                          <button onClick={() => setEdit({ tab: "branches", id: r.id })} className="min-w-0 flex-1 text-start">
+                            <b className="block text-[14px]">{r.name} <span className="num text-[12px] font-normal text-muted-foreground">· {r.city} · کد {r.code}</span></b>
+                            <span className="num block text-[12px] text-muted-foreground">{r.address} · {r.phone}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : <div className="panel"><Empty icon={Building2} title="شعبه‌ای تعریف نشده" /></div>}
+                </section>
+              </>
+            );
+          })() : views[tab]}
+        </div>
+      </div>
+      {form}
+    </>
   );
 }

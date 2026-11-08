@@ -118,7 +118,7 @@ function ProfileMenu() {
 }
 
 export function Topbar() {
-  const { page, unit, setUnit, concept, setConcept, theme, setTheme, openPalette, setTour } = useApp();
+  const { page, concept, setConcept, theme, setTheme, openPalette, setTour } = useApp();
   const hasTour = page === "dashboard" || page === "voucher";
   const [title] = titles[page];
   return (
@@ -141,7 +141,6 @@ export function Topbar() {
       </button>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented label="واحد نمایش مبلغ" value={unit} onChange={setUnit} items={[["rial", "ریال"], ["toman", "تومان"]]} />
         <div data-tour="concept">
           <Segmented label="کانسپت" value={concept} onChange={setConcept} items={[["assist", "دستیار"], ["bento", "پیشخوان"]]} />
         </div>

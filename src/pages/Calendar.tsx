@@ -1,8 +1,9 @@
 import * as React from "react";
 import { CalendarCheck2, ChevronLeft, ChevronRight, Clock, FilePlus2, MoneySend, Plus, Sparkles, Sun, TaskSquare, Trash2, X } from "@/components/icons";
 import { StatCard } from "@/components/ui/stat";
+import { AmountInput } from "@/components/ui/amount";
 import { useApp } from "@/lib/store";
-import { catMeta, holidays, type CalEvent, type EventCat } from "@/data/demo";
+import { CAT_SWATCHES, catMeta, holidays, type CalEvent, type EventCat } from "@/data/demo";
 import { cn, short, toEn, toFa, unitLabel } from "@/lib/utils";
 import { dayIndex, diffDays, fmtDay, fmtFull, isToday, MONTHS, monthLength, relDay, TODAY, weekday, WEEKDAYS, WD_SHORT } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Segmented } from "@/components/shell/Topbar";
 import { Orb } from "@/components/ai/Orb";
 import { Empty } from "@/pages/Dashboard";
+
+/** Half-hour slots for reminders, 07:00 to 21:00, plus "all day". */
+const TIMES: [string, string][] = [["none", "تمام روز"], ...Array.from({ length: 29 }, (_, i) => { const h = 7 + Math.floor(i / 2), mm = i % 2 ? "30" : "00"; const v = `${String(h).padStart(2, "0")}:${mm}`; return [v, toFa(v)] as [string, string]; })];
 
 /** "پنجشنبه ساعت ۱۰ پیگیری چک جم" → day, time and title */
 export function parseReminder(s: string, base: { m: number; d: number }) {
@@ -64,20 +68,24 @@ const addDays = (x: Day, n: number): Day => {
 
 /* ---------- create / edit dialog ---------- */
 function NewReminder({ open, onOpenChange, at }: { open: boolean; onOpenChange: (o: boolean) => void; at: Day }) {
-  const { addEvent, toast } = useApp();
+  const { addEvent, toast, cats, addCat } = useApp();
+  const [adding, setAdding] = React.useState(false);
+  const [newCat, setNewCat] = React.useState("");
+  const [swatch, setSwatch] = React.useState(CAT_SWATCHES[0]);
   const [title, setTitle] = React.useState("");
   const [m, setM] = React.useState(at.m);
   const [d, setD] = React.useState(at.d);
   const [time, setTime] = React.useState("");
   const [cat, setCat] = React.useState<EventCat>("reminder");
-  const [amount, setAmount] = React.useState("");
+  const [amount, setAmount] = React.useState(0);
   const [sentence, setSentence] = React.useState("");
-  React.useEffect(() => { if (open) { setM(at.m); setD(at.d); setTitle(""); setTime(""); setAmount(""); setSentence(""); setCat("reminder"); } }, [open, at.m, at.d]);
+  React.useEffect(() => { if (open) { setM(at.m); setD(at.d); setTitle(""); setTime(""); setAmount(0); setSentence(""); setCat("reminder"); setAdding(false); setNewCat(""); } }, [open, at.m, at.d]);
+  const createCat = () => { const l = newCat.trim(); if (!l) return; const id = addCat(l, swatch); setCat(id); setAdding(false); setNewCat(""); toast(`دسته‌ی «${l}» اضافه شد.`); };
   const fromSentence = () => { if (!sentence.trim()) return; const p = parseReminder(sentence, { m, d }); setTitle(p.title); setM(p.m); setD(p.d); if (p.time) setTime(toEn(p.time)); };
   const save = () => {
     if (!title.trim()) return;
-    const amt = parseInt(toEn(amount).replace(/[^\d]/g, "") || "0", 10);
-    addEvent({ id: `u${Date.now()}`, m, d: Math.min(d, monthLength(m)), time: time ? toFa(time) : undefined, title: title.trim(), cat, amount: amt ? amt * 10 : undefined });
+    const amt = amount;
+    addEvent({ id: `u${Date.now()}`, m, d: Math.min(d, monthLength(m)), time: time ? toFa(time) : undefined, title: title.trim(), cat, amount: amt || undefined });
     toast(`یادآوری «${title.trim()}» برای ${fmtDay(m, d)} ثبت شد.`);
     onOpenChange(false);
   };
@@ -100,18 +108,33 @@ function NewReminder({ open, onOpenChange, at }: { open: boolean; onOpenChange: 
             <label className="flex flex-col gap-1.5"><span className="field-label">ماه</span>
               <SimpleSelect label="ماه" value={m} onChange={(v) => setM(+v)} options={[8, 9, 10, 11, 12].map((x) => [x, MONTHS[x - 1]])} />
             </label>
-            <label className="flex flex-col gap-1.5"><span className="field-label">روز</span><Input type="number" min={1} max={monthLength(m)} value={d} onChange={(e) => setD(Math.min(Math.max(+e.target.value || 1, 1), monthLength(m)))} className="num" /></label>
-            <label className="flex flex-col gap-1.5"><span className="field-label">ساعت</span><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="num" dir="ltr" /></label>
+            <label className="flex flex-col gap-1.5"><span className="field-label">روز</span><SimpleSelect label="روز" value={Math.min(d, monthLength(m))} onChange={(v) => setD(+v)} options={Array.from({ length: monthLength(m) }, (_, i) => [i + 1, toFa(i + 1)])} /></label>
+            <label className="flex flex-col gap-1.5"><span className="field-label">ساعت</span><SimpleSelect label="ساعت" value={time || "none"} onChange={(v) => setTime(v === "none" ? "" : v)} options={TIMES} /></label>
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="field-label">دسته</span>
             <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(catMeta) as EventCat[]).map((c) => (
+              {cats.map((c) => (
                 <button key={c} type="button" className="chip h-8" aria-pressed={cat === c} onClick={() => setCat(c)}><i className="size-2 rounded-full" style={{ background: `hsl(${catMeta[c].color})` }} />{catMeta[c].label}</button>
               ))}
+              {!adding && <button type="button" className="chip h-8 border-dashed" onClick={() => setAdding(true)}><Plus className="size-3.5" /> دسته‌ی جدید</button>}
             </div>
+            {adding && (
+              <div className="mt-1 flex flex-wrap items-center gap-2 rounded-field border border-border bg-surface-2/60 p-2">
+                <Input value={newCat} onChange={(e) => setNewCat(e.target.value)} autoFocus placeholder="نام دسته، مثلاً «قراردادها»" aria-label="نام دسته‌ی جدید" className="h-9 min-w-[160px] flex-1"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); createCat(); } if (e.key === "Escape") { e.stopPropagation(); setAdding(false); } }} />
+                <div role="radiogroup" aria-label="رنگ دسته" className="flex items-center gap-1">
+                  {CAT_SWATCHES.map((c) => (
+                    <button key={c} type="button" role="radio" aria-checked={swatch === c} aria-label="رنگ" onClick={() => setSwatch(c)}
+                      className={cn("size-6 rounded-full ring-offset-2 ring-offset-surface transition", swatch === c && "ring-2 ring-ring")} style={{ background: `hsl(${c})` }} />
+                  ))}
+                </div>
+                <Button size="sm" type="button" onClick={createCat} disabled={!newCat.trim()}>افزودن</Button>
+                <Button size="sm" type="button" variant="ghost" onClick={() => setAdding(false)}>انصراف</Button>
+              </div>
+            )}
           </div>
-          <label className="flex flex-col gap-1.5"><span className="field-label">مبلغ (اختیاری، تومان)</span><Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" dir="ltr" className="num text-left" placeholder="۰" /></label>
+          <div className="flex flex-col gap-1.5"><span className="field-label">مبلغ (اختیاری)</span><AmountInput label="مبلغ یادآوری به ریال" value={amount} onChange={setAmount} /></div>
           <p className="num text-[12px] text-muted-foreground">{fmtFull(m, Math.min(d, monthLength(m)))}{time ? ` · ساعت ${toFa(time)}` : ""} · یک روز قبل اعلان می‌آید</p>
         </div>
         <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
@@ -394,8 +417,8 @@ export function Calendar() {
   const subDates = (d: Day) => [settings.calendars.gregorian && greg(d.m, d.d, true), settings.calendars.hijri && hijri(d.m, d.d)].filter(Boolean).join(" · ");
 
   /* ----- one row of the day timeline ----- */
-  const Task = ({ e }: { e: CalEvent }) => (
-    <li className="relative grid grid-cols-[56px_minmax(0,1fr)] gap-3">
+  const task = (e: CalEvent) => (
+    <li key={e.id} className="relative grid grid-cols-[56px_minmax(0,1fr)] gap-3">
       <span className="num pt-3 text-end text-[12px] font-semibold text-muted-foreground">{e.time ?? "تمام روز"}</span>
       <div className={cn("relative flex items-center gap-3 rounded-[calc(var(--r-field)+4px)] border border-border bg-surface/80 p-3 transition-colors hover:border-primary/30", e.done && "opacity-60")}
         style={{ boxShadow: `inset -3px 0 0 hsl(${catMeta[e.cat].color})` }}>
@@ -469,7 +492,7 @@ export function Calendar() {
             </form>
             {hol && <p className="mt-4 rounded-field bg-danger-soft/60 px-3 py-2 text-[12.5px] font-semibold text-danger">تعطیل رسمی: {hol.title}</p>}
             {list.length ? (
-              <ol className="mt-4 flex flex-col gap-2.5">{list.map((e) => <Task key={e.id} e={e} />)}</ol>
+              <ol className="mt-4 flex flex-col gap-2.5">{list.map(task)}</ol>
             ) : <Empty icon={CalendarCheck2} title="برای این روز برنامه‌ای ثبت نشده" text="یادآوری را در یک جمله بنویسید یا «فعالیت جدید» را بزنید." />}
           </section>
 
@@ -490,7 +513,7 @@ export function Calendar() {
                         <span className="num rounded-full bg-muted px-2 text-[11.5px] font-bold">{toFa(l.length)}</span>
                         <ChevronLeft className="size-4 text-muted-foreground transition-transform group-open:-rotate-90" />
                       </summary>
-                      <ol className="flex flex-col gap-2 px-3 pb-3 pt-1">{l.map((e) => <Task key={e.id} e={e} />)}</ol>
+                      <ol className="flex flex-col gap-2 px-3 pb-3 pt-1">{l.map(task)}</ol>
                     </details>
                   </li>
                 ))}

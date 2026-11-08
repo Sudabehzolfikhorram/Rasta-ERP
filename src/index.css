@@ -189,7 +189,7 @@
 
   /* AI and key surfaces: a gradient light travels around the border (one per page) */
   .hero, .edge-run { position: relative; isolation: isolate; }
-  .hero::before, .edge-run::before, .hero::after, .edge-run::after {
+  .hero::before, .edge-run::before, .hero::after {
     content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none; z-index: 1;
     /* same spectrum as the orb rim */
     background: conic-gradient(from var(--edge-a), transparent 0deg, transparent 110deg, #ff9fd6 160deg, #ffd27a 205deg, #8af0c8 250deg, #6cc7ff 295deg, #b5a0ff 335deg, transparent 360deg);
@@ -198,7 +198,8 @@
     animation: edge-run 6s linear infinite;
   }
   /* soft glow that follows the light */
-  .hero::after, .edge-run::after { padding: 2px; filter: blur(5px); opacity: .45; z-index: 0; }
+  /* the soft glow only on the hero: a blurred layer repainted every frame is costly on long pages */
+  .hero::after { padding: 2px; filter: blur(5px); opacity: .45; z-index: 0; }
   .rounded-field { border-radius: var(--r-field); }
   .ai-edge { background: linear-gradient(120deg, var(--ai-from), var(--ai-to)); }
   .chip {
@@ -244,7 +245,7 @@
   background: conic-gradient(from var(--orb-a, 0deg), #ff9fd6, #ffd27a, #8af0c8, #6cc7ff, #b5a0ff, #ff9fd6);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--orb-rim, 2.5px)), #000 calc(100% - var(--orb-rim, 2.5px) + 1px));
   mask: radial-gradient(farthest-side, transparent calc(100% - var(--orb-rim, 2.5px)), #000 calc(100% - var(--orb-rim, 2.5px) + 1px));
-  animation: orb-spin 7s linear infinite; }
+  animation: orb-spin 7s linear infinite; will-change: transform; }
 .orb::after { inset: -4px; filter: blur(6px); opacity: .55; z-index: 0; }
 .orb .core { position: absolute; width: 58%; height: 58%; border-radius: 9999px; left: 34%; top: 38%; z-index: 0;
   background: radial-gradient(circle, rgb(40 225 210 / .85), rgb(60 170 255 / .35) 55%, transparent 72%); filter: blur(2px);

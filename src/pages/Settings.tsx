@@ -2,12 +2,13 @@ import * as React from "react";
 import { Add, Bell, CalendarDays, FileCog, Lock, Palette, AlarmClock, TickCircle } from "@/components/icons";
 import { useApp, type Channel, type NotifKind } from "@/lib/store";
 import { Segmented } from "@/components/shell/Topbar";
-import { cn, group, toEn, toFa } from "@/lib/utils";
+import { cn, toFa } from "@/lib/utils";
 import { MONTHS } from "@/lib/jalali";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { AmountInput } from "@/components/ui/amount";
 import { SimpleSelect } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -36,8 +37,19 @@ const CHANNELS: [Channel, string][] = [["app", "در برنامه"], ["email", "
 type SectionId = "display" | "docs" | "calendars" | "reminders" | "notify";
 const SECTIONS: [SectionId, string, typeof Bell][] = [["display", "ظاهر و نمایش", Palette], ["docs", "حساب‌ها و سند", FileCog], ["calendars", "تقویم‌ها و سال مالی", CalendarDays], ["reminders", "یادآوری‌ها", AlarmClock], ["notify", "اعلان‌ها", Bell]];
 
+/** − value + : used instead of a native number field so it looks the same everywhere. */
+function Stepper({ value, min, max, onChange, label }: { value: number; min: number; max: number; onChange: (v: number) => void; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="flex h-10 items-center rounded-field border border-input bg-surface">
+      <button type="button" aria-label={`کم کردن ${label}`} disabled={value <= min} onClick={() => onChange(value - 1)} className="grid h-full w-8 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-35">−</button>
+      <span className="num w-7 text-center text-[14px] font-bold" aria-live="polite">{toFa(value)}</span>
+      <button type="button" aria-label={`زیاد کردن ${label}`} disabled={value >= max} onClick={() => onChange(value + 1)} className="grid h-full w-8 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-35">+</button>
+    </div>
+  );
+}
+
 function useSections() {
-  const { settings, setSettings, concept, setConcept, theme, setTheme, unit, setUnit, toast } = useApp();
+  const { settings, setSettings, concept, setConcept, theme, setTheme, toast } = useApp();
   const levels = ["کل", "معین", "تفصیلی"];
   const range: [number, number][] = [[1, 2], [2, 4], [4, 9]];
   const cal = settings.calendars, rem = settings.reminders;
@@ -46,7 +58,6 @@ function useSections() {
       <>
         <Row title="کانسپت"><Segmented label="کانسپت" value={concept} onChange={setConcept} items={[["assist", "دستیار"], ["bento", "پیشخوان"]]} /></Row>
         <Row title="حالت نمایش"><Segmented label="حالت نمایش" value={theme} onChange={setTheme} items={[["light", "روشن"], ["dark", "تیره"]]} /></Row>
-        <Row title="واحد نمایش مبلغ" note="در داشبورد و گزارش‌ها"><Segmented label="واحد نمایش" value={unit} onChange={setUnit} items={[["rial", "ریال"], ["toman", "تومان"]]} /></Row>
         <Row title="جلوه‌های حرکتی" note="انیمیشن دستیار و جابه‌جایی صفحه‌ها"><Switch checked={settings.motion} onCheckedChange={(v) => { setSettings({ motion: v }); toast(v ? "جلوه‌های حرکتی فعال شد." : "جلوه‌های حرکتی غیرفعال شد."); }} aria-label="جلوه‌های حرکتی" /></Row>
       </>
     ),
@@ -57,22 +68,14 @@ function useSections() {
             {levels.map((l, i) => (
               <label key={l} className="flex flex-col items-center gap-1 text-[12px] text-muted-foreground">
                 {l}
-                <Input type="number" min={range[i][0]} max={range[i][1]} value={settings.codeLen[i]} aria-label={`طول کد ${l}`}
-                  onChange={(e) => { const v = Math.min(Math.max(+e.target.value || range[i][0], range[i][0]), range[i][1]); const c = [...settings.codeLen] as [number, number, number]; c[i] = v; setSettings({ codeLen: c }); }}
-                  className="num h-10 w-16 text-center" />
+                <Stepper label={`طول کد ${l}`} value={settings.codeLen[i]} min={range[i][0]} max={range[i][1]}
+                  onChange={(v) => { const c = [...settings.codeLen] as [number, number, number]; c[i] = v; setSettings({ codeLen: c }); }} />
               </label>
             ))}
           </div>
         </Row>
         <Row title="سقف تأیید مدیر مالی" note="سندهای بالاتر از این مبلغ پس از ثبت منتظر تأیید می‌مانند">
-          <div className="flex items-center gap-2">
-            <Input dir="ltr" inputMode="numeric" value={group(settings.approvalLimit)} aria-label="سقف تأیید به ریال" className="num h-10 w-44 text-left font-bold"
-              onChange={(e) => setSettings({ approvalLimit: parseInt(toEn(e.target.value).replace(/[^\d]/g, "") || "0", 10) })} />
-            <span className="text-[12.5px] text-muted-foreground">ریال</span>
-          </div>
-        </Row>
-        <Row title="واحد ورود مبلغ در سند" note="ذخیره و چاپ همیشه به ریال است">
-          <Segmented label="واحد ورود مبلغ" value={settings.inputUnit} onChange={(v) => setSettings({ inputUnit: v })} items={[["toman", "تومان"], ["rial", "ریال"]]} />
+          <AmountInput label="سقف تأیید به ریال" value={settings.approvalLimit} onChange={(v) => setSettings({ approvalLimit: v })} className="w-56" inputClassName="h-10" />
         </Row>
       </>
     ),
@@ -233,9 +236,9 @@ function NewFiscalYear({ onClose, onSave }: { onClose: () => void; onSave: (y: F
     <div className="flex flex-col gap-1.5">
       <span className="field-label">{label}</span>
       <div className="grid grid-cols-[72px_minmax(0,1fr)_86px] gap-2">
-        <Input type="number" min={1} max={monthLength(v[1])} value={v[2]} onChange={(e) => set([v[0], v[1], Math.min(Math.max(+e.target.value || 1, 1), monthLength(v[1]))])} className="num" aria-label={`${label}: روز`} />
+        <SimpleSelect label={`${label}: روز`} value={Math.min(v[2], monthLength(v[1]))} onChange={(d) => set([v[0], v[1], +d])} options={Array.from({ length: monthLength(v[1]) }, (_, i) => [i + 1, toFa(i + 1)])} />
         <SimpleSelect label={`${label}: ماه`} value={v[1]} onChange={(m) => set([v[0], +m, Math.min(v[2], monthLength(+m))])} options={MONTHS.map((m, i) => [i + 1, m])} />
-        <Input type="number" min={1404} max={1410} value={v[0]} onChange={(e) => set([+e.target.value || 1406, v[1], v[2]])} className="num" aria-label={`${label}: سال`} />
+        <SimpleSelect label={`${label}: سال`} value={v[0]} onChange={(y) => set([+y, v[1], v[2]])} options={[1404, 1405, 1406, 1407, 1408].map((y) => [y, toFa(y)])} />
       </div>
     </div>
   );

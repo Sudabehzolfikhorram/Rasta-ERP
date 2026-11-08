@@ -7,12 +7,34 @@ import { Kbd } from "@/components/ui/kbd";
 import { useApp } from "@/lib/store";
 import { Orb } from "@/components/ai/Orb";
 import { money, unitLabel } from "@/lib/utils";
+import { followUps } from "@/components/ai/followups";
 
 export type Answer = { title: string; line: string; rows: [string, string][]; note: string; id: string; report?: string };
 
 /** Demo agent: a few intents answered with real-looking tools (synthetic data). */
 export function answerFor(q: string, unit: "rial" | "toman"): Answer | null {
   const u = unitLabel(unit);
+  if (/پیش.?بینی|آخر (ماه|آبان)/.test(q))
+    return {
+      id: "forecast", title: "پیش‌بینی نقدینگی تا آخر آبان", report: "cf",
+      line: "با دریافت‌ها و چک‌های در راه، موجودی ۲۲ آبان به کم‌ترین حد می‌رسد و بعد دوباره بالا می‌رود.",
+      rows: [["کم‌ترین موجودی · ۲۲ آبان", `${money(44_200_000_000, unit)} ${u}`], ["چک‌های پرداختی تا آخر ماه", `${money(3_340_000_000, unit)} ${u}`], ["موجودی پیش‌بینی‌شده · ۳۰ آبان", `${money(51_600_000_000, unit)} ${u}`]],
+      note: "از چک‌ها و سررسیدهای تقویم مالی",
+    };
+  if (/مقایسه|با مهر/.test(q))
+    return {
+      id: "compare", title: "آبان در برابر مهر", report: "expcmp",
+      line: "درآمد آبان ۱۱٪ بیشتر از مهر است و هزینه‌ها تقریباً ثابت مانده‌اند.",
+      rows: [["درآمد", "+۱۱٪"], ["هزینه‌ها", "+۲٪"], ["سود خالص", "+۱۸٪"]],
+      note: "از گزارش سود و زیان",
+    };
+  if (/هزینه/.test(q))
+    return {
+      id: "expenses", title: "هزینه‌های آبان به تفکیک", report: "expmix",
+      line: "دو سوم هزینه‌های آبان حقوق و دستمزد است.",
+      rows: [["حقوق و دستمزد", `${money(3_800_000_000, unit)} ${u}`], ["اجاره", `${money(650_000_000, unit)} ${u}`], ["حمل و نقل", `${money(580_000_000, unit)} ${u}`], ["سایر", `${money(770_000_000, unit)} ${u}`]],
+      note: "از اسناد تأییدشده‌ی آبان",
+    };
   if (/صورت.?حساب|مشتری/.test(q))
     return {
       id: "statements", title: "مانده‌ی مشتری‌ها · پایان مهر", report: "statements",
@@ -130,9 +152,9 @@ export function CommandPalette() {
                 </Command.Item>
               </Command.Group>
             )}
-            <Command.Group heading="بپرسید" className="cmd-group">
-              {["مانده‌ی بانک‌ها", "مانده‌ی مشتری‌ها", "تراز آزمایشی آبان", "چرا نقدینگی بالا رفت؟", "اسناد منتظر تأیید"].map((s) => (
-                <Command.Item key={s} value={s} onSelect={() => { setQ(s); ask(s); }} className="cmd-item">
+            <Command.Group heading={answer && answer.id !== "none" ? "بعدش بپرسید" : "بپرسید"} className="cmd-group" forceMount={!!answer}>
+              {(answer && answer.id !== "none" ? followUps(answer.id, [q], 4) : ["مانده‌ی بانک‌ها", "مانده‌ی مشتری‌ها", "تراز آزمایشی آبان", "چرا نقدینگی بالا رفت؟", "اسناد منتظر تأیید"]).map((s) => (
+                <Command.Item key={s} value={s} forceMount={!!answer} onSelect={() => { setQ(s); ask(s); }} className="cmd-item">
                   <Sparkles className="text-ai" /> {s}
                 </Command.Item>
               ))}

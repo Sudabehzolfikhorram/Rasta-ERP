@@ -1,7 +1,7 @@
 import * as React from "react";
 import { AlertTriangle, CalendarDays, Check, CircleDashed, FileImage, FileText, Info, Lock, Paperclip, Plus, Scale, Sparkles, Trash2, Upload, X } from "@/components/icons";
 import { accountBy, kindLabel, type Doc, type DocKind, type DocLine } from "@/data/demo";
-import { cn, group, toEn, toFa, words } from "@/lib/utils";
+import { cn, group, toFa } from "@/lib/utils";
 import { fmtNum, MONTHS, monthLength, TODAY, weekday, WD_SHORT } from "@/lib/jalali";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,32 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AccountPicker } from "./AccountPicker";
+import { AmountInput } from "@/components/ui/amount";
 
-export type InUnit = "toman" | "rial";
 let nid = 9000;
 export const blankLine = (): DocLine => ({ id: nid++, account: null, desc: "", debit: 0, credit: 0 });
 
 export const docNo = (m: number, seq: number) => toFa(`1405-${String(m).padStart(2, "0")}-${String(seq).padStart(3, "0")}`);
 
-export function MoneyInput({ value, onChange, unit, label }: { value: number; onChange: (rial: number) => void; unit: InUnit; label: string }) {
-  const shown = value ? group(unit === "toman" ? value / 10 : value) : "";
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <Input
-        inputMode="numeric"
-        dir="ltr"
-        aria-label={label}
-        value={shown}
-        placeholder="۰"
-        onChange={(e) => {
-          const n = parseInt(toEn(e.target.value).replace(/[^\d]/g, "") || "0", 10);
-          onChange(unit === "toman" ? n * 10 : n);
-        }}
-        className="num h-11 text-left text-[14px] font-bold"
-      />
-      {unit === "toman" && value > 0 && <span className="num truncate text-[11px] text-muted-foreground" title={words(value)}>{group(value)} ریال</span>}
-    </div>
-  );
+/* Amounts are typed in rial; the toman equivalent shows under each field. */
+export function MoneyInput({ value, onChange, label }: { value: number; onChange: (rial: number) => void; label: string }) {
+  return <AmountInput label={label} value={value} onChange={onChange} quiet inputClassName="h-11 text-[14px]" />;
 }
 
 function DatePick({ m, d, onChange }: { m: number; d: number; onChange: (m: number, d: number) => void }) {
@@ -149,7 +133,7 @@ export function Attachments({ files, onAdd, onRemove }: { files: string[]; onAdd
 }
 
 /** The voucher form: one header card, then line cards with a full-width description under each line. */
-export function VoucherEditor({ doc, setDoc, inUnit, setInUnit }: { doc: Doc; setDoc: (fn: (d: Doc) => Doc) => void; inUnit: InUnit; setInUnit: (u: InUnit) => void }) {
+export function VoucherEditor({ doc, setDoc }: { doc: Doc; setDoc: (fn: (d: Doc) => Doc) => void }) {
   const lines = doc.lines;
   const totalD = lines.reduce((a, r) => a + r.debit, 0);
   const totalC = lines.reduce((a, r) => a + r.credit, 0);
@@ -185,20 +169,10 @@ export function VoucherEditor({ doc, setDoc, inUnit, setInUnit }: { doc: Doc; se
               ))}
             </div>
           </div>
-          <label className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+          <label className="flex flex-col gap-1 sm:col-span-2 lg:col-span-4">
             <span className="field-label">شرح سند</span>
             <Input value={doc.title} onChange={(e) => setDoc((x) => ({ ...x, title: e.target.value }))} placeholder="مثلاً: دریافت از پتروشیمی مارون" className="h-11 text-[14px]" />
           </label>
-          <div className="flex flex-col gap-1">
-            <span className="field-label">ورود مبلغ به</span>
-            <div role="radiogroup" aria-label="واحد ورود مبلغ" className="flex h-11 w-fit items-center rounded-[calc(var(--r-field)+4px)] bg-muted p-1 text-[12.5px]">
-              {(["toman", "rial"] as const).map((u) => (
-                <button key={u} role="radio" aria-checked={inUnit === u} onClick={() => setInUnit(u)} className={cn("h-9 rounded-field px-4 font-semibold text-muted-foreground", inUnit === u && "bg-surface text-foreground shadow-soft")}>
-                  {u === "toman" ? "تومان" : "ریال"}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
@@ -212,8 +186,8 @@ export function VoucherEditor({ doc, setDoc, inUnit, setInUnit }: { doc: Doc; se
         <div className="hidden grid-cols-[28px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_36px] gap-3 px-5 pt-3 text-[11.5px] font-semibold text-muted-foreground md:grid">
           <span />
           <span>حساب</span>
-          <span>بدهکار ({inUnit === "toman" ? "تومان" : "ریال"})</span>
-          <span>بستانکار ({inUnit === "toman" ? "تومان" : "ریال"})</span>
+          <span>بدهکار</span>
+          <span>بستانکار</span>
           <span />
         </div>
         <ol>
@@ -224,8 +198,8 @@ export function VoucherEditor({ doc, setDoc, inUnit, setInUnit }: { doc: Doc; se
               </span>
               <AccountPicker value={r.account} onChange={(c) => update(r.id, { account: c })} desc={r.desc || doc.title} invalid={!!(r.debit || r.credit) && !r.account} />
               <div className="col-start-2 grid grid-cols-2 gap-3 md:col-start-auto md:contents">
-                <MoneyInput label={`بدهکار ردیف ${toFa(i + 1)}`} unit={inUnit} value={r.debit} onChange={(v) => update(r.id, { debit: v, credit: v ? 0 : r.credit })} />
-                <MoneyInput label={`بستانکار ردیف ${toFa(i + 1)}`} unit={inUnit} value={r.credit} onChange={(v) => update(r.id, { credit: v, debit: v ? 0 : r.debit })} />
+                <MoneyInput label={`بدهکار ردیف ${toFa(i + 1)}`} value={r.debit} onChange={(v) => update(r.id, { debit: v, credit: v ? 0 : r.credit })} />
+                <MoneyInput label={`بستانکار ردیف ${toFa(i + 1)}`} value={r.credit} onChange={(v) => update(r.id, { credit: v, debit: v ? 0 : r.debit })} />
               </div>
               <button aria-label={`حذف ردیف ${toFa(i + 1)}`} disabled={lines.length <= 2} onClick={() => setLines((x) => x.filter((y) => y.id !== r.id))}
                 className="col-start-3 row-start-1 mt-1.5 grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-danger-soft hover:text-danger disabled:opacity-30 md:col-start-auto md:row-start-auto">

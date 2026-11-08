@@ -14,6 +14,8 @@ import { MicButton, VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
 import { useVoice } from "@/lib/voice";
 import { CashChart, Heatmap, MiniBars, StackBars, Treemap, TrendArea, Waterfall } from "@/components/charts";
 import { ACCEPT } from "@/components/voucher/analyze";
+import { answerFor } from "@/components/ai/CommandPalette";
+import { followUps } from "@/components/ai/followups";
 import { docNo, docTotal, partyOf } from "@/components/voucher/VoucherEditor";
 
 const looksLikeEntry = (t: string) => /واریز|پرداخت|دادیم|خرید|دریافت|منتقل|میلیون|میلیارد|تومان|ریال/.test(t);
@@ -497,12 +499,16 @@ function Board({ render, span, grid }: { render: (id: string) => React.ReactNode
    Concept 1 «دستیار»: the assistant is the main section; widgets sit below it
    ===================================================================== */
 function AssistHub() {
-  const { startVoucher, docs, chats, events, openAssistant } = useApp();
+  const { startVoucher, docs, chats, events, openAssistant, unit } = useApp();
   const [text, setText] = React.useState("");
   const attach = useAttach();
   const voice = useVoice(React.useCallback((t: string) => setText(t), []));
   const pending = docs.filter((d) => d.status === "pending").length;
   const due = events.filter((e) => isToday(e.m, e.d) && !e.done).length;
+  // the chips continue the latest conversation instead of repeating the same four openers
+  const last = chats[0];
+  const lastAsked = last ? last.msgs.filter((m) => m.who === "me").map((m) => m.text) : [];
+  const next = followUps(last ? answerFor(lastAsked[lastAsked.length - 1] ?? last.title, unit)?.id : null, lastAsked, 4);
   // questions continue on the assistant page, where the conversation history lives
   const send = (t = text) => {
     const q = t.trim();
@@ -533,8 +539,9 @@ function AssistHub() {
       </form>
       )}
       <VoiceError voice={voice} sample="۵۰۰ میلیون تومان از پتروشیمی مارون به پارسیان واریز شد" onSample={setText} />
-      <div className="mt-3 flex flex-wrap gap-2">
-        {["مانده‌ی بانک‌ها", "چرا نقدینگی بالا رفت؟", "اسناد منتظر تأیید", "چک تکین‌کو"].map((s) => (
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {last && <span className="max-w-[260px] truncate text-[12px] font-semibold text-muted-foreground">در ادامه‌ی «{last.title}»:</span>}
+        {next.map((s) => (
           <button key={s} onClick={() => send(s)} className="chip h-8 bg-surface">{s}</button>
         ))}
       </div>

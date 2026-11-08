@@ -1,9 +1,10 @@
 import * as React from "react";
-import { CheckCheck, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "@/components/icons";
+import { AlertTriangle, Bank, CheckCheck, FileText, Wallet3, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { accounts, catFacet, catRows, docCats, kindLabel, sourceLabel, statusLabel, type Doc, type DocKind, type DocStatus } from "@/data/demo";
 import { DataTable, Pager, usePager } from "@/components/ui/data-table";
-import { cn, money, toEn, toFa, unitLabel } from "@/lib/utils";
+import { cn, money, short, toEn, toFa, unitLabel } from "@/lib/utils";
+import { StatCard } from "@/components/ui/stat";
 import { dayIndex, diffDays, fmtDay, relDay } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Orb } from "@/components/ai/Orb";
 import { docNo, docTotal, partyOf } from "@/components/voucher/VoucherEditor";
 import { Empty, statusTone } from "@/pages/Dashboard";
+import { AssistCategory } from "@/components/docs/AssistCategory";
 
 const SourceIcon = ({ s }: { s: Doc["source"] }) => {
   const I = s === "ai" ? Sparkles : s === "voice" ? Mic : s === "file" ? FileImage : Keyboard;
@@ -259,7 +261,29 @@ function BentoDocuments() {
 
 /** Category strip + «سند جدید»: shared header for every document category. */
 function DocHeader() {
-  const { docCat, setDocCat, docs, startVoucher } = useApp();
+  const { docCat, setDocCat, docs, startVoucher, concept } = useApp();
+  if (concept === "assist") {
+    // «دستیار»: a quiet title row with underline tabs; the question box below does the filtering
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-bold text-muted-foreground">اسناد</p>
+            <h2 className="text-[20px] font-extrabold">{docCats.find((c) => c.id === docCat)?.label}</h2>
+          </div>
+          <Button variant="outline" onClick={() => startVoucher()}><FilePlus2 /> سند جدید با دستیار</Button>
+        </div>
+        <nav className="flex gap-5 overflow-x-auto border-b border-border/80" aria-label="دسته‌های اسناد">
+          {docCats.map((c) => (
+            <button key={c.id} onClick={() => setDocCat(c.id)} aria-current={docCat === c.id ? "page" : undefined}
+              className={cn("-mb-px flex shrink-0 items-center gap-1.5 border-b-2 border-transparent pb-2.5 pt-1 text-[13.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground", docCat === c.id && "border-primary text-foreground")}>
+              {c.short}<span className="num rounded-full bg-muted px-1.5 text-[11px]">{toFa(c.id === "acc" ? docs.length : c.count)}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap items-center gap-2">
       <nav className="panel edge-run flex min-w-0 flex-1 gap-1 overflow-x-auto p-1.5" aria-label="دسته‌های اسناد">
@@ -293,7 +317,20 @@ function CategoryList({ cat }: { cat: string }) {
     .sort((x, y) => y.day - x.day);
   const filtered = state !== "all" || kinds.length > 0 || when !== "all" || !!q;
   const sum = rows.reduce((a, r) => a + r.rial, 0);
+  const tot = all.reduce((a, r) => a + r.rial, 0);
+  const opts = facet?.options ?? [];
+  const okN = all.filter((r) => r.tone === "success").length;
+  const warnN = all.filter((r) => r.tone === "warning").length;
+  const byFacet = opts.map((o) => all.filter((r) => r.kind === o).reduce((a, r) => a + (r.rial || 1), 0));
   return (
+    <div className="flex flex-col gap-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <StatCard label={meta.label} value={toFa(all.length)} unit="مورد" icon={FileText} tone="blue" sub={`آبان ۱۴۰۵`} />
+      {tot > 0 ? <StatCard label="جمع مبالغ" value={short(tot, unit).n} unit={`${short(tot, unit).s} ${unitLabel(unit)}`} icon={Wallet3} tone="violet" bars={byFacet} sub={opts.join(" / ")} />
+        : <StatCard label={facet?.label ?? "نوع"} value={toFa(opts.length)} icon={Bank} tone="violet" sub={opts.join("، ")} />}
+      <StatCard label="انجام‌شده" value={toFa(okN)} unit={`از ${toFa(all.length)}`} icon={CheckCheck} tone="teal" progress={okN / Math.max(all.length, 1)} />
+      <StatCard label="نیازمند پیگیری" value={toFa(warnN)} icon={AlertTriangle} tone="amber" sub={[...new Set(all.filter((r) => r.tone === "warning").map((r) => r.state))].join("، ") || "موردی نیست"} />
+    </div>
     <div className="grid gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
       <aside className="panel flex h-fit flex-col gap-4 p-4 lg:sticky lg:top-4" aria-label={`فیلتر ${meta.label}`}>
         <div>
@@ -350,6 +387,7 @@ function CategoryList({ cat }: { cat: string }) {
           ]} />
       </div>
     </div>
+    </div>
   );
 }
 
@@ -358,7 +396,7 @@ export function Documents() {
   return (
     <div className="flex flex-col gap-4">
       <DocHeader />
-      {docCat !== "acc" ? <CategoryList cat={docCat} /> : concept === "bento" ? <BentoDocuments /> : <AssistDocuments />}
+      {docCat !== "acc" ? (concept === "bento" ? <CategoryList cat={docCat} /> : <AssistCategory cat={docCat} />) : concept === "bento" ? <BentoDocuments /> : <AssistDocuments />}
     </div>
   );
 }

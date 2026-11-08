@@ -37,8 +37,8 @@ export function AccountPicker({ value, onChange, desc, invalid, className }: { v
   const nav = [...top, ...flat];
   const pick = (c: string) => { onChange(c); setOpen(false); setQ(""); setG(null); };
 
-  const Item = ({ a, i, tag }: { a: Account; i: number; tag?: React.ReactNode }) => (
-    <li role="option" aria-selected={i === hi}>
+  const item = (a: Account, i: number, key: string, tag?: React.ReactNode) => (
+    <li key={key} role="option" aria-selected={i === hi}>
       <button onMouseEnter={() => setHi(i)} onClick={() => pick(a.code)} className={cn("flex h-10 w-full items-center gap-2 rounded-xl px-3 text-start text-[13px]", i === hi && "bg-primary-soft", a.code === value && "font-bold text-primary")}>
         {tag}
         <span className="min-w-0 flex-1 truncate">{a.name}</span>
@@ -93,11 +93,11 @@ export function AccountPicker({ value, onChange, desc, invalid, className }: { v
           </div>
           <ul className="mt-1 max-h-72 overflow-auto" role="listbox" aria-label="حساب‌ها">
             {top.length > 0 && <li className="px-3 pb-1 pt-2 text-[11px] font-semibold text-muted-foreground">{suggestion ? "پیشنهاد و اخیر" : "اخیر"}</li>}
-            {top.map((a) => <Item key={"t" + a.code} a={a} i={idx++} tag={a.code === suggestion?.code ? <Sparkles className="size-3.5 text-ai" /> : undefined} />)}
+            {top.map((a) => item(a, idx++, "t" + a.code, a.code === suggestion?.code ? <Sparkles className="size-3.5 text-ai" /> : undefined))}
             {sections.map((s) => (
               <React.Fragment key={s.gr.id}>
                 <li className="px-3 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">{s.gr.label}</li>
-                {s.items.map((a) => <Item key={a.code} a={a} i={idx++} />)}
+                {s.items.map((a) => item(a, idx++, a.code))}
               </React.Fragment>
             ))}
             {!list.length && <li className="px-3 py-6 text-center text-[12.5px] text-muted-foreground">حسابی پیدا نشد.</li>}
