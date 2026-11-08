@@ -7,7 +7,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Orb } from "@/components/ai/Orb";
 import { Logo } from "./Logo";
 import { cn, toFa } from "@/lib/utils";
-import { fmtFull, TODAY } from "@/lib/jalali";
 
 export function Segmented<T extends string>({ value, onChange, items, label, className }: { value: T; onChange: (v: T) => void; items: [T, string][]; label: string; className?: string }) {
   return (
@@ -121,17 +120,14 @@ function ProfileMenu() {
 export function Topbar() {
   const { page, unit, setUnit, concept, setConcept, theme, setTheme, openPalette, setTour } = useApp();
   const hasTour = page === "dashboard" || page === "voucher";
-  const [title, sub] = titles[page];
+  const [title] = titles[page];
   return (
     <header className="no-print flex flex-wrap items-center gap-3">
       <div className="flex w-full items-center gap-2 md:hidden">
         <Logo part="emblem" className="size-8" />
         <Logo part="wordmark" className="h-5 w-auto" />
       </div>
-      <div className="min-w-[170px]">
-        <h1 className="text-[22px] font-extrabold tracking-tight">{title}</h1>
-        <p className="num text-[12.5px] text-muted-foreground">{sub ?? fmtFull(TODAY.m, TODAY.d)} · دوره‌ی آبان باز است</p>
-      </div>
+      <h1 className="sr-only">{title}</h1>
 
       <button
         data-tour="command"

@@ -499,7 +499,7 @@ function AssistHub() {
     <section data-tour="hero" className="hero flex flex-col p-6 lg:p-7">
       <div className="flex flex-wrap items-center gap-4">
         <Orb size={64} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[200px] flex-1">
           <p className="text-[13px] font-bold text-muted-foreground">صبح بخیر، سارا</p>
           <h2 className="num mt-1 text-[21px] font-extrabold leading-9 lg:text-[23px]">
             {pending ? `${toFa(pending)} سند منتظر تأیید شماست` : "سندی منتظر تأیید نیست"}{due ? ` و ${toFa(due)} کار برای امروز دارید.` : "."}
