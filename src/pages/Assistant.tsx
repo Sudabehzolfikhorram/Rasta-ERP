@@ -1,9 +1,11 @@
 import * as React from "react";
-import { Add, ArrowLeft, Chart, DocumentText, MagicStar, Mic, Paperclip, Search, Send, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
+import { Add, ArrowLeft, Chart, DocumentText, MagicStar, Paperclip, Search, Send, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
 import { useApp, type Chat } from "@/lib/store";
 import { cn, toFa } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Orb } from "@/components/ai/Orb";
+import { MicButton, VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
+import { useVoice } from "@/lib/voice";
 import { answerFor } from "@/components/ai/CommandPalette";
 import { ACCEPT } from "@/components/voucher/analyze";
 import { Empty } from "./Dashboard";
@@ -39,8 +41,56 @@ function Bubble({ text }: { text: string }) {
   );
 }
 
+/** Answer text that appears word by word, once, when it first arrives. */
+function Stream({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const prose = lines.filter((l) => !l.startsWith("• ")).join(" ");
+  const rows = lines.filter((l) => l.startsWith("• ")).map((l) => l.slice(2).split(": "));
+  const words = prose.split(" ");
+  const step = 0.045;
+  return (
+    <div className="num flex flex-col gap-2">
+      <p>{words.map((w, i) => <span key={i} className="stream-word" style={{ animationDelay: `${i * step}s` }}>{w} </span>)}</p>
+      {rows.length > 0 && (
+        <dl className="overflow-hidden rounded-field border border-border bg-surface/80 text-[13px]">
+          {rows.map(([k, v], i) => (
+            <div key={i} className="stream-word flex items-center justify-between gap-4 border-t border-border/70 px-3 py-2 first:border-t-0" style={{ animationDelay: `${words.length * step + i * 0.12}s` }}>
+              <dt className="text-muted-foreground">{k}</dt><dd className="font-bold">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+const STEPS = ["خواندن اسناد و حساب‌ها", "محاسبه‌ی مانده‌ها", "آماده کردن پاسخ"];
+function Thinking() {
+  const [i, setI] = React.useState(0);
+  React.useEffect(() => { const t = window.setInterval(() => setI((x) => Math.min(x + 1, STEPS.length - 1)), 420); return () => clearInterval(t); }, []);
+  return (
+    <li className="flex items-start gap-3 animate-rise">
+      <Orb size={30} busy />
+      <div className="rounded-[calc(var(--r-field)+6px)] border border-border bg-surface px-4 py-3">
+        <ol className="flex flex-col gap-1.5 text-[12.5px]">
+          {STEPS.map((s, k) => (
+            <li key={s} className={cn("flex items-center gap-2", k > i && "opacity-40")}>
+              {k < i ? <TickCircle className="size-4 text-ai" variant="Bold" /> : <span className={cn("size-4 rounded-full border-2", k === i ? "animate-spin border-ai border-t-transparent" : "border-border")} />}
+              <span className={cn(k === i && "shimmer-text font-semibold")}>{s}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </li>
+  );
+}
+
 export function Assistant() {
-  const { chats, startChat, addMsg, removeChat, unit, startVoucher, chatSeed, concept, openReport } = useApp();
+  const { chats, startChat, addMsg, removeChat, unit, startVoucher, chatSeed, openReport } = useApp();
+  const fresh = React.useRef<string | null>(null);
+  const chatsRef = React.useRef(chats);
+  chatsRef.current = chats;
+  const voice = useVoice(React.useCallback((t: string) => setText(t), []));
   const [active, setActive] = React.useState<string | null>(chatSeed?.id ?? null);
   const [text, setText] = React.useState("");
   const [thinking, setThinking] = React.useState(false);
@@ -60,6 +110,7 @@ export function Assistant() {
     setThinking(true);
     setTimeout(() => {
       const a = answerFor(ask, unit);
+      fresh.current = `${id}:${(chatsRef.current.find((c) => c.id === id)?.msgs.length ?? 1)}`;
       addMsg(id, { who: "ai", text: a ? `${a.line}${a.rows.length ? "\n" + a.rows.map(([k, v]) => `• ${k}: ${v}`).join("\n") : ""}` : "در این نسخه درباره‌ی مانده‌ی بانک‌ها، تراز آزمایشی، نقدینگی، چک‌ها، مشتری‌ها و اسناد منتظر تأیید پاسخ می‌دهم. برای ثبت سند، رویداد را در یک جمله بنویسید." });
       setThinking(false);
     }, 1100);
@@ -76,7 +127,7 @@ export function Assistant() {
   React.useEffect(() => { endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [chat?.msgs.length, thinking]);
 
   const history = (
-    <aside className={cn("panel flex min-h-0 flex-col p-3", concept === "bento" ? "lg:order-last" : "")} aria-label="گفت‌وگوهای قبلی">
+    <aside className="panel flex min-h-0 flex-col p-3" aria-label="گفت‌وگوهای قبلی">
       <Button variant="soft" className="mb-3 w-full justify-start" onClick={() => setActive(null)}><Add /> گفت‌وگوی جدید</Button>
       <label className="relative mb-2 block">
         <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -103,7 +154,7 @@ export function Assistant() {
   );
 
   return (
-    <div className={cn("grid gap-5 lg:h-[calc(100vh-140px)] lg:min-h-[560px]", concept === "bento" ? "lg:grid-cols-[minmax(0,1fr)_280px]" : "lg:grid-cols-[290px_minmax(0,1fr)]")}>
+    <div className="grid gap-5 lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[290px_minmax(0,1fr)]">
       {history}
       <section className="panel flex min-h-[520px] min-w-0 flex-col overflow-hidden">
         {chat ? (
@@ -121,11 +172,11 @@ export function Assistant() {
                 <li key={i} className={cn("flex items-start gap-3 animate-rise", m.who === "me" && "flex-row-reverse")}>
                   {m.who === "ai" ? <Orb size={30} /> : <span className="grid size-[30px] shrink-0 place-items-center rounded-full bg-muted text-[12px] font-bold">س</span>}
                   <div className={cn("max-w-[82%] rounded-[calc(var(--r-field)+6px)] px-4 py-3 text-[14px] leading-7", m.who === "me" ? "bg-primary text-primary-foreground" : "border border-border bg-surface")}>
-                    {m.who === "ai" ? <Bubble text={m.text} /> : <span className="num whitespace-pre-line">{m.text}</span>}
+                    {m.who === "ai" ? (fresh.current === `${chat.id}:${i}` ? <Stream text={m.text} /> : <Bubble text={m.text} />) : <span className="num whitespace-pre-line">{m.text}</span>}
                   </div>
                 </li>
               ))}
-              {thinking && <li className="flex items-center gap-3 text-[13px] text-muted-foreground"><Orb size={30} busy /> در حال بررسی اسناد و حساب‌ها…</li>}
+              {thinking && <Thinking />}
               <div ref={endRef} />
             </ol>
           ) : (
@@ -145,14 +196,17 @@ export function Assistant() {
           )}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); send(text, active && chat ? active : null); }} className="border-t border-border/70 p-4">
+          {voice.rec ? <div className="mx-auto max-w-3xl"><VoiceBar voice={voice} /></div> : (
           <div className="mx-auto flex max-w-3xl items-center gap-1.5 rounded-[calc(var(--r-field)+6px)] border border-input bg-surface p-1.5 ps-4 shadow-soft focus-within:border-ring focus-within:ring-4 focus-within:ring-ring/15">
             <input value={text} onChange={(e) => setText(e.target.value)} aria-label="پیام به دستیار" placeholder={chat ? "ادامه‌ی گفت‌وگو…" : "بپرسید یا رویداد را بنویسید…"}
               className="h-10 min-w-0 flex-1 bg-transparent text-[14.5px] outline-none placeholder:text-muted-foreground" />
-            <button type="button" aria-label="ضبط صدا" onClick={() => startVoucher()} className="grid size-10 shrink-0 place-items-center rounded-field text-muted-foreground hover:bg-muted hover:text-foreground"><Mic className="size-5" /></button>
+            <MicButton voice={voice} />
             <button type="button" aria-label="بارگذاری مدرک" onClick={() => fileRef.current?.click()} className="grid size-10 shrink-0 place-items-center rounded-field text-muted-foreground hover:bg-muted hover:text-foreground"><Paperclip className="size-5" /></button>
             <input ref={fileRef} type="file" accept={ACCEPT} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) startVoucher({ file: f }); e.target.value = ""; }} />
             <Button type="submit" variant="ai" className="h-10 shrink-0 px-4" disabled={!text.trim() || thinking}><Send /> ارسال</Button>
           </div>
+          )}
+          <div className="mx-auto max-w-3xl"><VoiceError voice={voice} sample="مانده‌ی بانک‌ها چقدر است؟" onSample={setText} /></div>
           <p className="num mt-2 text-center text-[11.5px] text-muted-foreground">{toFa(chats.length)} گفت‌وگو ذخیره شده است</p>
         </form>
       </section>

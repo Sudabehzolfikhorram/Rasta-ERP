@@ -5,6 +5,7 @@ import { catMeta, holidays, type CalEvent, type EventCat } from "@/data/demo";
 import { cn, short, toEn, toFa, unitLabel } from "@/lib/utils";
 import { dayIndex, diffDays, fmtDay, fmtFull, isToday, MONTHS, monthLength, relDay, TODAY, weekday, WEEKDAYS, WD_SHORT } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -96,7 +97,7 @@ function NewReminder({ open, onOpenChange, at }: { open: boolean; onOpenChange: 
           <label className="flex flex-col gap-1.5"><span className="field-label">عنوان</span><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً: پیگیری مانده‌ی بانک ملت" autoFocus /></label>
           <div className="grid grid-cols-3 gap-3">
             <label className="flex flex-col gap-1.5"><span className="field-label">ماه</span>
-              <select value={m} onChange={(e) => setM(+e.target.value)} className="h-10 rounded-field border border-input bg-surface px-2.5 text-[13.5px]">{[8, 9, 10, 11, 12].map((x) => <option key={x} value={x}>{MONTHS[x - 1]}</option>)}</select>
+              <SimpleSelect label="ماه" value={m} onChange={(v) => setM(+v)} options={[8, 9, 10, 11, 12].map((x) => [x, MONTHS[x - 1]])} />
             </label>
             <label className="flex flex-col gap-1.5"><span className="field-label">روز</span><Input type="number" min={1} max={monthLength(m)} value={d} onChange={(e) => setD(Math.min(Math.max(+e.target.value || 1, 1), monthLength(m)))} className="num" /></label>
             <label className="flex flex-col gap-1.5"><span className="field-label">ساعت</span><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="num" dir="ltr" /></label>
@@ -449,16 +450,15 @@ export function Calendar() {
                 <h2 className="num text-[22px] font-extrabold">{dayLabel(sel)}</h2>
                 {subDates(sel) && <p className="num text-[12px] text-muted-foreground">{subDates(sel)}</p>}
               </div>
-              {list.length > 0 && (
-                <div className="flex items-center gap-2.5 rounded-field bg-muted/60 px-3 py-2">
-                  <span className="relative grid size-10 place-items-center">
-                    <svg viewBox="0 0 36 36" className="absolute inset-0 -rotate-90"><circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--border))" strokeWidth="4" /><circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--success))" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(done / list.length) * 94.2} 94.2`} /></svg>
-                    <b className="num text-[11px]">{toFa(done)}/{toFa(list.length)}</b>
+              <div className="flex items-center gap-2">
+                {list.length > 0 && (
+                  <span className="flex h-9 items-center gap-2 rounded-field bg-muted/60 px-3 text-[12.5px] text-muted-foreground">
+                    <svg viewBox="0 0 36 36" className="size-5 -rotate-90" aria-hidden><circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--border))" strokeWidth="5" /><circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--success))" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(done / list.length) * 88} 88`} /></svg>
+                    <span className="num whitespace-nowrap"><b className="text-foreground">{toFa(done)} از {toFa(list.length)}</b> کار انجام شد</span>
                   </span>
-                  <span className="text-[12px] leading-4 text-muted-foreground">کار<br />انجام شد</span>
-                </div>
-              )}
-              <Button size="sm" variant="outline" onClick={() => setCreate(sel)}><Plus /> جدید</Button>
+                )}
+                <Button size="sm" onClick={() => setCreate(sel)}><Plus /> فعالیت جدید</Button>
+              </div>
             </div>
             <form onSubmit={addQuick} className="mt-4 flex items-center gap-2.5 rounded-[calc(var(--r-field)+4px)] border border-input bg-surface/80 p-1.5 ps-3 focus-within:border-ring focus-within:ring-4 focus-within:ring-ring/15">
               <Orb size={24} />
@@ -469,7 +469,7 @@ export function Calendar() {
             {hol && <p className="mt-4 rounded-field bg-danger-soft/60 px-3 py-2 text-[12.5px] font-semibold text-danger">تعطیل رسمی: {hol.title}</p>}
             {list.length ? (
               <ol className="mt-4 flex flex-col gap-2.5">{list.map((e) => <Task key={e.id} e={e} />)}</ol>
-            ) : <Empty icon={CalendarCheck2} title="برای این روز برنامه‌ای ثبت نشده" text="یادآوری را در یک جمله بنویسید یا «جدید» را بزنید." />}
+            ) : <Empty icon={CalendarCheck2} title="برای این روز برنامه‌ای ثبت نشده" text="یادآوری را در یک جمله بنویسید یا «فعالیت جدید» را بزنید." />}
           </section>
 
           {/* the following days: collapsed, open one to see details */}

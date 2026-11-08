@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { monthLength } from "@/lib/jalali";
@@ -23,11 +24,6 @@ export function Row({ title, note, children }: { title: string; note?: string; c
     </div>
   );
 }
-const Select = ({ value, onChange, options, label }: { value: string | number; onChange: (v: string) => void; options: [string | number, string][]; label: string }) => (
-  <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="h-10 min-w-[150px] rounded-field border border-input bg-surface px-3 text-[13.5px] focus-visible:border-ring focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15">
-    {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-  </select>
-);
 
 const NOTIF: [NotifKind, string, string][] = [
   ["approve", "اسناد منتظر تأیید", "وقتی سندی بالاتر از سقف ثبت می‌شود"],
@@ -92,10 +88,10 @@ function useSections() {
     reminders: (
       <>
         <Row title="زمان یادآوری پیش‌فرض" note="برای سررسیدها و یادآوری‌های جدید">
-          <Select label="زمان یادآوری" value={rem.lead} onChange={(v) => setSettings({ reminders: { ...rem, lead: +v } })} options={[[0, "همان روز"], [1, "یک روز قبل"], [3, "سه روز قبل"], [7, "یک هفته قبل"]]} />
+          <SimpleSelect className="w-[170px]" label="زمان یادآوری" value={rem.lead} onChange={(v) => setSettings({ reminders: { ...rem, lead: +v } })} options={[[0, "همان روز"], [1, "یک روز قبل"], [3, "سه روز قبل"], [7, "یک هفته قبل"]]} />
         </Row>
         <Row title="خلاصه‌ی روزانه" note="فهرست کارهای امروز، هر روز صبح">
-          <Select label="ساعت خلاصه‌ی روزانه" value={rem.digest} onChange={(v) => setSettings({ reminders: { ...rem, digest: v } })} options={[["۰۷:۳۰", "ساعت ۷:۳۰"], ["۰۸:۰۰", "ساعت ۸:۰۰"], ["۰۹:۰۰", "ساعت ۹:۰۰"]]} />
+          <SimpleSelect className="w-[170px]" label="ساعت خلاصه‌ی روزانه" value={rem.digest} onChange={(v) => setSettings({ reminders: { ...rem, digest: v } })} options={[["۰۷:۳۰", "ساعت ۷:۳۰"], ["۰۸:۰۰", "ساعت ۸:۰۰"], ["۰۹:۰۰", "ساعت ۹:۰۰"]]} />
         </Row>
         {([["tax", "مهلت‌های مالیات و بیمه"], ["cheque", "سررسید چک‌ها"], ["loan", "اقساط وام"], ["close", "پایان دوره‌ی مالی"]] as const).map(([k, l]) => (
           <Row key={k} title={l} note="به‌صورت خودکار به تقویم اضافه می‌شود"><Switch checked={rem[k]} onCheckedChange={(v) => setSettings({ reminders: { ...rem, [k]: v } })} aria-label={l} /></Row>
@@ -197,7 +193,7 @@ function FiscalYears() {
           <b className="text-[13.5px]">دوره‌های {cur.title}</b>
           <span className="text-[12px] text-muted-foreground">برای بستن یا باز کردن، روی ماه بزنید.</span>
           <label className="ms-auto flex items-center gap-2 text-[12.5px]"><span className="text-muted-foreground">ماه شروع</span>
-            <Select label="ماه شروع سال مالی" value={settings.fiscalStart} onChange={(v) => { setSettings({ fiscalStart: +v }); setYears((x) => x.map((y) => (y.id === "y1405" ? { ...y, start: [1405, +v, 1] } : y))); }} options={MONTHS.map((m, i) => [i + 1, m])} />
+            <SimpleSelect className="w-[150px]" label="ماه شروع سال مالی" value={settings.fiscalStart} onChange={(v) => { setSettings({ fiscalStart: +v }); setYears((x) => x.map((y) => (y.id === "y1405" ? { ...y, start: [1405, +v, 1] } : y))); }} options={MONTHS.map((m, i) => [i + 1, m])} />
           </label>
         </div>
         <ol className="grid grid-cols-3 gap-1.5 sm:grid-cols-6 xl:grid-cols-12">
@@ -238,7 +234,7 @@ function NewFiscalYear({ onClose, onSave }: { onClose: () => void; onSave: (y: F
       <span className="field-label">{label}</span>
       <div className="grid grid-cols-[72px_minmax(0,1fr)_86px] gap-2">
         <Input type="number" min={1} max={monthLength(v[1])} value={v[2]} onChange={(e) => set([v[0], v[1], Math.min(Math.max(+e.target.value || 1, 1), monthLength(v[1]))])} className="num" aria-label={`${label}: روز`} />
-        <Select label={`${label}: ماه`} value={v[1]} onChange={(m) => set([v[0], +m, Math.min(v[2], monthLength(+m))])} options={MONTHS.map((m, i) => [i + 1, m])} />
+        <SimpleSelect label={`${label}: ماه`} value={v[1]} onChange={(m) => set([v[0], +m, Math.min(v[2], monthLength(+m))])} options={MONTHS.map((m, i) => [i + 1, m])} />
         <Input type="number" min={1404} max={1410} value={v[0]} onChange={(e) => set([+e.target.value || 1406, v[1], v[2]])} className="num" aria-label={`${label}: سال`} />
       </div>
     </div>

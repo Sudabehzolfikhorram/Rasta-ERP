@@ -99,6 +99,7 @@ type Ctx = {
   widgets: string[]; setWidgets: (w: string[]) => void;
   chatSeed: { id?: string; ask?: string; n: number } | null; openAssistant: (seed?: { id?: string; ask?: string }) => void;
   docCat: string; setDocCat: (c: string) => void;
+  baseTab: string; setBaseTab: (t: string) => void;
 };
 
 const AppCtx = React.createContext<Ctx | null>(null);
@@ -145,6 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [docId, setDocId] = React.useState<string | null>(init.doc);
   const [chatSeed, setChatSeed] = React.useState<{ id?: string; ask?: string; n: number } | null>(null);
   const [docCat, setDocCat] = React.useState("acc");
+  const [baseTab, setBaseTab] = React.useState("banks");
   const [events, setEvents] = React.useState<CalEvent[]>(seedEvents);
   const [calDay, setCalDay] = React.useState<Ctx["calDay"]>(null);
   const [reportSeed, setReportSeed] = React.useState<string | null>(null);
@@ -243,6 +245,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     company, setCompany,
     chatSeed, openAssistant: (seed) => { setChatSeed({ ...(seed ?? {}), n: Date.now() }); go("assistant"); },
     docCat, setDocCat: (c) => { setDocCat(c); go("documents"); },
+    baseTab, setBaseTab: (t) => { setBaseTab(t); go("basedata"); },
     widgets: widgetMap[concept],
     setWidgets: (w) => setWidgetMap((m) => {
       const next = { ...m, [concept]: w };

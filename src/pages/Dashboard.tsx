@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowDownLeft, ArrowLeft, ArrowUpLeft, CalendarDays, CardReceive, CheckCheck, ChevronDown, ChevronUp, FileImage, GripVertical, History, LayoutGrid, Mic, MoneySend, Paperclip, Plus, RotateCcw, Send, ShieldCheck, StatusUp, TimerReset, Trash2, Wallet3, type IconType } from "@/components/icons";
+import { ArrowDownLeft, ArrowLeft, ArrowUpLeft, CalendarDays, CardReceive, CheckCheck, ChevronDown, ChevronUp, FileImage, GripVertical, History, LayoutGrid, MoneySend, Paperclip, Plus, RotateCcw, Send, ShieldCheck, StatusUp, TimerReset, Trash2, Wallet3, type IconType } from "@/components/icons";
 import { DEFAULT_WIDGETS, useApp, WIDGETS } from "@/lib/store";
 import { cashActual, cashForecast, catMeta, inbox, kpis, statusLabel, type DocStatus, type InboxItem } from "@/data/demo";
 import { reports } from "@/data/reports";
@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WhyPopover } from "@/components/ai/WhyPopover";
 import { Orb } from "@/components/ai/Orb";
+import { MicButton, VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
+import { useVoice } from "@/lib/voice";
 import { BridgeRows, CashChart, Heatmap, MiniBars, RadialBars, Ring, StackBars, TrendArea } from "@/components/charts";
 import { ACCEPT } from "@/components/voucher/analyze";
 import { docNo, docTotal, partyOf } from "@/components/voucher/VoucherEditor";
@@ -68,19 +70,23 @@ function KpiCard({ k }: { k: (typeof kpis)[number] }) {
   const u = unitLabel(unit);
   const fmt = (v: number) => `${toFa(String(+((unit === "rial" ? v : v / 10)).toFixed(2))).replace(".", "٫")} میلیارد ${u}`;
   return (
-    <div className="panel relative flex min-h-[196px] flex-col overflow-hidden p-5">
+    <div className="panel flex flex-col p-5">
       <div className="flex items-center gap-2">
         <span className="text-[13.5px] font-bold">{k.label}</span>
         <Delta k={k} />
         <WhyPopover className="ms-auto" title={k.label} line={k.why.line} parts={k.why.parts} />
       </div>
-      <span className="text-[11.5px] text-muted-foreground">۳۰ روز گذشته</span>
-      <div className="relative z-10 mt-auto">
-        <div className="num text-[32px] font-extrabold leading-none tracking-tight">{s.n}</div>
-        <div className="num mt-1.5 text-[12px] text-muted-foreground">{s.s} {u} · {k.today}</div>
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className="num text-[30px] font-extrabold leading-none tracking-tight">{s.n}</span>
+        <span className="num text-[12px] text-muted-foreground">{s.s} {u}</span>
       </div>
-      <TrendArea data={k.series} tone={k.id === "pl" ? "ai" : "primary"} fmt={fmt} labelFor={(i) => { const d = TODAY.d - i; return d > 0 ? fmtDay(8, d) : fmtDay(7, 30 + d); }}
-        className="absolute bottom-0 left-0 h-[56%] w-[60%]" />
+      <div className="num mt-1.5 text-[12px] text-muted-foreground">{k.today}</div>
+      {/* the trend gets its own band under the text so nothing overlaps */}
+      <div className="mt-4 rounded-field bg-muted/40 px-2 pt-2">
+        <TrendArea data={k.series} tone={k.id === "pl" ? "ai" : "primary"} fmt={fmt} labelFor={(i) => { const d = TODAY.d - i; return d > 0 ? fmtDay(8, d) : fmtDay(7, 30 + d); }}
+          className="h-16 w-full" />
+        <div className="flex justify-between px-1 pb-1.5 pt-1 text-[10.5px] text-muted-foreground"><span>امروز</span><span>۳۰ روز پیش</span></div>
+      </div>
     </div>
   );
 }
@@ -487,6 +493,7 @@ function AssistHub() {
   const { startVoucher, docs, chats, events, openAssistant } = useApp();
   const [text, setText] = React.useState("");
   const attach = useAttach();
+  const voice = useVoice(React.useCallback((t: string) => setText(t), []));
   const pending = docs.filter((d) => d.status === "pending").length;
   const due = events.filter((e) => isToday(e.m, e.d) && !e.done).length;
   // questions continue on the assistant page, where the conversation history lives
@@ -498,7 +505,7 @@ function AssistHub() {
   return (
     <section data-tour="hero" className="hero flex flex-col p-6 lg:p-7">
       <div className="flex flex-wrap items-center gap-4">
-        <Orb size={64} />
+        <Orb size={64} busy={voice.rec} />
         <div className="min-w-[200px] flex-1">
           <p className="text-[13px] font-bold text-muted-foreground">صبح بخیر، سارا</p>
           <h2 className="num mt-1 text-[21px] font-extrabold leading-9 lg:text-[23px]">
@@ -507,15 +514,18 @@ function AssistHub() {
         </div>
         <Button variant="ghost" size="sm" onClick={() => openAssistant()}><History /> گفت‌وگوهای قبلی <span className="num rounded-full bg-muted px-1.5 text-[11px]">{toFa(chats.length)}</span></Button>
       </div>
+      {voice.rec ? <VoiceBar voice={voice} className="mt-6 min-h-[58px]" /> : (
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="mt-6 flex items-center gap-1.5 rounded-[calc(var(--r-field)+4px)] border border-input bg-surface p-1.5 ps-4 shadow-soft focus-within:border-ring focus-within:ring-4 focus-within:ring-ring/15">
         <input value={text} onChange={(e) => setText(e.target.value)} aria-label="پیام به دستیار"
           placeholder="بپرسید یا رویداد را بنویسید؛ مثلاً «۵۰۰ میلیون تومان از مارون واریز شد»"
           className="h-11 min-w-0 flex-1 bg-transparent text-[14.5px] outline-none placeholder:text-muted-foreground" />
-        <button type="button" aria-label="ضبط صدا" onClick={() => startVoucher()} className="grid size-10 shrink-0 place-items-center rounded-field text-muted-foreground hover:bg-muted hover:text-foreground"><Mic className="size-5" /></button>
+        <MicButton voice={voice} />
         <button type="button" aria-label="بارگذاری مدرک" onClick={attach.open} className="grid size-10 shrink-0 place-items-center rounded-field text-muted-foreground hover:bg-muted hover:text-foreground"><Paperclip className="size-5" /></button>
         {attach.input}
         <Button type="submit" variant="ai" className="h-10 shrink-0 px-4" disabled={!text.trim()}><Send /> ارسال</Button>
       </form>
+      )}
+      <VoiceError voice={voice} sample="۵۰۰ میلیون تومان از پتروشیمی مارون به پارسیان واریز شد" onSample={setText} />
       <div className="mt-3 flex flex-wrap gap-2">
         {["مانده‌ی بانک‌ها", "چرا نقدینگی بالا رفت؟", "اسناد منتظر تأیید", "چک تکین‌کو"].map((s) => (
           <button key={s} onClick={() => send(s)} className="chip h-8 bg-surface">{s}</button>
@@ -540,15 +550,13 @@ function AssistDashboard() {
    Concept 2 «پیشخوان»: a bento board; the assistant is a command strip on top
    ===================================================================== */
 function BentoCommand() {
-  const { openPalette, startVoucher, docs, events, go } = useApp();
+  const { openPalette, startVoucher } = useApp();
   const [text, setText] = React.useState("");
   const attach = useAttach();
-  const pending = docs.filter((d) => d.status === "pending").length;
-  const todayLeft = events.filter((e) => isToday(e.m, e.d) && !e.done).length;
   const send = () => { const t = text.trim(); if (!t) return; looksLikeEntry(t) ? startVoucher({ text: t }) : openPalette(t); };
   return (
     <section data-tour="hero" className="hero flex flex-wrap items-center gap-4 p-4">
-      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex min-w-[280px] flex-[2] items-center gap-2">
+      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex min-w-[280px] flex-1 items-center gap-2">
         <Orb size={36} />
         <input value={text} onChange={(e) => setText(e.target.value)} aria-label="دستور به دستیار" placeholder="دستور بدهید: «تراز آزمایشی آبان» یا «۱۲ میلیون کرایه‌ی حمل دادیم»"
           className="h-11 min-w-0 flex-1 rounded-field border border-input bg-surface px-3.5 text-[14px] outline-none focus:border-ring focus:ring-4 focus:ring-ring/15" />
@@ -556,14 +564,6 @@ function BentoCommand() {
         {attach.input}
         <Button type="submit" variant="ai" className="h-10" disabled={!text.trim()}>اجرا</Button>
       </form>
-      <dl className="flex flex-1 flex-wrap gap-2">
-        {([[pending, "منتظر تأیید", () => go("documents"), "warning"], [todayLeft, "کار امروز", () => go("calendar"), "info"]] as const).map(([n, l, fn, tone]) => (
-          <button key={l} onClick={fn} className="flex min-w-[120px] flex-1 items-center gap-2.5 rounded-field border border-border bg-surface/70 px-3 py-2 text-start hover:bg-surface">
-            <span className={cn("num grid size-8 place-items-center rounded-field text-[15px] font-extrabold", tone === "warning" ? "bg-warning-soft text-warning" : "bg-info-soft text-info")}>{toFa(n)}</span>
-            <span className="text-[12.5px] font-semibold">{l}</span>
-          </button>
-        ))}
-      </dl>
     </section>
   );
 }

@@ -1,6 +1,6 @@
 import { Bank, BarChart3, CalendarDays, Files, House, MagicStar, Settings2, type IconType } from "@/components/icons";
 import { useApp, type Page } from "@/lib/store";
-import { docCats } from "@/data/demo";
+import { baseSections, docCats } from "@/data/demo";
 import { cn, toFa } from "@/lib/utils";
 import { TODAY } from "@/lib/jalali";
 import { Logo } from "./Logo";
@@ -9,7 +9,7 @@ type Item = { id: Page; label: string; icon: IconType; count?: number };
 const reveal = "whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover/rail:opacity-100 group-focus-within/rail:opacity-100";
 
 export function Sidebar() {
-  const { page, go, docs, events, docCat, setDocCat, openAssistant } = useApp();
+  const { page, go, docs, events, docCat, setDocCat, baseTab, setBaseTab, openAssistant } = useApp();
   const pending = docs.filter((d) => d.status === "pending").length;
   const todayLeft = events.filter((e) => e.m === TODAY.m && e.d === TODAY.d && !e.done).length;
   const items: Item[] = [
@@ -75,6 +75,21 @@ export function Sidebar() {
                           className={cn("flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-start text-[12.5px] text-muted-foreground hover:bg-muted/80 hover:text-foreground", on && "font-bold text-primary")}>
                           <span className="truncate">{c.short}</span>
                           <span className="num ms-auto text-[11px]">{toFa(c.id === "acc" ? docs.length : c.count)}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {n.id === "basedata" && (
+                <ul className="ms-[22px] mt-0.5 hidden flex-col border-s border-border ps-2 group-hover/rail:flex group-focus-within/rail:flex" aria-label="بخش‌های اطلاعات پایه">
+                  {baseSections.map((c) => {
+                    const on = page === "basedata" && baseTab === c.id;
+                    return (
+                      <li key={c.id}>
+                        <button onClick={() => setBaseTab(c.id)} aria-current={on ? "page" : undefined}
+                          className={cn("flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-start text-[12.5px] text-muted-foreground hover:bg-muted/80 hover:text-foreground", on && "font-bold text-primary")}>
+                          <span className="truncate">{c.label}</span>
                         </button>
                       </li>
                     );

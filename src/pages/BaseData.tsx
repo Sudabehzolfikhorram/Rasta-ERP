@@ -4,6 +4,7 @@ import { useApp } from "@/lib/store";
 import { users } from "@/data/demo";
 import { cn, group, toEn, toFa } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -59,11 +60,6 @@ const Field = ({ label, hint, error, children, wide }: { label: string; hint?: s
     {error ? <span className="text-[11.5px] font-semibold text-danger">{error}</span> : hint ? <span className="num text-[11.5px] text-muted-foreground">{hint}</span> : null}
   </label>
 );
-const Select = ({ value, onChange, options, label, disabled }: { value: string; onChange: (v: string) => void; options: [string, string][]; label: string; disabled?: boolean }) => (
-  <select aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="h-10 w-full rounded-field border border-input bg-surface px-3 text-[13.5px] focus-visible:border-ring focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15 disabled:opacity-60">
-    {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-  </select>
-);
 function FormDialog({ open, onOpenChange, title, children, onSave, canSave }: { open: boolean; onOpenChange: (o: boolean) => void; title: string; children: React.ReactNode; onSave: () => void; canSave: boolean }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -87,18 +83,18 @@ const RowActions = ({ onEdit, onDelete, lockReason, label }: { onEdit: () => voi
 
 /* ---------- page ---------- */
 export function BaseData() {
-  const { concept, toast } = useApp();
-  const [tab, setTab] = React.useState<Tab>("banks");
+  const { toast, baseTab } = useApp();
+  const tab = (TABS.some((t) => t[0] === baseTab) ? baseTab : "banks") as Tab;
   const [banks, setBanks] = React.useState(seedBanks);
   const [branches, setBranches] = React.useState(seedBranches);
   const [accounts, setAccounts] = React.useState(seedAccounts);
   const [boxes, setBoxes] = React.useState(seedBoxes);
   const [rates, setRates] = React.useState(seedRates);
   const [q, setQ] = React.useState("");
+  React.useEffect(() => setQ(""), [tab]);
   const [edit, setEdit] = React.useState<{ tab: Tab; id: string | null } | null>(null);
   const bankName = (id: string) => banks.find((b) => b.id === id)?.name ?? "—";
   const match = (...xs: string[]) => !q.trim() || xs.some((x) => x.includes(q.trim()));
-  const counts: Record<Tab, number> = { banks: banks.length, branches: branches.length, accounts: accounts.length, boxes: boxes.length, currency: rates.length };
   const addLabel: Record<Tab, string> = { banks: "تعریف بانک", branches: "تعریف شعبه", accounts: "افتتاح حساب بانکی", boxes: "تعریف صندوق", currency: "ثبت نرخ ارز" };
 
   const tables: Record<Tab, React.ReactNode> = {
@@ -166,53 +162,49 @@ export function BaseData() {
     currency: <RateForm onSave={(r) => { setRates((x) => [r, ...x]); setEdit(null); toast("نرخ ارز ثبت شد.", "success"); }} onCancel={() => setEdit(null)} />,
   };
 
-  const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
-      {tab !== "currency" && (
-        <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو" aria-label="جست‌وجو" className="ps-9" />
-        </label>
-      )}
-      <Button className="ms-auto" onClick={() => setEdit({ tab, id: null })}><Add /> {addLabel[tab]}</Button>
-    </div>
-  );
-
-  const tabBtn = (id: Tab, l: string, I: IconType, vertical: boolean) => (
-    <button key={id} onClick={() => { setTab(id); setQ(""); }} aria-current={tab === id ? "page" : undefined}
-      className={cn(vertical ? "flex w-full items-center gap-2.5 rounded-field px-3 py-2.5 text-start" : "flex shrink-0 items-center gap-2 rounded-full px-4 py-2",
-        "text-[13.5px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", tab === id && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary")}>
-      <I className="size-[18px]" variant={tab === id ? "Bulk" : "Linear"} />{l}
-      <span className="num ms-auto text-[11.5px] opacity-70">{toFa(counts[id])}</span>
-    </button>
-  );
-
-  const body = (
-    <section className="panel flex min-w-0 flex-col gap-4 p-5">
-      <div>
-        <h2 className="text-[16px] font-extrabold">{TABS.find((t) => t[0] === tab)![1]}</h2>
-        <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-          {{ banks: "بانکی که در حساب‌ها استفاده شده باشد، نامش ثابت می‌ماند و حذف نمی‌شود.", branches: "هر حساب بانکی به یک شعبه وصل است.", accounts: "حساب بانکی پس از تعریف بانک و شعبه افتتاح می‌شود؛ دسته‌چک و کد تفصیلی هم همین‌جاست.", boxes: "هر صندوق فیزیکی یک صندوق در سیستم دارد؛ دسته‌چک‌ها و چک‌های دریافتی هم در صندوق نگهداری می‌شوند.", currency: "نرخ هر ارز با تاریخ اثر ثبت می‌شود و در اسناد ارزی، آخرین نرخ پیش از تاریخ سند پیشنهاد می‌شود." }[tab]}
-        </p>
-      </div>
-      {toolbar}
-      {tables[tab]}
-    </section>
-  );
+  // a few numbers on top of each section, so the page reads before the table does
+  const tot = (xs: number[]) => xs.reduce((x, y) => x + y, 0);
+  const stats: Record<Tab, [string, string, string?][]> = {
+    banks: [["بانک‌ها و موسسه‌ها", toFa(banks.length)], ["در حال استفاده", toFa(banks.filter((b) => b.used).length), "نام و حذف قفل است"], ["بانک", toFa(banks.filter((b) => b.type === "بانک").length)], ["با کد سوئیفت", toFa(banks.filter((b) => b.swift).length)]],
+    branches: [["شعبه‌ها", toFa(branches.length)], ["شهرها", toFa(new Set(branches.map((r) => r.city)).size)], ["بانک‌های دارای شعبه", toFa(new Set(branches.map((r) => r.bank)).size)], ["شعبه‌های با حساب", toFa(branches.filter((r) => accounts.some((a) => a.branch === r.id)).length)]],
+    accounts: [["حساب‌های بانکی", toFa(accounts.length)], ["جاری با دسته‌چک", toFa(accounts.filter((a) => a.cheque).length)], ["برگ چک باقی‌مانده", toFa(tot(accounts.flatMap((a) => a.books.map((b) => b.sheets - b.used))))], ["سپرده", toFa(accounts.filter((a) => a.type.startsWith("سپرده")).length)]],
+    boxes: [["صندوق‌ها", toFa(boxes.length)], ["فعال", toFa(boxes.filter((x) => x.active).length)], ["موجودی اولیه", group(tot(boxes.filter((x) => x.currency === "ریال").map((x) => x.opening))), "ریال"], ["صندوق‌داران", toFa(new Set(boxes.map((x) => x.cashier)).size)]],
+    currency: [["نرخ‌های ثبت‌شده", toFa(rates.length)], ["ارزها", toFa(new Set(rates.map((r) => r.cur)).size)], ["آخرین ثبت", rates[0]?.date ?? "—"]],
+  };
+  const [, title, TitleIcon] = TABS.find((t) => t[0] === tab)!;
 
   return (
     <>
-      {concept === "bento" ? (
-        <div className="grid gap-5 md:grid-cols-[230px_minmax(0,1fr)]">
-          <nav className="panel h-fit p-2 md:sticky md:top-4" aria-label="بخش‌های اطلاعات پایه">{TABS.map(([id, l, I]) => tabBtn(id, l, I, true))}</nav>
-          {body}
+      <section className="panel flex flex-col gap-5 p-5">
+        <div className="flex flex-wrap items-start gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-primary-soft text-primary"><TitleIcon className="size-6" variant="Bulk" /></span>
+          <div className="min-w-[220px] flex-1">
+            <p className="text-[12px] font-bold text-muted-foreground">اطلاعات پایه</p>
+            <h2 className="text-[19px] font-extrabold">{title}</h2>
+            <p className="mt-0.5 max-w-2xl text-[12.5px] text-muted-foreground">
+              {{ banks: "بانکی که در حساب‌ها استفاده شده باشد، نامش ثابت می‌ماند و حذف نمی‌شود.", branches: "هر حساب بانکی به یک شعبه وصل است.", accounts: "حساب بانکی پس از تعریف بانک و شعبه افتتاح می‌شود؛ دسته‌چک و کد تفصیلی هم همین‌جاست.", boxes: "هر صندوق فیزیکی یک صندوق در سیستم دارد؛ دسته‌چک‌ها و چک‌های دریافتی هم در صندوق نگهداری می‌شوند.", currency: "نرخ هر ارز با تاریخ اثر ثبت می‌شود و در اسناد ارزی، آخرین نرخ پیش از تاریخ سند پیشنهاد می‌شود." }[tab]}
+            </p>
+          </div>
+          <Button onClick={() => setEdit({ tab, id: null })}><Add /> {addLabel[tab]}</Button>
         </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <nav className="panel flex gap-1 overflow-x-auto p-1.5" aria-label="بخش‌های اطلاعات پایه">{TABS.map(([id, l, I]) => tabBtn(id, l, I, false))}</nav>
-          {body}
-        </div>
-      )}
+        <dl className={cn("grid gap-3", stats[tab].length > 3 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3")}>
+          {stats[tab].map(([l, v, sub]) => (
+            <div key={l} className="rounded-field border border-border bg-surface/60 px-4 py-3">
+              <dt className="text-[12px] text-muted-foreground">{l}</dt>
+              <dd className="num mt-1 flex items-baseline gap-1.5"><b className="text-[20px] font-extrabold">{v}</b>{sub && <span className="text-[11.5px] text-muted-foreground">{sub}</span>}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <section className="panel flex min-w-0 flex-col gap-4 p-5">
+        {tab !== "currency" && (
+          <label className="relative block max-w-sm">
+            <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`جست‌وجو در ${title}`} aria-label="جست‌وجو" className="ps-9" />
+          </label>
+        )}
+        {tables[tab]}
+      </section>
       {edit && forms[edit.tab]}
     </>
   );
@@ -229,7 +221,7 @@ function BankForm({ rec, nextCode, onSave, onCancel }: { rec?: BankRec; nextCode
         {b.used && <span className="text-[11.5px] text-muted-foreground">این بانک در حساب‌ها استفاده شده و نامش تغییر نمی‌کند.</span>}
       </Field>
       <Field label="نام به زبان دوم"><Input dir="ltr" value={b.name2} onChange={(e) => setB({ ...b, name2: e.target.value })} className="text-left" /></Field>
-      <Field label="نوع"><Select label="نوع بانک" value={b.type} onChange={(v) => setB({ ...b, type: v as BankType })} options={[["بانک", "بانک"], ["موسسه مالی و اعتباری", "موسسه‌ی مالی و اعتباری"], ["صندوق قرض‌الحسنه", "صندوق قرض‌الحسنه"]]} /></Field>
+      <Field label="نوع"><SimpleSelect label="نوع بانک" value={b.type} onChange={(v) => setB({ ...b, type: v as BankType })} options={[["بانک", "بانک"], ["موسسه مالی و اعتباری", "موسسه‌ی مالی و اعتباری"], ["صندوق قرض‌الحسنه", "صندوق قرض‌الحسنه"]]} /></Field>
       <Field label="کد بانک" hint="خودکار ساخته می‌شود"><Input value={b.code} readOnly className="num bg-muted/60" /></Field>
       <Field label="کد سوئیفت" error={swiftErr} hint="۸ تا ۱۱ کاراکتر"><Input dir="ltr" value={b.swift} maxLength={11} onChange={(e) => setB({ ...b, swift: e.target.value.toUpperCase() })} className="text-left font-mono" placeholder="BKMTIRTH" /></Field>
       <Field label="شرح" wide><Input value={b.desc} onChange={(e) => setB({ ...b, desc: e.target.value })} /></Field>
@@ -241,7 +233,7 @@ function BranchForm({ rec, banks, onSave, onCancel }: { rec?: Branch; banks: Ban
   const [r, setR] = React.useState<Branch>(rec ?? { id: `r${Date.now()}`, bank: banks[0]?.id ?? "", name: "", code: "", city: "", phone: "", address: "" });
   return (
     <FormDialog open onOpenChange={(o) => !o && onCancel()} title={rec ? `ویرایش ${rec.name}` : "تعریف شعبه"} canSave={!!r.name.trim() && !!r.code.trim()} onSave={() => onSave(r)}>
-      <Field label="بانک"><Select label="بانک" value={r.bank} onChange={(v) => setR({ ...r, bank: v })} options={banks.map((b) => [b.id, b.name])} /></Field>
+      <Field label="بانک"><SimpleSelect label="بانک" value={r.bank} onChange={(v) => setR({ ...r, bank: v })} options={banks.map((b) => [b.id, b.name])} /></Field>
       <Field label="نام شعبه"><Input value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} autoFocus={!rec} /></Field>
       <Field label="کد شعبه"><Input value={r.code} inputMode="numeric" onChange={(e) => setR({ ...r, code: toFa(toEn(e.target.value).replace(/\D/g, "")) })} className="num" /></Field>
       <Field label="شهر"><Input value={r.city} onChange={(e) => setR({ ...r, city: e.target.value })} /></Field>
@@ -259,23 +251,23 @@ function AccountForm({ rec, banks, branches, boxes, nextTafsili, onSave, onCance
   const branch = bankBranches.some((r) => r.id === a.branch) ? a.branch : bankBranches[0]?.id ?? "";
   return (
     <FormDialog open onOpenChange={(o) => !o && onCancel()} title={rec ? `ویرایش ${rec.name}` : "افتتاح حساب بانکی"} canSave={!!a.name.trim() && !!a.no.trim() && !!branch && (!a.cheque || !!book.serial)} onSave={() => onSave({ ...a, branch })}>
-      <Field label="بانک"><Select label="بانک" value={a.bank} onChange={(v) => setA({ ...a, bank: v, branch: "" })} options={banks.map((b) => [b.id, b.name])} /></Field>
-      <Field label="شعبه" error={bankBranches.length ? undefined : "برای این بانک هنوز شعبه‌ای تعریف نشده است."}><Select label="شعبه" value={branch} disabled={!bankBranches.length} onChange={(v) => setA({ ...a, branch: v })} options={bankBranches.map((r) => [r.id, `${r.name} · ${r.code}`])} /></Field>
+      <Field label="بانک"><SimpleSelect label="بانک" value={a.bank} onChange={(v) => setA({ ...a, bank: v, branch: "" })} options={banks.map((b) => [b.id, b.name])} /></Field>
+      <Field label="شعبه" error={bankBranches.length ? undefined : "برای این بانک هنوز شعبه‌ای تعریف نشده است."}><SimpleSelect label="شعبه" value={branch} disabled={!bankBranches.length} onChange={(v) => setA({ ...a, branch: v })} options={bankBranches.map((r) => [r.id, `${r.name} · ${r.code}`])} /></Field>
       <Field label="نام حساب"><Input value={a.name} onChange={(e) => setA({ ...a, name: e.target.value })} placeholder="مثلاً ملت جاری" /></Field>
       <Field label="شماره‌ی حساب"><Input dir="ltr" value={a.no} inputMode="numeric" onChange={(e) => setA({ ...a, no: toFa(toEn(e.target.value).replace(/\D/g, "")) })} className="num text-left" /></Field>
-      <Field label="نوع حساب"><Select label="نوع حساب" value={a.type} onChange={(v) => setA({ ...a, type: v, cheque: v === "جاری" ? a.cheque : false })} options={[["جاری", "جاری"], ["سپرده‌ی کوتاه‌مدت", "سپرده‌ی کوتاه‌مدت"], ["سپرده‌ی بلندمدت", "سپرده‌ی بلندمدت"], ["قرض‌الحسنه", "قرض‌الحسنه"]]} /></Field>
+      <Field label="نوع حساب"><SimpleSelect label="نوع حساب" value={a.type} onChange={(v) => setA({ ...a, type: v, cheque: v === "جاری" ? a.cheque : false })} options={[["جاری", "جاری"], ["سپرده‌ی کوتاه‌مدت", "سپرده‌ی کوتاه‌مدت"], ["سپرده‌ی بلندمدت", "سپرده‌ی بلندمدت"], ["قرض‌الحسنه", "قرض‌الحسنه"]]} /></Field>
       <label className="flex items-center gap-2.5 self-end pb-2.5 text-[13.5px] font-semibold"><Checkbox checked={a.cheque} disabled={a.type !== "جاری"} onCheckedChange={(v) => setA({ ...a, cheque: !!v })} /> حساب دسته‌چک دارد</label>
       {a.cheque && (
         <fieldset className="grid gap-4 rounded-field border border-border bg-muted/30 p-4 sm:col-span-2 sm:grid-cols-3">
           <legend className="px-1 text-[12.5px] font-bold">دسته‌چک</legend>
           <Field label="سریال اولین برگ"><Input value={book.serial} inputMode="numeric" onChange={(e) => setBook({ serial: toFa(toEn(e.target.value).replace(/\D/g, "")) })} className="num" /></Field>
-          <Field label="تعداد برگ"><Select label="تعداد برگ" value={String(book.sheets)} onChange={(v) => setBook({ sheets: +v })} options={[["10", "۱۰ برگ"], ["25", "۲۵ برگ"], ["50", "۵۰ برگ"], ["100", "۱۰۰ برگ"]]} /></Field>
-          <Field label="صندوق نگهداری"><Select label="صندوق" value={book.box} onChange={(v) => setBook({ box: v })} options={boxes.map((x) => [x.id, x.name])} /></Field>
+          <Field label="تعداد برگ"><SimpleSelect label="تعداد برگ" value={String(book.sheets)} onChange={(v) => setBook({ sheets: +v })} options={[["10", "۱۰ برگ"], ["25", "۲۵ برگ"], ["50", "۵۰ برگ"], ["100", "۱۰۰ برگ"]]} /></Field>
+          <Field label="صندوق نگهداری"><SimpleSelect label="صندوق" value={book.box} onChange={(v) => setBook({ box: v })} options={boxes.map((x) => [x.id, x.name])} /></Field>
         </fieldset>
       )}
       <fieldset className="grid gap-4 rounded-field border border-border p-4 sm:col-span-2 sm:grid-cols-2">
         <legend className="px-1 text-[12.5px] font-bold">اطلاعات تفصیلی حساب</legend>
-        <Field label="ارز پیش‌فرض"><Select label="ارز پیش‌فرض" value={a.currency} onChange={(v) => setA({ ...a, currency: v })} options={CURRENCIES.map(([n]) => [n, n])} /></Field>
+        <Field label="ارز پیش‌فرض"><SimpleSelect label="ارز پیش‌فرض" value={a.currency} onChange={(v) => setA({ ...a, currency: v })} options={CURRENCIES.map(([n]) => [n, n])} /></Field>
         <Field label="الگوی سند خودکار" hint="خودکار ساخته می‌شود"><Input dir="ltr" value={a.template} readOnly className="bg-muted/60 text-left font-mono" /></Field>
         <Field label="کد تفصیلی حساب"><Input value={a.tafsili} readOnly className="num bg-muted/60" /></Field>
         <Field label="طرف حساب"><Input value={a.party} onChange={(e) => setA({ ...a, party: e.target.value })} /></Field>
@@ -293,8 +285,8 @@ function BoxForm({ rec, rates, onSave, onCancel }: { rec?: Box; rates: Rate[]; o
       <Field label="نام صندوق"><Input value={b.name} onChange={(e) => setB({ ...b, name: e.target.value })} autoFocus={!rec} /></Field>
       <Field label="نام به زبان دوم"><Input dir="ltr" value={b.name2} onChange={(e) => setB({ ...b, name2: e.target.value })} className="text-left" /></Field>
       <Field label="محل فیزیکی"><Input value={b.place} onChange={(e) => setB({ ...b, place: e.target.value })} /></Field>
-      <Field label="صندوق‌دار" hint="از میان کاربران فعال"><Select label="صندوق‌دار" value={b.cashier} onChange={(v) => setB({ ...b, cashier: v })} options={users.filter((u) => u.active).map((u) => [u.name, `${u.name} · ${u.role}`])} /></Field>
-      <Field label="ارز صندوق"><Select label="ارز صندوق" value={b.currency} onChange={(v) => setB({ ...b, currency: v })} options={CURRENCIES.map(([n]) => [n, n])} /></Field>
+      <Field label="صندوق‌دار" hint="از میان کاربران فعال"><SimpleSelect label="صندوق‌دار" value={b.cashier} onChange={(v) => setB({ ...b, cashier: v })} options={users.filter((u) => u.active).map((u) => [u.name, `${u.name} · ${u.role}`])} /></Field>
+      <Field label="ارز صندوق"><SimpleSelect label="ارز صندوق" value={b.currency} onChange={(v) => setB({ ...b, currency: v })} options={CURRENCIES.map(([n]) => [n, n])} /></Field>
       <Field label="موجودی اولیه" hint={rate && code !== "IRR" ? `معادل ${group(Math.round(b.opening * rate))} ریال با نرخ ${group(rate)}` : "صفر یا بیشتر"}>
         <Input dir="ltr" inputMode="numeric" value={group(b.opening)} onChange={(e) => setB({ ...b, opening: parseInt(toEn(e.target.value).replace(/\D/g, "") || "0", 10) })} className="num text-left font-bold" />
       </Field>
@@ -308,7 +300,7 @@ function RateForm({ onSave, onCancel }: { onSave: (r: Rate) => void; onCancel: (
   const [r, setR] = React.useState<Rate>({ id: `t${Date.now()}`, cur: "USD", rate: 0, date: "۱۷ آبان ۱۴۰۵", inverse: false });
   return (
     <FormDialog open onOpenChange={(o) => !o && onCancel()} title="ثبت نرخ ارز" canSave={r.rate > 0} onSave={() => onSave(r)}>
-      <Field label="ارز"><Select label="ارز" value={r.cur} onChange={(v) => setR({ ...r, cur: v })} options={CURRENCIES.slice(1).map(([n, c]) => [c, n])} /></Field>
+      <Field label="ارز"><SimpleSelect label="ارز" value={r.cur} onChange={(v) => setR({ ...r, cur: v })} options={CURRENCIES.slice(1).map(([n, c]) => [c, n])} /></Field>
       <Field label="تاریخ اثر"><Input value={r.date} onChange={(e) => setR({ ...r, date: e.target.value })} className="num" /></Field>
       <Field label="نرخ به ریال"><Input dir="ltr" inputMode="numeric" value={group(r.rate)} onChange={(e) => setR({ ...r, rate: parseInt(toEn(e.target.value).replace(/\D/g, "") || "0", 10) })} className="num text-left font-bold" autoFocus /></Field>
       <label className="flex items-center gap-2.5 self-end pb-2.5 text-[13.5px] font-semibold"><Checkbox checked={r.inverse} onCheckedChange={(v) => setR({ ...r, inverse: !!v })} /> نرخ معکوس است</label>
@@ -337,11 +329,11 @@ function CurrencyTab({ rates }: { rates: Rate[] }) {
       <div className="rounded-[calc(var(--r-field)+4px)] border border-border bg-surface/70 p-4">
         <div className="mb-3 flex items-center gap-2"><ArrowSwapVertical className="size-5 text-primary" variant="Bulk" /><b className="text-[14px]">محاسبه‌ی معادل ریالی</b></div>
         <div className="flex flex-col gap-3">
-          <Field label="ارز"><Select label="ارز محاسبه" value={cur} onChange={setCur} options={CURRENCIES.slice(1).map(([n, c]) => [c, n])} /></Field>
+          <Field label="ارز"><SimpleSelect label="ارز محاسبه" value={cur} onChange={setCur} options={CURRENCIES.slice(1).map(([n, c]) => [c, n])} /></Field>
           <Field label="مبلغ"><Input dir="ltr" value={group(amount)} readOnly={fixed === "amount"} onChange={(e) => setAmount(num(e.target.value))} className="num text-left" /></Field>
           <Field label="نرخ"><Input dir="ltr" value={group(rate)} readOnly={fixed === "rate"} onChange={(e) => setRate(num(e.target.value))} className="num text-left" /></Field>
           <Field label="مبلغ به ارز عملیاتی (ریال)"><Input dir="ltr" value={group(rial)} readOnly={fixed === "rial"} onChange={(e) => { const v = num(e.target.value); if (fixed === "amount" && amount) setRate(Math.round(v / amount)); else if (rate) setAmount(Math.round(v / rate)); }} className={cn("num text-left font-bold", fixed === "rial" && "bg-muted/60")} /></Field>
-          <Field label="عامل ثابت" hint="فیلدی که هنگام تغییر دو فیلد دیگر قفل می‌ماند"><Select label="عامل ثابت" value={fixed} onChange={(v) => setFixed(v as typeof fixed)} options={[["rial", "مبلغ به ارز عملیاتی"], ["rate", "نرخ"], ["amount", "مبلغ"]]} /></Field>
+          <Field label="عامل ثابت" hint="فیلدی که هنگام تغییر دو فیلد دیگر قفل می‌ماند"><SimpleSelect label="عامل ثابت" value={fixed} onChange={(v) => setFixed(v as typeof fixed)} options={[["rial", "مبلغ به ارز عملیاتی"], ["rate", "نرخ"], ["amount", "مبلغ"]]} /></Field>
         </div>
       </div>
     </div>

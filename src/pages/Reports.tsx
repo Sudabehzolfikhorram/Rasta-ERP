@@ -5,6 +5,7 @@ import { reports, reportGroups, type Report, type Row } from "@/data/reports";
 import { cashActual, cashForecast } from "@/data/demo";
 import { cn, toFa, toEn, unitLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CashChart, PairBars, RankBars, StackBars, Treemap, Waterfall } from "@/components/charts";
@@ -227,10 +228,8 @@ function AdvancedFilter({ report, rows, conds, setConds }: { report: Report; row
                 {i > 0 && <div className="my-1 flex items-center gap-2 text-[11px] font-bold text-muted-foreground"><span className="h-px flex-1 bg-border" />و<span className="h-px flex-1 bg-border" /></div>}
                 <div className="rounded-field border border-border bg-surface-2/70 p-3">
                   <div className="flex items-center gap-2">
-                    <select aria-label="ستون" className="h-9 min-w-0 flex-1 rounded-field border border-input bg-surface px-2.5 text-[13px] font-semibold outline-none focus:border-ring" value={c.col}
-                      onChange={(e) => upd(c.id, { col: e.target.value, op: report.cols.find((k) => k.key === e.target.value)?.num ? ">" : "~" })}>
-                      {report.cols.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
-                    </select>
+                    <SimpleSelect label="ستون" className="h-9 min-w-0 flex-1 font-semibold" value={c.col}
+                      onChange={(v) => upd(c.id, { col: v, op: report.cols.find((k) => k.key === v)?.num ? ">" : "~" })} options={report.cols.map((k) => [k.key, k.label])} />
                     <button aria-label="حذف شرط" onClick={() => setDraft(draft.filter((x) => x.id !== c.id))} className="grid size-9 place-items-center rounded-field text-muted-foreground hover:bg-danger-soft hover:text-danger"><Trash2 className="size-4" /></button>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -337,7 +336,7 @@ export function Reports() {
     switch (r.chart) {
       case "waterfall": return <Waterfall items={rows.map((x) => [String(x.item), x.v as number])} total="سود" unit={u} />;
       case "treemap": return <Treemap items={rows.map((x) => [String(x.item), x.v as number])} unit={`میلیارد ${u}`} />;
-      case "aging": return <StackBars rows={rows.map((x) => ({ label: String(x.item), values: [x.a, x.b, x.c, x.d] as number[] }))} keys={["جاری", "۱ تا ۳۰ روز", "۳۱ تا ۶۰ روز", "بیش از ۶۰ روز"]} colors={["--seq-1", "--seq-2", "--seq-3", "--seq-4"]} />;
+      case "aging": return <StackBars rows={rows.map((x) => ({ label: String(x.item), values: [x.a, x.b, x.c, x.d] as number[] }))} keys={["جاری", "۱ تا ۳۰ روز", "۳۱ تا ۶۰ روز", "بیش از ۶۰ روز"]} colors={["--ch-2", "--ch-4", "--ch-1", "--ch-3"]} />;
       case "pair": return <PairBars items={rows.map((x) => ({ label: String(x.item), a: x.a as number, b: x.b as number }))} keys={["مهر", "آبان"]} />;
       case "rank": return <RankBars items={rows.filter((x) => typeof x.bal === "number").map((x) => [String(x.item), x.bal as number])} />;
       case "cash": return <div className="flex h-[260px] flex-col"><CashChart actual={cashActual} forecast={cashForecast} scale={1 / div} unit={u} minH={240} /></div>;

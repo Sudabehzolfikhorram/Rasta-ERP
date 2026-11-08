@@ -1,8 +1,8 @@
 import * as React from "react";
 import { CheckCheck, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
-import { accounts, catRows, docCats, kindLabel, sourceLabel, statusLabel, type Doc, type DocKind, type DocStatus } from "@/data/demo";
-import { DataTable } from "@/components/ui/data-table";
+import { accounts, catFacet, catRows, docCats, kindLabel, sourceLabel, statusLabel, type Doc, type DocKind, type DocStatus } from "@/data/demo";
+import { DataTable, Pager, usePager } from "@/components/ui/data-table";
 import { cn, money, toEn, toFa, unitLabel } from "@/lib/utils";
 import { dayIndex, diffDays, fmtDay, relDay } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
@@ -151,6 +151,7 @@ function BentoDocuments() {
   const u = unitLabel(unit);
   const filtered = kinds.length > 0 || when !== "all" || !!q;
   const reset = () => { setTab("all"); setKinds([]); setWhen("all"); setQ(""); };
+  const pg = usePager(list.length, 8);
 
   const tabs: [Tab, string][] = [["all", "همه"], ["pending", "منتظر تأیید"], ["draft", "پیش‌نویس"], ["posted", "تأییدشده"]];
 
@@ -220,7 +221,7 @@ function BentoDocuments() {
                 </tr>
               </thead>
               <tbody>
-                {list.map((d) => (
+                {list.slice(pg.from, pg.to).map((d) => (
                   <tr key={d.id} onClick={() => openDoc(d.id)} className={cn("cursor-pointer border-b border-border/60 [&>td]:py-3.5 transition-colors last:border-0 hover:bg-primary-soft/40", d.fresh && "animate-flash", sel.includes(d.id) && "bg-primary-soft/50")}>
                     <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                       <Checkbox aria-label={`انتخاب سند ${docNo(d.m, d.seq)}`} checked={sel.includes(d.id)} onCheckedChange={() => setSel((x) => (x.includes(d.id) ? x.filter((y) => y !== d.id) : [...x, d.id]))} />
@@ -245,6 +246,7 @@ function BentoDocuments() {
             </table>
             {!list.length && <Empty icon={Search} title="سندی با این فیلترها پیدا نشد" action={<Button size="sm" variant="soft" onClick={reset}>نمایش همه</Button>} />}
           </div>
+          <Pager {...pg} total={list.length} />
           <div className="num flex items-center gap-4 border-t border-border bg-surface-2/80 px-4 py-3 text-[12.5px] text-muted-foreground">
             <span>{toFa(list.length)} سند</span>
             <span className="ms-auto">جمع: <b className="text-[14px] text-foreground">{money(sum, unit)}</b> {u}</span>
@@ -276,23 +278,78 @@ function DocHeader() {
 function CategoryList({ cat }: { cat: string }) {
   const { unit, toast } = useApp();
   const meta = docCats.find((c) => c.id === cat)!;
-  const rows = catRows[cat] ?? [];
+  const all = catRows[cat] ?? [];
+  const facet = catFacet[cat];
+  const [state, setState] = React.useState("all");
+  const [kinds, setKinds] = React.useState<string[]>([]);
+  const [when, setWhen] = React.useState<When>("all");
+  const [q, setQ] = React.useState("");
+  const states = [...new Set(all.map((r) => r.state))];
+  const rows = all
+    .filter((r) => state === "all" || r.state === state)
+    .filter((r) => !kinds.length || kinds.includes(r.kind))
+    .filter((r) => when === "all" || (when === "today" ? diffDays(8, r.day) === 0 : Math.abs(diffDays(8, r.day)) < 7))
+    .filter((r) => !q || r.title.includes(q) || r.party.includes(q) || r.no.includes(q))
+    .sort((x, y) => y.day - x.day);
+  const filtered = state !== "all" || kinds.length > 0 || when !== "all" || !!q;
+  const sum = rows.reduce((a, r) => a + r.rial, 0);
   return (
-    <section className="panel flex flex-col gap-4 p-5">
-      <div className="flex flex-wrap items-center gap-3 rounded-field border border-info/25 bg-info-soft/50 px-4 py-3 text-[12.5px]">
-        <b className="text-info">نمونه</b>
-        <span className="text-muted-foreground">در این نسخه فقط «اسناد حسابداری» صفحه‌ی جزئیات و فرایند کامل دارد. این فهرست برای نمایش ساختار است.</span>
+    <div className="grid gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
+      <aside className="panel flex h-fit flex-col gap-4 p-4 lg:sticky lg:top-4" aria-label={`فیلتر ${meta.label}`}>
+        <div>
+          <h3 className="mb-1.5 text-[12px] font-bold text-muted-foreground">وضعیت</h3>
+          <div role="tablist" aria-label="وضعیت" className="flex flex-col gap-0.5">
+            {[["all", "همه"], ...states.map((x) => [x, x])].map(([k, l]) => (
+              <button key={k} role="tab" aria-selected={state === k} onClick={() => setState(k)}
+                className={cn("flex h-9 items-center justify-between rounded-field px-3 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", state === k && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary")}>
+                {l}<span className="num text-[12px]">{toFa(all.filter((r) => k === "all" || r.state === k).length)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        {facet && (
+          <div>
+            <h3 className="mb-1.5 text-[12px] font-bold text-muted-foreground">{facet.label}</h3>
+            <div className="flex flex-col gap-2">
+              {facet.options.map((k) => (
+                <label key={k} className="flex cursor-pointer items-center gap-2.5 text-[13px]">
+                  <Checkbox checked={kinds.includes(k)} onCheckedChange={() => setKinds((x) => (x.includes(k) ? x.filter((y) => y !== k) : [...x, k]))} />{k}
+                  <span className="num ms-auto text-[12px] text-muted-foreground">{toFa(all.filter((r) => r.kind === k).length)}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        <div>
+          <h3 className="mb-1.5 text-[12px] font-bold text-muted-foreground">{cat === "cheque" ? "سررسید" : "بازه‌ی زمانی"}</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {([["all", "کل آبان"], ["week", cat === "cheque" ? "۷ روز آینده و گذشته" : "۷ روز اخیر"], ["today", "امروز"]] as [When, string][]).map(([k, l]) => (
+              <button key={k} className="chip h-7" aria-pressed={when === k} onClick={() => setWhen(k)}>{l}</button>
+            ))}
+          </div>
+        </div>
+        {filtered && <button className="flex items-center gap-1 text-[12.5px] font-semibold text-primary" onClick={() => { setState("all"); setKinds([]); setWhen("all"); setQ(""); }}><X className="size-3.5" />پاک کردن فیلترها</button>}
+      </aside>
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+            <Search className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجوی شرح، طرف حساب یا شماره" aria-label={`جست‌وجو در ${meta.label}`} className="h-10 pe-9" />
+          </div>
+          <span className="num ms-auto text-[12.5px] text-muted-foreground">{toFa(rows.length)} مورد{sum ? ` · جمع ${money(sum, unit)} ${unitLabel(unit)}` : ""}</span>
+        </div>
+        <DataTable caption={meta.label} rowKey={(r) => r.no} rows={rows} pageSize={8} className="panel-data" onRow={(r) => toast(`جزئیات «${r.title}» در نسخه‌ی بعد فعال می‌شود.`)}
+          empty={<Empty icon={Search} title="موردی با این فیلترها نیست" />}
+          columns={[
+            { key: "no", label: "شماره", className: "w-28", render: (r) => <span className="font-semibold">{r.no}</span> },
+            { key: "title", label: "شرح", render: (r) => <span><b className="block">{r.title}</b><span className="text-[12px] text-muted-foreground">{r.party}</span></span> },
+            { key: "kind", label: facet?.label ?? "نوع", hide: "md", render: (r) => <span className="text-muted-foreground">{r.kind}</span> },
+            { key: "day", label: cat === "cheque" ? "سررسید" : "تاریخ", hide: "sm", render: (r) => <span className="text-muted-foreground">{fmtDay(8, r.day)}</span> },
+            { key: "amt", label: `مبلغ (${unitLabel(unit)})`, align: "end", hide: "sm", render: (r) => (r.rial ? <b>{money(r.rial, unit)}</b> : <span className="text-muted-foreground">—</span>) },
+            { key: "state", label: "وضعیت", render: (r) => <Badge tone={r.tone}>{r.state}</Badge> },
+          ]} />
       </div>
-      <DataTable caption={meta.label} rowKey={(r) => r.no} rows={rows} onRow={(r) => toast(`جزئیات «${r.title}» در نسخه‌ی بعد فعال می‌شود.`)}
-        empty={<Empty icon={Search} title="موردی ثبت نشده" />}
-        columns={[
-          { key: "no", label: "شماره", className: "w-28", render: (r) => <span className="font-semibold">{r.no}</span> },
-          { key: "title", label: "شرح", render: (r) => <span><b className="block">{r.title}</b><span className="text-[12px] text-muted-foreground">{r.party}</span></span> },
-          { key: "day", label: "تاریخ", hide: "sm", render: (r) => <span className="text-muted-foreground">{fmtDay(8, r.day)}</span> },
-          { key: "amt", label: `مبلغ (${unitLabel(unit)})`, align: "end", hide: "sm", render: (r) => (r.rial ? <b>{money(r.rial, unit)}</b> : <span className="text-muted-foreground">—</span>) },
-          { key: "state", label: "وضعیت", render: (r) => <Badge tone={r.tone}>{r.state}</Badge> },
-        ]} />
-    </section>
+    </div>
   );
 }
 

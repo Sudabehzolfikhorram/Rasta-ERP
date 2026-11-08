@@ -191,17 +191,23 @@ export function Waterfall({ items, total, unit }: { items: [string, number][]; t
     <div ref={ref} className="w-full" style={{ height: H }}>
       {w > 0 && (
         <svg width={w} height={H} role="img" aria-label="نمودار آبشاری">
+          <defs>
+            <linearGradient id="wf-pos" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="hsl(var(--ch-1))" /><stop offset="1" stopColor="hsl(var(--ch-4))" /></linearGradient>
+            <pattern id="wf-neg" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="hsl(var(--ch-6) / .35)" /><rect width="3" height="6" fill="hsl(var(--ch-6) / .6)" /></pattern>
+            <linearGradient id="wf-tot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="hsl(var(--ch-2))" /><stop offset="1" stopColor="hsl(var(--ai))" /></linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75].map((f) => <line key={f} x1={0} x2={w} y1={top + f * (H - top - bottom)} y2={top + f * (H - top - bottom)} stroke="hsl(var(--border))" strokeOpacity=".6" strokeDasharray="3 4" />)}
           <line x1={0} x2={w} y1={y(0)} y2={y(0)} stroke="hsl(var(--border))" />
           {bars.map((b, i) => (
             <g key={b.l}>
               <rect x={xAt(i) + bw * 0.18} width={bw * 0.64} y={Math.min(y(b.from), y(b.to))} height={Math.max(Math.abs(y(b.from) - y(b.to)), 2)} rx="6"
-                fill={b.v >= 0 ? "hsl(var(--primary))" : "hsl(var(--cat-6) / 0.55)"} />
+                fill={b.v >= 0 ? "url(#wf-pos)" : "url(#wf-neg)"} />
               {i < bars.length - 1 && <line x1={xAt(i) + bw * 0.18} x2={xAt(i + 1) + bw * 0.82} y1={y(b.to)} y2={y(b.to)} stroke="hsl(var(--muted-foreground))" strokeDasharray="2 3" strokeOpacity=".6" />}
               <text x={xAt(i) + bw / 2} y={Math.min(y(b.from), y(b.to)) - 6} textAnchor="middle" fontSize="11.5" fontWeight="700" fill="hsl(var(--foreground))" className="num">{b.v > 0 ? fa1(b.v, 2) : `(${fa1(-b.v, 2)})`}</text>
               <text x={xAt(i) + bw / 2} y={H - 26} textAnchor="middle" fontSize="11" fill="hsl(var(--muted-foreground))">{b.l}</text>
             </g>
           ))}
-          <rect x={xAt(bars.length) + bw * 0.18} width={bw * 0.64} y={Math.min(y(0), y(run))} height={Math.abs(y(0) - y(run))} rx="6" fill="hsl(var(--ai))" />
+          <rect x={xAt(bars.length) + bw * 0.18} width={bw * 0.64} y={Math.min(y(0), y(run))} height={Math.abs(y(0) - y(run))} rx="6" fill="url(#wf-tot)" />
           <text x={xAt(bars.length) + bw / 2} y={y(run) - 6} textAnchor="middle" fontSize="12" fontWeight="800" fill="hsl(var(--ai-ink))" className="num">{fa1(run, 2)}</text>
           <text x={xAt(bars.length) + bw / 2} y={H - 26} textAnchor="middle" fontSize="11" fontWeight="700" fill="hsl(var(--foreground))">{total}</text>
           <text x={w} y={H - 6} textAnchor="start" fontSize="10.5" fill="hsl(var(--muted-foreground))">میلیارد {unit}</text>
@@ -211,43 +217,71 @@ export function Waterfall({ items, total, unit }: { items: [string, number][]; t
   );
 }
 
-/** Squarified-enough treemap (slice and dice by row). */
-export function Treemap({ items, unit, onPick, height = 260 }: { items: [string, number][]; unit: string; onPick?: (l: string) => void; height?: number }) {
+/** Squarified treemap: solid, harmonious tiles; labels only where they fit, with a ranked legend beside it. */
+type Rect = { x: number; y: number; w: number; h: number };
+function squarify(values: number[], r: Rect): Rect[] {
+  const out: Rect[] = [];
+  const total = values.reduce((a, b) => a + b, 0) || 1;
+  const scaled = values.map((v) => (v / total) * r.w * r.h);
+  let rect = { ...r };
+  let i = 0;
+  const worst = (row: number[], side: number) => {
+    const s = row.reduce((a, b) => a + b, 0), mx = Math.max(...row), mn = Math.min(...row);
+    return Math.max((side * side * mx) / (s * s), (s * s) / (side * side * mn));
+  };
+  while (i < scaled.length) {
+    const side = Math.min(rect.w, rect.h);
+    const row = [scaled[i]];
+    let j = i + 1;
+    while (j < scaled.length && worst([...row, scaled[j]], side) <= worst(row, side)) { row.push(scaled[j]); j++; }
+    const s = row.reduce((a, b) => a + b, 0);
+    if (rect.w >= rect.h) {
+      const cw = s / rect.h; let y = rect.y;
+      for (const v of row) { const h = v / cw; out.push({ x: rect.x, y, w: cw, h }); y += h; }
+      rect = { x: rect.x + cw, y: rect.y, w: rect.w - cw, h: rect.h };
+    } else {
+      const rh = s / rect.w; let x = rect.x;
+      for (const v of row) { const w = v / rh; out.push({ x, y: rect.y, w, h: rh }); x += w; }
+      rect = { x: rect.x, y: rect.y + rh, w: rect.w, h: rect.h - rh };
+    }
+    i = j;
+  }
+  return out;
+}
+const TM = ["--ch-1", "--ch-2", "--ch-3", "--ch-4", "--ch-5", "--ch-6"];
+export function Treemap({ items, unit, onPick, height = 280 }: { items: [string, number][]; unit: string; onPick?: (l: string) => void; height?: number }) {
   const [ref, { w }] = useSize<HTMLDivElement>();
-  const H = height;
-  const sorted = [...items].sort((a, b) => b[1] - a[1]);
+  const sorted = [...items].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const total = sorted.reduce((s, [, v]) => s + v, 0);
-  // two rows: biggest ones on top
-  const rows: [string, number][][] = [[], []];
-  let acc = 0;
-  for (const it of sorted) { (acc < total * 0.62 ? rows[0] : rows[1]).push(it); acc += it[1]; }
-  const shades = ["--ch-1", "--ch-2", "--ch-3", "--ch-4", "--ch-5", "--ch-6", "--ch-1"];
-  let k = 0;
+  const rects = w > 0 ? squarify(sorted.map(([, v]) => v), { x: 0, y: 0, w, h: height }) : [];
   return (
-    <div ref={ref} className="w-full" style={{ height: H }}>
-      {w > 0 && rows.map((row, ri) => {
-        const rs = row.reduce((s, [, v]) => s + v, 0);
-        const rh = (rs / total) * H;
-        let x = 0;
-        return (
-          <div key={ri} className="relative" style={{ height: rh }}>
-            {row.map(([l, v]) => {
-              const cw = (v / rs) * w;
-              const shade = shades[k++ % shades.length];
-              const el = (
-                <button key={l} onClick={() => onPick?.(l)} title={l}
-                  className="absolute overflow-hidden rounded-xl border p-2.5 text-start text-foreground transition-[background-color] hover:brightness-[1.03]"
-                  style={{ right: x + 2, width: cw - 4, top: 2, height: rh - 4, background: `hsl(var(${shade}) / 0.16)`, borderColor: `hsl(var(${shade}) / 0.35)`, boxShadow: `inset 3px 0 0 hsl(var(${shade}))` }}>
-                  <div className="truncate text-[12.5px] font-bold">{l}</div>
-                  {rh > 52 && cw > 64 && <div className="num truncate text-[11.5px] text-muted-foreground">{toFa(Math.round((v / total) * 100))}٪{cw > 170 ? ` · ${fa1(v, 2)} ${unit}` : ""}</div>}
-                </button>
-              );
-              x += cw;
-              return el;
-            })}
-          </div>
-        );
-      })}
+    <div className="grid gap-5 lg:grid-cols-[1fr_220px]">
+      <div ref={ref} className="relative w-full" style={{ height }}>
+        {rects.map((r, i) => {
+          const [l, v] = sorted[i];
+          const c = TM[i % TM.length];
+          const big = r.w > 96 && r.h > 56, mid = r.w > 54 && r.h > 34;
+          return (
+            <button key={l} onClick={() => onPick?.(l)} title={`${l} · ${toFa(Math.round((v / total) * 100))}٪ · ${fa1(v, 2)} ${unit}`}
+              className="absolute overflow-hidden rounded-[14px] p-3 text-start transition-[filter] hover:brightness-110"
+              style={{ right: r.x + 2, top: r.y + 2, width: Math.max(r.w - 4, 0), height: Math.max(r.h - 4, 0), color: "hsl(var(--tm-ink))",
+                background: `linear-gradient(150deg, hsl(var(${c})) 0%, hsl(var(${c}) / .78) 100%)`, boxShadow: "inset 0 1px 0 rgb(255 255 255 / .25)" }}>
+              {mid && <div className="num text-[15px] font-extrabold leading-none">{toFa(Math.round((v / total) * 100))}٪</div>}
+              {big && <div className="mt-1.5 truncate text-[12.5px] font-bold opacity-95">{l}</div>}
+              {big && r.h > 84 && <div className="num truncate text-[11px] opacity-80">{fa1(v, 2)} {unit}</div>}
+            </button>
+          );
+        })}
+      </div>
+      <ul className="flex flex-col gap-1.5 self-center">
+        {sorted.map(([l, v], i) => (
+          <li key={l} className="flex items-center gap-2 text-[12.5px]">
+            <i className="size-2.5 shrink-0 rounded-[4px]" style={{ background: `hsl(var(${TM[i % TM.length]}))` }} />
+            <span className="min-w-0 flex-1 truncate">{l}</span>
+            <b className="num">{toFa(Math.round((v / total) * 100))}٪</b>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -255,18 +289,27 @@ export function Treemap({ items, unit, onPick, height = 260 }: { items: [string,
 /** Horizontal stacked bars (aging). */
 export function StackBars({ rows, keys, colors }: { rows: { label: string; values: number[] }[]; keys: string[]; colors: string[] }) {
   const max = Math.max(...rows.map((r) => r.values.reduce((a, b) => a + b, 0)));
+  const sums = keys.map((_, i) => rows.reduce((a, r) => a + (r.values[i] ?? 0), 0));
+  const all = sums.reduce((a, b) => a + b, 0) || 1;
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-3 text-[11.5px] text-muted-foreground">
-        {keys.map((k, i) => <span key={k} className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm" style={{ background: `hsl(var(${colors[i]}))` }} />{k}</span>)}
+    <div className="flex flex-col gap-4">
+      {/* overall split first: one wide strip with a share per bucket */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {keys.map((k, i) => (
+          <div key={k} className="rounded-field border border-border bg-surface/60 p-2.5">
+            <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground"><i className="size-2.5 rounded-sm" style={{ background: `hsl(var(${colors[i]}))` }} />{k}</div>
+            <div className="num mt-1 text-[16px] font-extrabold">{toFa(Math.round((sums[i] / all) * 100))}٪</div>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full" style={{ width: `${(sums[i] / all) * 100}%`, background: `hsl(var(${colors[i]}))` }} /></div>
+          </div>
+        ))}
       </div>
       {rows.map((r) => {
         const sum = r.values.reduce((a, b) => a + b, 0);
         return (
           <div key={r.label} className="grid grid-cols-[110px_1fr_64px] items-center gap-3 text-[12.5px]">
             <span className="truncate font-semibold">{r.label}</span>
-            <div className="flex h-5 overflow-hidden rounded-full bg-muted" style={{ width: `${(sum / max) * 100}%` }}>
-              {r.values.map((v, i) => v > 0 && <span key={i} title={`${keys[i]}: ${fa1(v, 2)}`} style={{ width: `${(v / sum) * 100}%`, background: `hsl(var(${colors[i]}))` }} />)}
+            <div className="flex h-6 gap-[3px]" style={{ width: `${(sum / max) * 100}%` }}>
+              {r.values.map((v, i) => v > 0 && <span key={i} title={`${keys[i]}: ${fa1(v, 2)}`} className="rounded-[6px]" style={{ width: `${(v / sum) * 100}%`, background: `hsl(var(${colors[i]}))` }} />)}
             </div>
             <b className="num text-start">{fa1(sum, 2)}</b>
           </div>
@@ -278,22 +321,27 @@ export function StackBars({ rows, keys, colors }: { rows: { label: string; value
 
 /** Grouped vertical bars: two periods side by side. */
 export function PairBars({ items, keys }: { items: { label: string; a: number; b: number }[]; keys: [string, string] }) {
-  const max = Math.max(...items.flatMap((i) => [i.a, i.b]));
+  const max = Math.max(...items.flatMap((i) => [i.a, i.b])) * 1.12;
   return (
     <div>
       <div className="mb-3 flex gap-4 text-[11.5px] text-muted-foreground">
-        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-ch-6" />{keys[0]}</span>
-        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-ch-1" />{keys[1]}</span>
+        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-ch-6/60" />{keys[0]}</span>
+        <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-sm" style={{ background: "linear-gradient(180deg, hsl(var(--ch-1)), hsl(var(--ch-4)))" }} />{keys[1]}</span>
       </div>
-      <div className="flex h-[220px] items-end gap-3 border-b border-border">
-        {items.map((it) => (
-          <div key={it.label} className="flex h-full flex-1 flex-col justify-end">
-            <div className="flex flex-1 items-end justify-center gap-1">
-              <span className="w-1/3 max-w-5 rounded-t-md bg-ch-6 transition-[height] duration-500" style={{ height: `${(it.a / max) * 100}%` }} title={`${keys[0]}: ${fa1(it.a, 2)}`} />
-              <span className="w-1/3 max-w-5 rounded-t-md bg-ch-1 transition-[height] duration-500" style={{ height: `${(it.b / max) * 100}%` }} title={`${keys[1]}: ${fa1(it.b, 2)}`} />
+      <div className="relative flex h-[230px] items-end gap-3 border-b border-border" style={{ backgroundImage: "linear-gradient(hsl(var(--border) / .6) 1px, transparent 1px)", backgroundSize: "100% 25%" }}>
+        {items.map((it) => {
+          const d = it.a ? Math.round(((it.b - it.a) / it.a) * 100) : 0;
+          return (
+            <div key={it.label} className="flex h-full flex-1 flex-col justify-end">
+              <div className="flex flex-1 items-end justify-center gap-1">
+                <span className="w-[30%] max-w-6 rounded-t-[7px] bg-ch-6/45 transition-[height] duration-500" style={{ height: `${(it.a / max) * 100}%` }} title={`${keys[0]}: ${fa1(it.a, 2)}`} />
+                <span className="relative w-[30%] max-w-6 rounded-t-[7px] transition-[height] duration-500" style={{ height: `${(it.b / max) * 100}%`, background: "linear-gradient(180deg, hsl(var(--ch-1)), hsl(var(--ch-4)))" }} title={`${keys[1]}: ${fa1(it.b, 2)}`}>
+                  <b className="num absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10.5px] text-muted-foreground">{d > 0 ? "+" : d < 0 ? "−" : ""}{toFa(Math.abs(d))}٪</b>
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="mt-2 flex gap-3">
         {items.map((it) => <span key={it.label} className="flex-1 truncate text-center text-[11px] text-muted-foreground" title={it.label}>{it.label}</span>)}
@@ -320,13 +368,21 @@ export function Ring({ value, size = 92, stroke = 9, tone = "ai", children }: { 
 /** Horizontal bars for a ranked list (trial balance, top accounts). */
 export function RankBars({ items }: { items: [string, number][] }) {
   const max = Math.max(...items.map(([, v]) => Math.abs(v)));
+  const total = items.reduce((a, [, v]) => a + Math.max(v, 0), 0) || 1;
   return (
-    <ul className="flex flex-col gap-2.5">
+    <ul className="flex flex-col gap-3">
       {items.map(([l, v], i) => (
-        <li key={l} className="grid grid-cols-[130px_1fr_auto] items-center gap-3 text-[12.5px]">
+        <li key={l} className="grid grid-cols-[22px_130px_1fr_auto] items-center gap-3 text-[12.5px]">
+          <span className="num grid size-[22px] place-items-center rounded-[7px] bg-muted text-[11px] font-bold text-muted-foreground">{toFa(i + 1)}</span>
           <span className="truncate font-semibold" title={l}>{l}</span>
-          <span className="h-2.5 rounded-full bg-muted"><span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${(Math.abs(v) / max) * 100}%`, background: v < 0 ? "hsl(var(--ch-6))" : `hsl(var(--ch-${(i % 5) + 1}))` }} /></span>
-          <b className="num min-w-[56px] whitespace-nowrap">{v < 0 ? `(${fa1(-v, 2)})` : fa1(v, 2)}</b>
+          <span className="relative h-3 rounded-full bg-muted/70">
+            <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${(Math.abs(v) / max) * 100}%`,
+              background: v < 0 ? "repeating-linear-gradient(135deg, hsl(var(--ch-6) / .7) 0 4px, hsl(var(--ch-6) / .35) 4px 8px)" : `linear-gradient(270deg, hsl(var(--ch-${(i % 4) + 1})), hsl(var(--ch-${(i % 4) + 1}) / .55))` }} />
+          </span>
+          <span className="flex min-w-[96px] items-baseline justify-end gap-1.5 whitespace-nowrap">
+            <b className="num">{v < 0 ? `(${fa1(-v, 2)})` : fa1(v, 2)}</b>
+            {v > 0 && <span className="num text-[11px] text-muted-foreground">{toFa(Math.round((v / total) * 100))}٪</span>}
+          </span>
         </li>
       ))}
     </ul>

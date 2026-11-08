@@ -1,11 +1,13 @@
 import * as React from "react";
-import { ArrowLeft, Check, FileImage, FileSpreadsheet, FileText, Keyboard, Mic, Paperclip, PencilLine, RotateCcw, Send, Square, Upload, Wand2, X } from "@/components/icons";
+import { ArrowLeft, Check, FileImage, FileSpreadsheet, FileText, Keyboard, Mic, Paperclip, PencilLine, RotateCcw, Send, Upload, Wand2, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { type Doc } from "@/data/demo";
 import { cn, group, toFa } from "@/lib/utils";
 import { fmtDay, TODAY } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/shell/Topbar";
+import { useVoice } from "@/lib/voice";
+import { VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
 import { Orb } from "@/components/ai/Orb";
 import { answer, facts, linesFor, nextSlot, questionFor, understand, type Draft, type Slot } from "@/components/voucher/agent";
 import { ACCEPT, analyzeFile, sampleReceipt, type Analysis } from "@/components/voucher/analyze";
@@ -22,54 +24,6 @@ const EXAMPLES = [
 const VOICE_DEMO = "دیروز دوازده میلیون تومان کرایه حمل بار به اصفهان از صندوق دادیم";
 const SLOT_OF: Record<string, Slot> = { نوع: "kind", مبلغ: "amount", "از طرف": "party", "به حساب": "bank", "از حساب": "bank", بابت: "expense", از: "from", به: "to" };
 
-/* ---------- voice: real recognition when the browser has it, a sample sentence otherwise ---------- */
-type SR = { lang: string; interimResults: boolean; continuous: boolean; start: () => void; stop: () => void; abort: () => void; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: (() => void) | null; onend: (() => void) | null };
-function useVoice(onText: (t: string, demo: boolean) => void) {
-  const [rec, setRec] = React.useState(false);
-  const [live, setLive] = React.useState("");
-  const r = React.useRef<SR | null>(null);
-  const text = React.useRef("");
-  const timer = React.useRef<number>();
-  const finish = React.useCallback(() => {
-    clearTimeout(timer.current);
-    setRec(false);
-    const t = text.current.trim();
-    onText(t || VOICE_DEMO, !t);
-    text.current = "";
-    setLive("");
-  }, [onText]);
-  const stop = () => { if (r.current) r.current.stop(); else finish(); };
-  const start = () => {
-    text.current = "";
-    setRec(true);
-    const W = window as unknown as { SpeechRecognition?: new () => SR; webkitSpeechRecognition?: new () => SR };
-    const Ctor = W.SpeechRecognition ?? W.webkitSpeechRecognition;
-    if (Ctor) {
-      try {
-        const s = new Ctor();
-        s.lang = "fa-IR"; s.interimResults = true; s.continuous = false;
-        s.onresult = (e) => { const all = Array.from(e.results).map((x) => x[0].transcript).join(" "); text.current = all; setLive(all); };
-        s.onerror = () => { /* fall back to the sample sentence */ };
-        s.onend = () => { if (r.current) { r.current = null; finish(); } };
-        r.current = s;
-        s.start();
-      } catch { r.current = null; }
-    }
-    timer.current = window.setTimeout(() => stop(), 6000);
-  };
-  React.useEffect(() => () => { clearTimeout(timer.current); r.current?.abort(); }, []);
-  return { rec, live, start, stop };
-}
-
-function Wave() {
-  return (
-    <span className="flex h-6 items-center gap-[3px]" aria-hidden>
-      {Array.from({ length: 14 }).map((_, i) => (
-        <i key={i} className="block h-full w-[3px] origin-center rounded-full bg-current" style={{ animation: `bar ${0.7 + (i % 4) * 0.13}s ease-in-out ${i * 0.06}s infinite` }} />
-      ))}
-    </span>
-  );
-}
 
 const FileIcon = ({ a, className }: { a: Pick<Analysis, "kind">; className?: string }) => {
   const I = a.kind === "image" ? FileImage : a.kind === "sheet" ? FileSpreadsheet : FileText;
@@ -133,9 +87,9 @@ function Rail({ draft, phase, current, onRedo }: { draft: Draft | null; phase: P
 function Composer({ onSubmit, onFile, seed }: { onSubmit: (t: string, via: Via) => void; onFile: (f: File) => void; seed: string }) {
   const [text, setText] = React.useState(seed);
   const [over, setOver] = React.useState(false);
-  const [demoNote, setDemoNote] = React.useState(false);
   const picker = useFilePicker(onFile);
-  const voice = useVoice(React.useCallback((t: string, demo: boolean) => { setText(t); setDemoNote(demo); onSubmit(t, "voice"); }, [onSubmit]));
+  const via = React.useRef<Via>("text");
+  const voice = useVoice(React.useCallback((t: string) => { setText(t); via.current = "voice"; }, []));
   return (
     <section
       data-tour="entry"
@@ -151,17 +105,14 @@ function Composer({ onSubmit, onFile, seed }: { onSubmit: (t: string, via: Via) 
           <p className="mt-0.5 text-[13px] text-muted-foreground">بنویسید، بگویید یا مدرک را بارگذاری کنید. اطلاعات ناقص را دستیار می‌پرسد.</p>
         </div>
       </div>
-      <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) onSubmit(text, "text"); }} className="mt-4 rounded-[calc(var(--r-field)+2px)] border border-input bg-surface focus-within:border-ring focus-within:ring-4 focus-within:ring-ring/15">
+      <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) onSubmit(text, via.current); }} className="mt-4 rounded-[calc(var(--r-field)+2px)] border border-input bg-surface focus-within:border-ring focus-within:ring-4 focus-within:ring-ring/15">
         {voice.rec ? (
-          <div className="flex min-h-[104px] flex-col items-center justify-center gap-2 px-4 py-4 text-ai-ink" aria-live="polite">
-            <Wave />
-            <span className="text-[13px] font-semibold">{voice.live || "در حال شنیدن…"}</span>
-          </div>
+          <div className="flex min-h-[104px] items-center px-3 py-3"><VoiceBar voice={voice} /></div>
         ) : (
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (text.trim()) onSubmit(text, "text"); } }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (text.trim()) onSubmit(text, via.current); } }}
             rows={3}
             aria-label="شرح رویداد"
             placeholder="مثلاً: ۵۰۰ میلیون تومان از پتروشیمی مارون به پارسیان واریز شد"
@@ -169,16 +120,14 @@ function Composer({ onSubmit, onFile, seed }: { onSubmit: (t: string, via: Via) 
           />
         )}
         <div className="flex items-center gap-2 px-3 pb-3">
-          <Button type="button" variant={voice.rec ? "default" : "outline"} size="icon" aria-label={voice.rec ? "پایان ضبط" : "ضبط صدا"} onClick={() => (voice.rec ? voice.stop() : voice.start())} className={cn(voice.rec && "bg-danger hover:bg-danger/90")}>
-            {voice.rec ? <Square className="size-4" /> : <Mic />}
-          </Button>
+          <Button type="button" variant="outline" size="icon" aria-label="ضبط صدا" disabled={voice.rec} onClick={voice.start}><Mic /></Button>
           <Button type="button" variant="outline" onClick={picker.open}><Paperclip /> بارگذاری مدرک</Button>
           {picker.input}
-          <span className="hidden text-[11.5px] text-muted-foreground lg:inline">{voice.rec ? "برای پایان دوباره بزنید" : "Enter برای ساخت سند"}</span>
+          <span className="hidden text-[11.5px] text-muted-foreground lg:inline">{voice.rec ? "پس از پایان، متن را بررسی و بعد سند را بسازید" : "Enter برای ساخت سند"}</span>
           <Button type="submit" variant="ai" className="ms-auto" disabled={!text.trim() || voice.rec}><Wand2 /> ساخت سند</Button>
         </div>
       </form>
-      {demoNote && <p className="mt-2 text-[11.5px] text-muted-foreground">مرورگر صدا را تشخیص نداد؛ جمله‌ی نمونه به‌کار رفت.</p>}
+      <VoiceError voice={voice} sample={VOICE_DEMO} onSample={(t) => { setText(t); via.current = "voice"; }} />
       <div className="mt-4 flex flex-wrap gap-2">
         {EXAMPLES.map((ex) => (
           <button key={ex} onClick={() => { setText(ex); onSubmit(ex, "text"); }} className="chip h-auto min-h-8 py-1 text-start">{ex}</button>
@@ -294,7 +243,7 @@ function Ask({ draft, slot, limit, onAnswer, history, inline }: { draft: Draft; 
 function SmartFill({ onSubmit, onFile, busy, file, seed }: { onSubmit: (t: string) => void; onFile: (f: File) => void; busy: boolean; file: Analysis | null; seed: string }) {
   const [text, setText] = React.useState(seed);
   const picker = useFilePicker(onFile);
-  const voice = useVoice(React.useCallback((t: string) => { setText(t); onSubmit(t); }, [onSubmit]));
+  const voice = useVoice(React.useCallback((t: string) => setText(t), []));
   return (
     <section data-tour="entry" className="hero p-4"
       onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onFile(f); }}>
@@ -302,15 +251,18 @@ function SmartFill({ onSubmit, onFile, busy, file, seed }: { onSubmit: (t: strin
         <Orb size={34} busy={busy || voice.rec} />
         <div className="min-w-[220px] flex-1">
           <label htmlFor="smart" className="block text-[12px] font-bold text-muted-foreground">پر کردن خودکار فرم</label>
-          <input id="smart" value={voice.rec ? voice.live || "در حال شنیدن…" : text} onChange={(e) => setText(e.target.value)} readOnly={voice.rec}
-            placeholder="شرح رویداد را بنویسید یا مدرک را بکشید روی همین کادر"
-            className="h-9 w-full bg-transparent text-[14.5px] font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground" />
+          {voice.rec ? <VoiceBar voice={voice} className="mt-1" /> : (
+            <input id="smart" value={text} onChange={(e) => setText(e.target.value)}
+              placeholder="شرح رویداد را بنویسید یا مدرک را بکشید روی همین کادر"
+              className="h-9 w-full bg-transparent text-[14.5px] font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground" />
+          )}
         </div>
-        <Button type="button" variant="outline" size="icon" aria-label={voice.rec ? "پایان ضبط" : "ضبط صدا"} onClick={() => (voice.rec ? voice.stop() : voice.start())}>{voice.rec ? <Square className="size-4" /> : <Mic />}</Button>
+        {!voice.rec && <Button type="button" variant="outline" size="icon" aria-label="ضبط صدا" onClick={voice.start}><Mic /></Button>}
         <Button type="button" variant="outline" onClick={picker.open}><Paperclip /> مدرک</Button>
         {picker.input}
-        <Button type="submit" variant="ai" disabled={!text.trim() || busy}><Wand2 /> پر کن</Button>
+        <Button type="submit" variant="ai" disabled={!text.trim() || busy || voice.rec}><Wand2 /> پر کن</Button>
       </form>
+      <VoiceError voice={voice} sample={VOICE_DEMO} onSample={setText} />
       {file && (
         <div className="mt-3 flex items-center gap-3 rounded-field border border-border bg-surface/80 p-2 pe-3">
           {file.url ? <img src={file.url} alt="" className="size-10 rounded-[6px] object-cover" /> : <span className="grid size-10 place-items-center rounded-[6px] bg-muted"><FileIcon a={file} className="size-5 text-muted-foreground" /></span>}

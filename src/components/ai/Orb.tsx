@@ -12,6 +12,9 @@ export function Orb({ size = 28, busy, className, label }: { size?: number; busy
       style={{ width: size, height: size, ["--orb-rim" as string]: `${Math.max(1.5, size / 22)}px` }}
     >
       <span className="core" />
+      <span className="core c2" />
+      <span className="gloss" />
+      {busy && <><span className="ripple" /><span className="ripple r2" /></>}
     </span>
   );
 }
