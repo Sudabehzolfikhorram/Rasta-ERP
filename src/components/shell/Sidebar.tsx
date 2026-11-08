@@ -55,7 +55,7 @@ export function Sidebar() {
         aria-label="منوی اصلی"
       >
         <button onClick={() => go("dashboard")} className="mb-6 flex items-center gap-3 rounded-field text-start" aria-label="راستا، داشبورد">
-          <Logo part="emblem" className="size-12 shrink-0" />
+          <span className="grid size-12 shrink-0 place-items-center"><Logo part="emblem" className="size-8" /></span>
           <span className={cn(reveal, "leading-tight")}>
             <b className="block text-[17px] font-extrabold">راستا</b>
             <span className="num block text-[11.5px] text-muted-foreground">سال مالی ۱۴۰۵</span>
