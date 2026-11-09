@@ -106,7 +106,7 @@ export function BaseData() {
   const [rates, setRates] = React.useState(seedRates);
   const [q, setQ] = React.useState("");
   React.useEffect(() => setQ(""), [tab]);
-  const [edit, setEdit] = React.useState<{ tab: Tab; id: string | null; bank?: string } | null>(null);
+  const [edit, setEdit] = React.useState<{ tab: Tab; id: string | null; bank?: string; preset?: Preset } | null>(null);
   const bankName = (id: string) => banks.find((b) => b.id === id)?.name ?? "—";
   const match = (...xs: string[]) => !q.trim() || xs.some((x) => x.includes(q.trim()));
   const addLabel: Record<Tab, string> = { home: "تعریف بانک", banks: "تعریف بانک", branches: "تعریف شعبه", accounts: "افتتاح حساب بانکی", boxes: "تعریف صندوق", currency: "ثبت نرخ ارز" };
@@ -171,7 +171,7 @@ export function BaseData() {
     home: null,
     branches: <BranchForm key={edit?.id ?? "new"} rec={branches.find((r) => r.id === edit?.id)} bank={edit?.bank} banks={banks}
       onSave={(r) => { setBranches((x) => (x.some((y) => y.id === r.id) ? x.map((y) => (y.id === r.id ? r : y)) : [...x, r])); setEdit(null); toast(`«${r.name}» ذخیره شد.`, "success"); }} onCancel={() => setEdit(null)} />,
-    accounts: <AccountForm key={edit?.id ?? "new"} rec={accounts.find((a) => a.id === edit?.id)} bank={edit?.bank} banks={banks} branches={branches} boxes={boxes} nextTafsili={toFa(15010001 + accounts.length)}
+    accounts: <AccountForm key={edit?.id ?? "new"} rec={accounts.find((a) => a.id === edit?.id)} bank={edit?.bank} preset={edit?.preset} banks={banks} branches={branches} boxes={boxes} nextTafsili={toFa(15010001 + accounts.length)}
       onSave={(a) => { setAccounts((x) => (x.some((y) => y.id === a.id) ? x.map((y) => (y.id === a.id ? a : y)) : [...x, a])); setBanks((x) => x.map((b) => (b.id === a.bank ? { ...b, used: true } : b))); setEdit(null); toast(`حساب «${a.name}» ذخیره شد.`, "success"); }} onCancel={() => setEdit(null)} />,
     boxes: <BoxForm key={edit?.id ?? "new"} rec={boxes.find((x) => x.id === edit?.id)} rates={rates}
       onSave={(b) => { setBoxes((x) => (x.some((y) => y.id === b.id) ? x.map((y) => (y.id === b.id ? b : y)) : [...x, b])); setEdit(null); toast(`«${b.name}» ذخیره شد.`, "success"); }} onCancel={() => setEdit(null)} />,
@@ -298,7 +298,7 @@ export function BaseData() {
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setEdit({ tab: "banks", id: hubBank.id })}><PencilLine /> ویرایش بانک</Button>
               <Button variant="outline" onClick={() => setEdit({ tab: "branches", id: null, bank: hubBank.id })}><Add /> شعبه‌ی جدید</Button>
-              <Button onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}><Add /> افتتاح حساب</Button>
+              <Button disabled={!br.length} title={br.length ? undefined : "اول یک شعبه تعریف کنید"} onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}><Add /> افتتاح حساب</Button>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -308,10 +308,11 @@ export function BaseData() {
             <StatCard label="برگ چک باقی‌مانده" value={toFa(left)} unit={all ? `از ${toFa(all)}` : undefined} icon={Receipt1} tone="sky" progress={all ? left / all : undefined} />
           </div>
         </section>
+        {!acc.length && <BankSetup branches={br.length} color={bankColor(hubBank.name)} onBranch={() => setEdit({ tab: "branches", id: null, bank: hubBank.id })} onAccount={(p) => setEdit({ tab: "accounts", id: null, bank: hubBank.id, preset: p })} />}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <section className="panel flex min-w-0 flex-col gap-3 p-5">
             <h3 className="text-[15px] font-extrabold">حساب‌های این بانک</h3>
-            <DataTable caption="حساب‌ها" rowKey={(a) => a.id} rows={acc} onRow={(a) => setEdit({ tab: "accounts", id: a.id })} empty={<Empty icon={Card} title="حسابی در این بانک ندارید" />}
+            <DataTable caption="حساب‌ها" rowKey={(a) => a.id} rows={acc} onRow={(a) => setEdit({ tab: "accounts", id: a.id })} empty={<Empty icon={Card} title="حسابی در این بانک ندارید" text={br.length ? "از کارت بالا یک حساب باز کنید." : "اول یک شعبه تعریف کنید."} />}
               columns={[
                 { key: "name", label: "حساب", render: (a) => <span><b className="block">{a.name}</b><span className="text-[11.5px] text-muted-foreground">{branches.find((r) => r.id === a.branch)?.name} · {a.type}</span></span> },
                 { key: "no", label: "شماره", hide: "md", render: (a) => <span dir="ltr">{a.no}</span> },
@@ -341,7 +342,7 @@ export function BaseData() {
                     <span className="num flex items-center gap-1 text-[12px] text-muted-foreground" dir="rtl"><Call className="size-3.5" />{r.phone} · {toFa(acc.filter((a) => a.branch === r.id).length)} حساب</span>
                   </span>
                 </button>
-              </li>))}</ul> : <Empty icon={Building2} title="شعبه‌ای تعریف نشده" />}
+              </li>))}</ul> : <Empty icon={Building2} title="شعبه‌ای تعریف نشده" action={<Button size="sm" variant="soft" onClick={() => setEdit({ tab: "branches", id: null, bank: hubBank.id })}>تعریف شعبه</Button>} />}
           </section>
         </div>
         <BankDocs bankName={hubBank.name} variant="table" />
@@ -385,6 +386,59 @@ export function BaseData() {
   );
 }
 
+/* ---------- bank setup: what a bank without accounts needs next ---------- */
+type Preset = "cheque" | "deposit";
+function BankSetup({ branches, color, onBranch, onAccount }: { branches: number; color: string; onBranch: () => void; onAccount: (p?: Preset) => void }) {
+  const ready = branches > 0;
+  const steps = [
+    { t: "تعریف شعبه", d: ready ? `${toFa(branches)} شعبه تعریف شده` : "حساب بانکی به شعبه وابسته است", done: ready },
+    { t: "افتتاح حساب", d: "جاری، سپرده یا قرض‌الحسنه", done: false },
+    { t: "دسته‌چک و گردش", d: "چک‌ها، دریافت و پرداخت این بانک", done: false },
+  ];
+  const opts: { t: string; d: string; i: IconType; on: () => void }[] = [
+    { t: "حساب جاری با دسته‌چک", d: "برای پرداخت چکی و واریز روزانه", i: Receipt1, on: () => onAccount("cheque") },
+    { t: "حساب سپرده", d: "سپرده‌ی کوتاه‌مدت برای نگهداری نقدینگی", i: Wallet3, on: () => onAccount("deposit") },
+    { t: "شعبه‌ی دیگر", d: "اگر با شعبه‌ی دیگری از این بانک هم کار می‌کنید", i: Building2, on: onBranch },
+  ];
+  return (
+    <section className="panel relative isolate overflow-hidden p-5">
+      <span aria-hidden className="absolute inset-0 -z-10" style={{ background: `linear-gradient(160deg, hsl(var(${color}) / .08), transparent 55%)` }} />
+      <div className="flex flex-wrap items-start gap-3">
+        <span className="grid size-11 shrink-0 place-items-center rounded-[14px]" style={{ background: `hsl(var(${color}) / .14)`, color: `hsl(var(${color}))` }}>{ready ? <Card className="size-5" variant="Bulk" /> : <Building2 className="size-5" variant="Bulk" />}</span>
+        <div className="min-w-[220px] flex-1">
+          <b className="block text-[15px]">{ready ? "شعبه آماده است؛ حالا حساب باز کنید" : "اول یک شعبه برای این بانک تعریف کنید"}</b>
+          <p className="mt-0.5 text-[12.5px] leading-6 text-muted-foreground">{ready ? "این بانک هنوز حسابی ندارد. یکی از کارهای زیر را شروع کنید." : "افتتاح حساب بدون شعبه ممکن نیست. بعد از تعریف شعبه می‌توانید حساب باز کنید، دسته‌چک ثبت کنید و گردش این بانک را ببینید."}</p>
+        </div>
+        {!ready && <Button onClick={onBranch}><Add /> تعریف شعبه</Button>}
+      </div>
+      <ol className="mt-4 grid gap-2 sm:grid-cols-3">
+        {steps.map((st, i) => {
+          const now = !st.done && (i === 0 || steps[i - 1].done);
+          return (
+            <li key={st.t} className={cn("flex items-start gap-2.5 rounded-[14px] border p-3", now ? "border-primary/40 bg-primary-soft/50" : "border-border bg-surface/60", !st.done && !now && "opacity-60")}>
+              <span className={cn("num grid size-6 shrink-0 place-items-center rounded-full text-[11.5px] font-bold", st.done ? "bg-success text-white" : now ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                {st.done ? <TickCircle className="size-4" variant="Bold" /> : !now ? <Lock className="size-3" /> : toFa(i + 1)}
+              </span>
+              <span className="min-w-0"><b className="block text-[13px]">{st.t}</b><span className="num block text-[11.5px] text-muted-foreground">{st.d}</span></span>
+            </li>
+          );
+        })}
+      </ol>
+      {ready && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {opts.map((o) => (
+            <button key={o.t} onClick={o.on} className="group flex items-start gap-3 rounded-[14px] border border-border bg-surface p-3 text-start transition-colors hover:border-primary/50">
+              <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary-soft text-primary"><o.i className="size-[18px]" variant="Bulk" /></span>
+              <span className="min-w-0 flex-1"><b className="block text-[13px]">{o.t}</b><span className="block text-[11.5px] text-muted-foreground">{o.d}</span></span>
+              <Add className="mt-1 size-4 text-muted-foreground group-hover:text-primary" />
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ---------- forms ---------- */
 function BankForm({ rec, nextCode, onSave, onCancel }: { rec?: BankRec; nextCode: string; onSave: (b: BankRec) => void; onCancel: () => void }) {
   const [b, setB] = React.useState<BankRec>(rec ?? { id: `b${Date.now()}`, code: nextCode, name: "", name2: "", type: "بانک", swift: "", desc: "", used: false });
@@ -418,8 +472,8 @@ function BranchForm({ rec, bank, banks, onSave, onCancel }: { rec?: Branch; bank
   );
 }
 
-function AccountForm({ rec, bank, banks, branches, boxes, nextTafsili, onSave, onCancel }: { rec?: Account; bank?: string; banks: BankRec[]; branches: Branch[]; boxes: Box[]; nextTafsili: string; onSave: (a: Account) => void; onCancel: () => void }) {
-  const [a, setA] = React.useState<Account>(rec ?? { id: `a${Date.now()}`, bank: bank ?? banks[0]?.id ?? "", branch: "", name: "", no: "", type: "جاری", cheque: false, books: [], currency: "ریال", template: `BNK-${String(10 + Math.floor(Math.random() * 80))}`, tafsili: nextTafsili, party: "—" });
+function AccountForm({ rec, bank, preset, banks, branches, boxes, nextTafsili, onSave, onCancel }: { rec?: Account; bank?: string; preset?: Preset; banks: BankRec[]; branches: Branch[]; boxes: Box[]; nextTafsili: string; onSave: (a: Account) => void; onCancel: () => void }) {
+  const [a, setA] = React.useState<Account>(rec ?? { id: `a${Date.now()}`, bank: bank ?? banks[0]?.id ?? "", branch: "", name: "", no: "", type: preset === "deposit" ? "سپرده‌ی کوتاه‌مدت" : "جاری", cheque: preset === "cheque", books: [], currency: "ریال", template: `BNK-${String(10 + Math.floor(Math.random() * 80))}`, tafsili: nextTafsili, party: "—" });
   const bankBranches = branches.filter((r) => r.bank === a.bank);
   const book = a.books[0] ?? { serial: "", sheets: 25, used: 0, box: boxes[0]?.id ?? "" };
   const setBook = (p: Partial<typeof book>) => setA({ ...a, books: [{ ...book, ...p }, ...a.books.slice(1)] });
@@ -526,7 +580,7 @@ const amt = (r: number) => `${short(r, "rial").n} ${short(r, "rial").s}`;
 type AssistProps = {
   tab: Tab; banks: BankRec[]; branches: Branch[]; accounts: Account[]; boxes: Box[]; rates: Rate[];
   hub: string | null; setHub: (id: string | null) => void;
-  setEdit: (e: { tab: Tab; id: string | null; bank?: string }) => void;
+  setEdit: (e: { tab: Tab; id: string | null; bank?: string; preset?: Preset }) => void;
   setTab: (t: Tab) => void; addLabel: string; form: React.ReactNode;
 };
 
@@ -761,14 +815,14 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
                     <div className="num text-end"><span className="block text-[12px] text-muted-foreground">مانده‌ی حساب‌ها</span><b className="text-[22px] font-extrabold">{acc.length ? amt(balOf(acc.map((a) => a.id))) : "—"}</b> <span className="text-[12px] text-muted-foreground">{acc.length ? "ریال" : ""}</span></div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Button onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}><Add /> افتتاح حساب</Button>
+                    <Button disabled={!br.length} title={br.length ? undefined : "اول یک شعبه تعریف کنید"} onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}><Add /> افتتاح حساب</Button>
                     <Button variant="outline" onClick={() => setEdit({ tab: "branches", id: null, bank: hubBank.id })}><Add /> شعبه‌ی جدید</Button>
                     <Button variant="ghost" onClick={() => setEdit({ tab: "banks", id: hubBank.id })}><PencilLine /> ویرایش بانک</Button>
                   </div>
                 </section>
                 <section className="flex flex-col gap-3">
                   <h3 className="px-1 text-[15px] font-extrabold">حساب‌ها <span className="num text-[12px] font-medium text-muted-foreground">{toFa(acc.length)}</span></h3>
-                  {acc.length ? <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{acc.map(accountCard)}</div> : <div className="panel"><Empty icon={Card} title="حسابی در این بانک ندارید" action={<Button size="sm" variant="soft" onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}>افتتاح حساب</Button>} /></div>}
+                  {acc.length ? <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{acc.map(accountCard)}</div> : <BankSetup branches={br.length} color={c} onBranch={() => setEdit({ tab: "branches", id: null, bank: hubBank.id })} onAccount={(p) => setEdit({ tab: "accounts", id: null, bank: hubBank.id, preset: p })} />}
                 </section>
                 <BankDocs bankName={hubBank.name} variant="feed" />
                 <section className="flex flex-col gap-3">
@@ -786,7 +840,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
                         </li>
                       ))}
                     </ol>
-                  ) : <div className="panel"><Empty icon={Building2} title="شعبه‌ای تعریف نشده" /></div>}
+                  ) : <div className="panel"><Empty icon={Building2} title="شعبه‌ای تعریف نشده" action={<Button size="sm" variant="soft" onClick={() => setEdit({ tab: "branches", id: null, bank: hubBank.id })}>تعریف شعبه</Button>} /></div>}
                 </section>
               </>
             );

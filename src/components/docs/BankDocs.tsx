@@ -40,7 +40,7 @@ export function BankDocs({ bankName, variant }: { bankName: string; variant: "ta
       })}
     </div>
   );
-  const empty = <Empty icon={FileText} title="سندی با این فیلتر نیست" text="فیلتر دیگری را امتحان کنید." />;
+  const empty = rows.length ? <Empty icon={FileText} title="سندی با این فیلتر نیست" text="فیلتر دیگری را امتحان کنید." /> : <Empty icon={FileText} title="هنوز سندی برای این بانک ثبت نشده" text="بعد از افتتاح حساب، دریافت و پرداخت‌های این بانک اینجا می‌آید." />;
 
   if (variant === "table") {
     return (
