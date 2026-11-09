@@ -59,7 +59,7 @@ export function Profile() {
         <h2 className="text-[19px] font-extrabold">سودابه زلفی خرم</h2>
         <p className="text-[13px] text-muted-foreground">مدیر مالی · {active.name}</p>
         <div className="num mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-muted-foreground">
-          <span className="flex items-center gap-1.5"><Mail className="size-3.5" /><span dir="ltr">s.zolfi@algonet.ir</span></span>
+          <span className="flex items-center gap-1.5"><Mail className="size-3.5" /><span dir="ltr">s.zolfikhorram@algonet.ir</span></span>
           <span className="flex items-center gap-1.5"><Phone className="size-3.5" />۰۹۱۲ ۳۴۵ ۶۷۸۹</span>
           <span className="flex items-center gap-1.5 text-success"><ShieldCheck className="size-3.5" />ورود دومرحله‌ای فعال</span>
         </div>
