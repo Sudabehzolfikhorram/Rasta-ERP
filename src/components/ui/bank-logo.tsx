@@ -7,6 +7,10 @@ import { cn } from "@/lib/utils";
 const FILES: [RegExp, string][] = [[/ملت/, "mellat.png"], [/پارسیان/, "parsian.svg"], [/تجارت/, "tejarat.png"], [/صادرات/, "saderat.svg"], [/ملی/, "melli.png"]];
 const base = import.meta.env.BASE_URL;
 
+/** Brand base colour of a bank (CSS var name), close to the bank's own identity. */
+const BRAND: [RegExp, string][] = [[/ملت/, "--bank-mellat"], [/پارسیان/, "--bank-parsian"], [/ملی/, "--bank-melli"], [/تجارت/, "--bank-tejarat"], [/صادرات/, "--bank-saderat"], [/سامان/, "--bank-saman"], [/پاسارگاد/, "--bank-pasargad"], [/سپه/, "--bank-sepah"]];
+export const bankColor = (name: string) => BRAND.find(([r]) => r.test(name))?.[1] ?? "--ch-1";
+
 export function BankLogo({ name, className, icon = "size-1/2" }: { name: string; className?: string; icon?: string }) {
   const f = FILES.find(([r]) => r.test(name))?.[1];
   return (

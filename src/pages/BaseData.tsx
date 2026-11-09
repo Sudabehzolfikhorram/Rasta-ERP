@@ -1,5 +1,5 @@
 import * as React from "react";
-import { BankLogo } from "@/components/ui/bank-logo";
+import { BankLogo, bankColor } from "@/components/ui/bank-logo";
 import { ChartOfAccounts } from "@/components/coding/ChartOfAccounts";
 import { BankDocs } from "@/components/docs/BankDocs";
 import { Add, ChevronLeft, Hierarchy, Sparkles, X, ArrowLeft2, ArrowSwapVertical, Bank, Call, Category2, ChevronRight, Building2, CalendarCheck2, Card, EmptyWallet, Global, Location, Lock, MoneyChange, PencilLine, People, Receipt1, Search, TaskSquare, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
@@ -521,8 +521,6 @@ function CurrencyTab({ rates }: { rates: Rate[] }) {
    «دستیار» concept: an explorer. A tree of every bank, branch, account and box on the side,
    a question box on top, and visual cards in place of tables.
    ===================================================================== */
-const BANK_TONE: Record<string, string> = { b1: "--ch-1", b2: "--ch-3", b3: "--ch-2", b4: "--ch-4", b5: "--ch-6" };
-const toneOf = (bank: string) => BANK_TONE[bank] ?? "--ch-5";
 const amt = (r: number) => `${short(r, "rial").n} ${short(r, "rial").s}`;
 
 type AssistProps = {
@@ -568,7 +566,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
 
   const hubBank = banks.find((b) => b.id === hub);
   const accountCard = (a: Account) => {
-    const c = toneOf(a.bank);
+    const c = bankColor(bankName(a.bank));
     const left = a.books.reduce((x, b) => x + b.sheets - b.used, 0), all = a.books.reduce((x, b) => x + b.sheets, 0);
     return (
       <button key={a.id} onClick={() => setEdit({ tab: "accounts", id: a.id })} className={cn("group relative isolate flex min-h-[168px] flex-col overflow-hidden rounded-[18px] p-4 text-start text-white shadow-soft transition-transform hover:-translate-y-0.5", answer?.ids && !answer.ids.includes(a.id) && "opacity-40")}
@@ -608,7 +606,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
     banks: (
       <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
         {banks.map((b) => {
-          const c = toneOf(b.id), acc = accounts.filter((a) => a.bank === b.id);
+          const c = bankColor(b.name), acc = accounts.filter((a) => a.bank === b.id);
           return (
             <button key={b.id} onClick={() => setHub(b.id)} className="panel group flex flex-col overflow-hidden p-0 text-start transition-shadow hover:shadow-lift">
               <span className="flex items-center gap-3 p-4" style={{ background: `linear-gradient(135deg, hsl(var(${c}) / .18), transparent)` }}>
@@ -632,8 +630,8 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
             <h3 className="flex items-center gap-1.5 px-1 text-[14px] font-extrabold"><Location className="size-4 text-primary" variant="Bulk" />{city}<span className="num text-[12px] font-medium text-muted-foreground">{toFa(branches.filter((r) => r.city === city).length)} شعبه</span></h3>
             <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
               {branches.filter((r) => r.city === city).map((r) => (
-                <button key={r.id} onClick={() => setEdit({ tab: "branches", id: r.id })} className="panel flex flex-col gap-2 p-4 text-start transition-shadow hover:shadow-lift" style={{ boxShadow: `inset -3px 0 0 hsl(var(${toneOf(r.bank)}))` }}>
-                  <span className="text-[11.5px] font-bold" style={{ color: `hsl(var(${toneOf(r.bank)}))` }}>{bankName(r.bank)}</span>
+                <button key={r.id} onClick={() => setEdit({ tab: "branches", id: r.id })} className="panel flex flex-col gap-2 p-4 text-start transition-shadow hover:shadow-lift" style={{ boxShadow: `inset -3px 0 0 hsl(var(${bankColor(bankName(r.bank))}))` }}>
+                  <span className="text-[11.5px] font-bold" style={{ color: `hsl(var(${bankColor(bankName(r.bank))}))` }}>{bankName(r.bank)}</span>
                   <b className="text-[14.5px]">{r.name} <span className="num text-[12px] font-normal text-muted-foreground">کد {r.code}</span></b>
                   <span className="text-[12px] text-muted-foreground">{r.address}</span>
                   <span className="num flex items-center gap-1 text-[12px] text-muted-foreground"><Call className="size-3.5" />{r.phone} · {toFa(accounts.filter((a) => a.branch === r.id).length)} حساب</span>
@@ -748,7 +746,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
 
         <div className="flex min-w-0 flex-col gap-4">
           {hubBank ? (() => {
-            const c = toneOf(hubBank.id);
+            const c = bankColor(hubBank.name);
             const acc = accounts.filter((a) => a.bank === hubBank.id), br = branches.filter((r) => r.bank === hubBank.id);
             return (
               <>

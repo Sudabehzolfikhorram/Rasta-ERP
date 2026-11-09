@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Add, ChevronDown, Hierarchy, MagicStar, PencilLine, Search, Trash2, X, Check } from "@/components/icons";
+import { Add, ChevronDown, ChevronLeft, Hierarchy, MagicStar, PencilLine, Search, Trash2, X, Check } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { accounts as demoAccounts } from "@/data/demo";
 import { cn, toEn, toFa } from "@/lib/utils";
@@ -165,27 +165,29 @@ function BentoTree({ chart, q }: { chart: Chart; q: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="panel p-5" aria-label="ساختار کد">
-        <div className="flex flex-wrap items-end gap-x-2 gap-y-3" dir="ltr">
+      <section className="panel flex flex-wrap items-center gap-x-8 gap-y-4 p-5" aria-label="ساختار کد">
+        <div className="min-w-[200px] flex-1">
+          <span className="block text-[11.5px] text-muted-foreground">{T ? "حساب انتخاب‌شده" : M ? "یک تفصیلی انتخاب کنید" : K ? "یک معین انتخاب کنید" : "یک حساب کل انتخاب کنید"}</span>
+          <b className="mt-0.5 block text-[16px]">{(T ?? M ?? K)?.name ?? "هنوز حسابی انتخاب نشده"}</b>
+          {K && <span className="mt-1 block text-[12px] text-muted-foreground">{[K, M, T].filter(Boolean).map((x) => x!.name).join(" › ")}</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2" dir="ltr">
           {segs.map(([l, n, len], i) => (
             <React.Fragment key={l}>
-              {i > 0 && <span className="pb-6 text-[22px] font-light text-muted-foreground/60" aria-hidden>–</span>}
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="flex gap-1">
+              {i > 0 && <ChevronLeft className="size-4 rotate-180 text-muted-foreground/50" aria-hidden />}
+              <div className={cn("flex flex-col gap-1.5 rounded-[14px] p-2 transition-colors", n ? "bg-muted/40" : "bg-muted/25")}>
+                <span className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-muted-foreground" dir="rtl">
+                  <i className="size-2 rounded-full" style={{ background: `hsl(var(${LANE_TINT[l]}))`, opacity: n ? 1 : 0.4 }} />{LEVEL[l].name}<span className="num font-medium opacity-70">{LEVEL[l].digits}</span>
+                </span>
+                <span className="flex justify-center gap-1">
                   {Array.from({ length: len }, (_, j) => {
                     const ch = n?.code[j];
-                    return <span key={j} className={cn("num grid h-12 w-9 place-items-center rounded-[10px] text-[20px] font-extrabold transition-colors", ch ? "text-white" : "border-2 border-dashed border-border")} style={ch ? { background: `hsl(var(${LANE_TINT[l]}))` } : undefined}>{ch ? toFa(ch) : ""}</span>;
+                    return <span key={j} className={cn("num grid h-10 w-8 place-items-center rounded-[9px] text-[18px] font-extrabold transition-colors", ch ? "text-white shadow-soft" : "bg-surface ring-1 ring-inset ring-border/80")} style={ch ? { background: `hsl(var(${LANE_TINT[l]}))` } : undefined}>{ch ? toFa(ch) : ""}</span>;
                   })}
                 </span>
-                <span className="text-[11.5px] font-bold text-muted-foreground" dir="rtl">{LEVEL[l].name} ({LEVEL[l].digits})</span>
               </div>
             </React.Fragment>
           ))}
-          <div className="ml-auto min-w-[180px] text-end" dir="rtl">
-            <span className="block text-[11.5px] text-muted-foreground">{T ? "حساب انتخاب‌شده" : M ? "یک تفصیلی انتخاب کنید" : K ? "یک معین انتخاب کنید" : "یک حساب کل انتخاب کنید"}</span>
-            <b className="block text-[15px]">{(T ?? M ?? K)?.name ?? "—"}</b>
-            {T && <span className="text-[12px] text-muted-foreground">{K?.name} › {M?.name}</span>}
-          </div>
         </div>
       </section>
 

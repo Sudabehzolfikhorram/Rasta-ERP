@@ -36,6 +36,9 @@
     /* calendar categories: a wider spread of hues, kept apart from the status colours */
     --cat-1: 216 72% 52%; --cat-2: 178 60% 36%; --cat-3: 252 55% 60%; --cat-4: 292 48% 52%; --cat-5: 330 62% 54%; --cat-6: 24 78% 52%; --cat-7: 28 38% 42%; --cat-8: 196 78% 44%; --cat-9: 82 45% 40%; --cat-10: 220 14% 48%;
     --tm-ink: 0 0% 100%;
+    /* bank brand bases for account cards (deep enough for white text) */
+    --bank-mellat: 14 82% 50%; --bank-parsian: 27 44% 42%; --bank-melli: 222 58% 32%; --bank-tejarat: 214 72% 36%;
+    --bank-saderat: 239 52% 40%; --bank-saman: 197 100% 38%; --bank-pasargad: 41 78% 40%; --bank-sepah: 211 66% 34%;
     /* composition charts: distinct hues that stay clear of the status colours */
     --viz-1: 221 78% 54%; --viz-2: 172 62% 36%; --viz-3: 258 62% 60%; --viz-4: 326 62% 54%; --viz-5: 199 84% 44%; --viz-6: 286 40% 52%; --viz-7: 218 16% 58%;
     /* activity scale: pale aqua to deep indigo */
