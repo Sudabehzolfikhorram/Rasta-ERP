@@ -119,7 +119,7 @@ export function Sidebar() {
           <button onClick={() => go("profile")} aria-label="حساب کاربری" className={cn("mt-2 flex items-center gap-3 rounded-field px-1.5 py-1 text-start hover:bg-muted/70", page === "profile" && "bg-primary-soft")}>
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface text-[12.5px] font-bold shadow-soft">س</span>
             <div className={cn(reveal, "leading-tight")}>
-              <div className="text-[13px] font-bold">سارا احمدی</div>
+              <div className="text-[13px] font-bold">سودابه زلفی خرم</div>
               <div className="text-[11.5px] text-muted-foreground">مدیر مالی</div>
             </div>
           </button>

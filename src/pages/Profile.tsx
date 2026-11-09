@@ -56,10 +56,10 @@ export function Profile() {
     <section className="panel flex flex-wrap items-center gap-4 p-5">
       <span className="grid size-16 shrink-0 place-items-center rounded-[18px] bg-primary-soft text-[24px] font-extrabold text-primary">س</span>
       <div className="min-w-0 flex-1">
-        <h2 className="text-[19px] font-extrabold">سارا احمدی</h2>
+        <h2 className="text-[19px] font-extrabold">سودابه زلفی خرم</h2>
         <p className="text-[13px] text-muted-foreground">مدیر مالی · {active.name}</p>
         <div className="num mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-muted-foreground">
-          <span className="flex items-center gap-1.5"><Mail className="size-3.5" /><span dir="ltr">s.ahmadi@aria-gostar.ir</span></span>
+          <span className="flex items-center gap-1.5"><Mail className="size-3.5" /><span dir="ltr">s.zolfi@algonet.ir</span></span>
           <span className="flex items-center gap-1.5"><Phone className="size-3.5" />۰۹۱۲ ۳۴۵ ۶۷۸۹</span>
           <span className="flex items-center gap-1.5 text-success"><ShieldCheck className="size-3.5" />ورود دومرحله‌ای فعال</span>
         </div>
@@ -240,7 +240,7 @@ export function Profile() {
       <nav className="panel flex h-fit flex-col gap-1 p-2.5 lg:sticky lg:top-4" aria-label="بخش‌های حساب کاربری">
         <div className="flex items-center gap-3 px-2 pb-3 pt-1">
           <span className="grid size-10 place-items-center rounded-full bg-primary-soft font-extrabold text-primary">س</span>
-          <span className="min-w-0"><b className="block text-[13.5px]">سارا احمدی</b><span className="block truncate text-[11.5px] text-muted-foreground">{active.name}</span></span>
+          <span className="min-w-0"><b className="block text-[13.5px]">سودابه زلفی خرم</b><span className="block truncate text-[11.5px] text-muted-foreground">{active.name}</span></span>
         </div>
         {SECTIONS.map(([k, l, I]) => (
           <button key={k} onClick={() => setSection(k)} aria-current={section === k ? "page" : undefined}

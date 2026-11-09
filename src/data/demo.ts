@@ -66,17 +66,17 @@ const L = (account: string, desc: string, debit: number, credit = 0): DocLine =>
 const pair = (dr: string, cr: string, amount: number, desc: string) => [L(dr, desc, amount), L(cr, desc, 0, amount)];
 
 export const seedDocs: Doc[] = [
-  { id: "d42", seq: 42, m: 8, d: 16, title: "دریافت از فولاد مبارکه", kind: "receipt", status: "pending", source: "file", by: "سارا احمدی", attachments: ["فیش-واریز-۰۹۱۲.jpg"], lines: pair("1-101-100002", "1-103-300021", 2_400_000_000, "دریافت از فولاد مبارکه") },
+  { id: "d42", seq: 42, m: 8, d: 16, title: "دریافت از فولاد مبارکه", kind: "receipt", status: "pending", source: "file", by: "سودابه زلفی خرم", attachments: ["فیش-واریز-۰۹۱۲.jpg"], lines: pair("1-101-100002", "1-103-300021", 2_400_000_000, "دریافت از فولاد مبارکه") },
   { id: "d41", seq: 41, m: 8, d: 16, title: "کارمزد خدمات بانکی آبان", kind: "payment", status: "pending", source: "ai", by: "دستیار راستا", attachments: [], lines: pair("6-602-700011", "1-101-100001", 12_000_000, "کارمزد خدمات بانکی") },
   { id: "d40", seq: 40, m: 8, d: 15, title: "کرایه‌ی حمل بار به اصفهان", kind: "payment", status: "posted", source: "voice", by: "علی رضایی", attachments: ["بارنامه-۳۳۱.pdf"], lines: pair("6-601-700003", "1-101-100010", 120_000_000, "کرایه‌ی حمل بار") },
-  { id: "d39", seq: 39, m: 8, d: 15, title: "انتقال از سپرده به جاری پارسیان", kind: "transfer", status: "posted", source: "manual", by: "سارا احمدی", attachments: [], lines: pair("1-101-100001", "1-101-100003", 3_000_000_000, "انتقال بین حساب‌ها") },
+  { id: "d39", seq: 39, m: 8, d: 15, title: "انتقال از سپرده به جاری پارسیان", kind: "transfer", status: "posted", source: "manual", by: "سودابه زلفی خرم", attachments: [], lines: pair("1-101-100001", "1-101-100003", 3_000_000_000, "انتقال بین حساب‌ها") },
   { id: "d38", seq: 38, m: 8, d: 14, title: "دریافت از پتروشیمی مارون", kind: "receipt", status: "posted", source: "file", by: "دستیار راستا", attachments: ["فیش-پارسیان-۷۷۲۰.jpg"], lines: pair("1-101-100001", "1-103-300014", 5_000_000_000, "دریافت از پتروشیمی مارون") },
   { id: "d37", seq: 37, m: 8, d: 13, title: "فروش محصولات به پخش البرز", kind: "general", status: "posted", source: "manual", by: "علی رضایی", attachments: ["فاکتور-۱۰۴۲.pdf"], lines: [L("1-103-300030", "فروش طی فاکتور ۱۰۴۲", 3_270_000_000), L("4-401-600001", "فروش طی فاکتور ۱۰۴۲", 0, 3_000_000_000), L("3-305-520001", "ارزش افزوده‌ی فاکتور ۱۰۴۲", 0, 270_000_000)] },
   { id: "d36", seq: 36, m: 8, d: 12, title: "اجاره‌ی دفتر مرکزی آبان", kind: "payment", status: "posted", source: "ai", by: "دستیار راستا", attachments: [], lines: pair("6-605-700020", "1-101-100002", 650_000_000, "اجاره‌ی دفتر مرکزی") },
-  { id: "d35", seq: 35, m: 8, d: 10, title: "چک دریافتی سیمان تهران", kind: "cheque", status: "posted", source: "file", by: "سارا احمدی", attachments: ["چک-صیادی-۴۴۰۱.jpg"], lines: pair("1-104-310001", "1-103-300042", 1_800_000_000, "دریافت چک صیادی ۴۴۰۱") },
+  { id: "d35", seq: 35, m: 8, d: 10, title: "چک دریافتی سیمان تهران", kind: "cheque", status: "posted", source: "file", by: "سودابه زلفی خرم", attachments: ["چک-صیادی-۴۴۰۱.jpg"], lines: pair("1-104-310001", "1-103-300042", 1_800_000_000, "دریافت چک صیادی ۴۴۰۱") },
   { id: "d34", seq: 34, m: 8, d: 9, title: "خرید ملزومات اداری", kind: "payment", status: "draft", source: "manual", by: "علی رضایی", attachments: [], lines: pair("6-607-700041", "1-101-100020", 38_500_000, "خرید ملزومات اداری") },
   { id: "d33", seq: 33, m: 8, d: 8, title: "پرداخت به تکین‌کو", kind: "payment", status: "posted", source: "ai", by: "دستیار راستا", attachments: [], lines: pair("3-301-500007", "1-101-100001", 4_000_000_000, "تسویه‌ی بخشی از بدهی تکین‌کو") },
-  { id: "d32", seq: 32, m: 8, d: 5, title: "قسط وام بانک ملت", kind: "payment", status: "posted", source: "manual", by: "سارا احمدی", attachments: [], lines: pair("3-310-530001", "1-101-100002", 850_000_000, "قسط وام") },
+  { id: "d32", seq: 32, m: 8, d: 5, title: "قسط وام بانک ملت", kind: "payment", status: "posted", source: "manual", by: "سودابه زلفی خرم", attachments: [], lines: pair("3-310-530001", "1-101-100002", 850_000_000, "قسط وام") },
   { id: "d31", seq: 31, m: 8, d: 3, title: "پذیرایی جلسه‌ی هیئت‌مدیره", kind: "payment", status: "draft", source: "voice", by: "علی رضایی", attachments: [], lines: pair("6-607-700045", "1-101-100020", 9_200_000, "پذیرایی جلسه") },
 ];
 
@@ -159,13 +159,13 @@ export function seedHistory(d: Doc): DocEvent[] {
   const h: DocEvent[] = [{ at: `${day} · ۰۹:۱۲`, who: d.by, text: how, tone: d.source === "manual" ? undefined : "ai" }];
   h.push({ at: `${day} · ۰۹:۱۳`, who: "بررسی سند", text: "تراز، حساب‌ها و تکراری‌بودن بررسی شد", tone: "ok" });
   if (d.status !== "draft") h.push({ at: `${day} · ۰۹:۱۵`, who: d.by, text: d.status === "pending" ? "برای تأیید مدیر مالی فرستاده شد" : "ثبت شد" , tone: d.status === "pending" ? "warn" : "ok" });
-  if (d.status === "posted" && d.lines[0].debit >= 500_000_000) h.push({ at: `${day} · ۱۱:۴۰`, who: "سارا احمدی", text: "تأیید کرد", tone: "ok" });
+  if (d.status === "posted" && d.lines[0].debit >= 500_000_000) h.push({ at: `${day} · ۱۱:۴۰`, who: "سودابه زلفی خرم", text: "تأیید کرد", tone: "ok" });
   return h;
 }
 
 /* ---------- people, companies, notifications ---------- */
 export const users = [
-  { name: "سارا احمدی", role: "مدیر مالی", docs: 18, last: "همین حالا", active: true },
+  { name: "سودابه زلفی خرم", role: "مدیر مالی", docs: 18, last: "همین حالا", active: true },
   { name: "علی رضایی", role: "حسابدار", docs: 27, last: "۲۰ دقیقه پیش", active: true },
   { name: "مریم کاظمی", role: "حسابدار", docs: 14, last: "دیروز", active: true },
   { name: "رضا موسوی", role: "خزانه‌دار", docs: 9, last: "۲ روز پیش", active: true },
@@ -173,7 +173,7 @@ export const users = [
 ];
 export type Company = { id: string; name: string; nid: string; year: string; role: string; docs: number; color: string };
 export const companies: Company[] = [
-  { id: "c1", name: "صنایع آریا گستر", nid: "۱۰۱۰۳۲۸۴۵۷۱", year: "۱۴۰۵", role: "مدیر مالی", docs: 312, color: "var(--ch-1)" },
+  { id: "c1", name: "الگونت", nid: "۱۰۱۰۳۲۸۴۵۷۱", year: "۱۴۰۵", role: "مدیر مالی", docs: 312, color: "var(--ch-1)" },
   { id: "c2", name: "بازرگانی نوین پارس", nid: "۱۴۰۰۶۹۱۲۳۰۸", year: "۱۴۰۵", role: "مدیر مالی", docs: 128, color: "var(--ch-2)" },
   { id: "c3", name: "پخش سپهر شرق", nid: "۱۰۸۶۱۷۷۴۹۲۳", year: "۱۴۰۴", role: "ناظر", docs: 941, color: "var(--ch-3)" },
 ];

@@ -311,7 +311,7 @@ export function Voucher() {
   const [busy, setBusy] = React.useState(false);
   const pendingText = React.useRef("");
 
-  const fresh = React.useCallback((): Doc => ({ id: `n${Date.now()}`, seq: nextSeq(), m: TODAY.m, d: TODAY.d, title: "", kind: "general", status: "draft", source: "manual", lines: [blankLine(), blankLine()], attachments: [], by: "سارا احمدی" }), [nextSeq]);
+  const fresh = React.useCallback((): Doc => ({ id: `n${Date.now()}`, seq: nextSeq(), m: TODAY.m, d: TODAY.d, title: "", kind: "general", status: "draft", source: "manual", lines: [blankLine(), blankLine()], attachments: [], by: "سودابه زلفی خرم" }), [nextSeq]);
   const [doc, setDocState] = React.useState<Doc>(() => editing ?? fresh());
   const setDoc = (fn: (d: Doc) => Doc) => setDocState(fn);
 

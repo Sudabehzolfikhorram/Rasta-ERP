@@ -104,7 +104,7 @@ function ProfileMenu() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 p-1.5">
         <div className="px-3 py-2.5">
-          <b className="block text-[14px]">سارا احمدی</b>
+          <b className="block text-[14px]">سودابه زلفی خرم</b>
           <span className="text-[12px] text-muted-foreground">مدیر مالی · {c.name}</span>
         </div>
         <div className="my-1 h-px bg-border" />

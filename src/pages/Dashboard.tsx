@@ -425,7 +425,7 @@ function CloseTile() {
     { l: "ثبت همه‌ی اسناد آبان", who: "علی رضایی", ok: false },
     { l: "مغایرت‌گیری بانک پارسیان", who: "رضا موسوی", ok: true },
     { l: "مغایرت‌گیری بانک ملت", who: "رضا موسوی", ok: false },
-    { l: "محاسبه‌ی استهلاک آبان", who: "سارا احمدی", ok: true },
+    { l: "محاسبه‌ی استهلاک آبان", who: "سودابه زلفی خرم", ok: true },
     { l: "ثبت حقوق و بیمه", who: "مریم کاظمی", ok: true },
   ]);
   const done = steps.filter((s) => s.ok).length, left = steps.length - done;
@@ -570,7 +570,7 @@ function AssistHub() {
       <div className="flex flex-wrap items-center gap-4">
         <Orb size={64} busy={voice.rec} />
         <div className="min-w-[200px] flex-1">
-          <p className="text-[13px] font-bold text-muted-foreground">صبح بخیر، سارا</p>
+          <p className="text-[13px] font-bold text-muted-foreground">صبح بخیر، سودابه</p>
           <h2 className="num mt-1 text-[21px] font-extrabold leading-9 lg:text-[23px]">
             {pending ? `${toFa(pending)} سند منتظر تأیید شماست` : "سندی منتظر تأیید نیست"}{due ? ` و ${toFa(due)} کار برای امروز دارید.` : "."}
           </h2>

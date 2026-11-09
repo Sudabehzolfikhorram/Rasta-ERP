@@ -227,10 +227,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const old = x.find((y) => y.id === d.id);
       const base = { ...d, history: old?.history ?? d.history ?? [] };
       const text = note ?? (old ? "ویرایش شد" : d.status === "draft" ? "پیش‌نویس ذخیره شد" : d.status === "pending" ? "ثبت شد و برای تأیید رفت" : "ثبت شد");
-      const next = log(base, { who: "سارا احمدی", text, tone: d.status === "pending" ? "warn" : "ok" });
+      const next = log(base, { who: "سودابه زلفی خرم", text, tone: d.status === "pending" ? "warn" : "ok" });
       return old ? x.map((y) => (y.id === d.id ? { ...next, fresh: true } : { ...y, fresh: false })) : [{ ...next, fresh: true }, ...x.map((y) => ({ ...y, fresh: false }))];
     }),
-    setDocStatus: (ids, s, note) => setDocs((x) => x.map((y) => (ids.includes(y.id) ? log({ ...y, status: s }, { who: "سارا احمدی", text: note ?? (s === "posted" ? "تأیید کرد" : s === "draft" ? "به پیش‌نویس برگرداند" : "برای تأیید فرستاد"), tone: s === "posted" ? "ok" : "warn" }) : y))),
+    setDocStatus: (ids, s, note) => setDocs((x) => x.map((y) => (ids.includes(y.id) ? log({ ...y, status: s }, { who: "سودابه زلفی خرم", text: note ?? (s === "posted" ? "تأیید کرد" : s === "draft" ? "به پیش‌نویس برگرداند" : "برای تأیید فرستاد"), tone: s === "posted" ? "ok" : "warn" }) : y))),
     nextSeq: () => Math.max(...docs.map((d) => d.seq)) + 1,
     docId, openDoc: (id) => { setDocId(id); go("doc"); },
     events,
