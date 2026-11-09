@@ -9,10 +9,13 @@ export type Pinned = { id: string; title: string; rows: [string, string][]; note
 type Toast = { id: number; text: string; tone?: "success" | "ai" };
 export type NotifKind = "approve" | "due" | "ai" | "system";
 export type Channel = "app" | "email" | "sms";
+export type PeriodState = "closed" | "open" | "future";
 export type Settings = {
   codeLen: [number, number, number]; approvalLimit: number; motion: boolean;
-  calendars: { gregorian: boolean; hijri: boolean; holidays: boolean; weekStart: "sat" | "sun" };
+  calendars: { gregorian: boolean; hijri: boolean; holidays: boolean; weekStart: "sat" | "sun"; primary: "jalali" | "gregory" };
   fiscalStart: number;
+  /** monthly periods of the current fiscal year; a suspended month (تعلیق) accepts no posting until it is lifted */
+  periods: PeriodState[]; suspended: Record<number, { reason: string; since: string }>;
   reminders: { lead: number; digest: string; tax: boolean; cheque: boolean; loan: boolean; close: boolean };
   notify: Record<NotifKind, Record<Channel, boolean>>;
 };
@@ -158,8 +161,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [widgetMap, setWidgetMap] = React.useState(loadWidgets);
   const [settings, setSettingsState] = React.useState<Settings>({
     codeLen: [1, 3, 6], approvalLimit: 500_000_000, motion: true,
-    calendars: { gregorian: true, hijri: false, holidays: true, weekStart: "sat" },
+    calendars: { gregorian: true, hijri: false, holidays: true, weekStart: "sat", primary: "jalali" },
     fiscalStart: 1,
+    periods: Array.from({ length: 12 }, (_, i) => (i < 7 ? "closed" : i === 7 ? "open" : "future")),
+    suspended: { 9: { reason: "تا پایان حسابرسی میان‌دوره‌ای", since: "۱۵ آبان" } },
     reminders: { lead: 1, digest: "۰۸:۰۰", tax: true, cheque: true, loan: true, close: true },
     notify: {
       approve: { app: true, email: true, sms: false },

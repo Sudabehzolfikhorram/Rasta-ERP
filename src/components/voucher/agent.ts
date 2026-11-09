@@ -81,7 +81,8 @@ export function understand(input: string, source = "متن"): Draft {
   const base = m ? parseFloat(m[1]) : 0;
   const mult = m?.[2] === "هزار میلیارد" ? 1e12 : m?.[2] === "میلیارد" ? 1e9 : m?.[2] === "میلیون" ? 1e6 : m?.[2] === "هزار" ? 1e3 : 1;
   const raw = base ? base * mult : null;
-  const unit = m?.[3] === "ریال" ? "rial" : m?.[3] ? "toman" : null;
+  // everything is recorded in rial: a number without a unit is read as rial, «تومان» is converted
+  const unit = m?.[3] && m[3] !== "ریال" ? "toman" : "rial";
 
   const receive = /واریز|دریافت|گرفتیم|رسید|وصول|آمد|اومد|داد(?!یم)/.test(t) && !/پرداخت|دادیم|خریدیم|خرید/.test(t);
   const transfer = /انتقال|جابه|منتقل/.test(t);
@@ -122,7 +123,6 @@ export function understand(input: string, source = "متن"): Draft {
 export function nextSlot(d: Draft, limit: number): Slot | null {
   if (!d.kind) return "kind";
   if (!d.rawAmount) return "amount";
-  if (!d.unit) return "unit";
   if (d.kind === "receipt") { if (!d.party) return "party"; if (!d.bank) return "bank"; }
   if (d.kind === "payment") { if (!d.expense && !d.party) return "expense"; if (!d.bank) return "bank"; }
   if (d.kind === "transfer") { if (!d.from) return "from"; if (!d.to) return "to"; }
@@ -136,7 +136,7 @@ export function questionFor(slot: Slot, d: Draft, limit: number): Question {
   const opt = (a: { code: string; name: string }) => ({ label: a.name, value: a.code });
   switch (slot) {
     case "kind": return { slot, ask: "پول آمد یا رفت؟", options: [{ label: "پول آمد", value: "receipt", sub: "دریافت از مشتری یا هر شخص" }, { label: "پول رفت", value: "payment", sub: "پرداخت هزینه یا بدهی" }, { label: "جابه‌جایی بین حساب‌ها", value: "transfer", sub: "مثلاً از سپرده به جاری" }] };
-    case "amount": return { slot, ask: "مبلغ چقدر بود؟", hint: "عدد را بنویسید، مثلاً ۱۲۰ میلیون", options: [], input: "amount" };
+    case "amount": return { slot, ask: "مبلغ چقدر بود؟", hint: "به ریال ثبت می‌شود؛ اگر تومان است بنویسید، مثلاً «۱۲۰ میلیون تومان»", options: [], input: "amount" };
     case "unit": return { slot, ask: `${toFa(group(d.rawAmount ?? 0))} به تومان است یا ریال؟`, hint: "سند به ریال ذخیره می‌شود", options: [{ label: "تومان", value: "toman", sub: `= ${group((d.rawAmount ?? 0) * 10)} ریال` }, { label: "ریال", value: "rial" }] };
     case "party": return { slot, ask: "از چه کسی؟", options: customers.map(opt) };
     case "bank": {
@@ -153,7 +153,7 @@ export function questionFor(slot: Slot, d: Draft, limit: number): Question {
 export function answer(d: Draft, slot: Slot, value: string): Draft {
   switch (slot) {
     case "kind": return { ...d, kind: value as Draft["kind"] };
-    case "amount": { const n = parseFloat(toEn(value).replace(/[^\d.]/g, "")); const w = toEn(value); const mult = /میلیارد/.test(w) ? 1e9 : /میلیون/.test(w) ? 1e6 : /هزار/.test(w) ? 1e3 : 1; const raw = n * mult; return { ...d, rawAmount: raw, amount: d.unit ? (d.unit === "toman" ? raw * 10 : raw) : null }; }
+    case "amount": { const n = parseFloat(toEn(value).replace(/[^\d.]/g, "")); const w = toEn(value); const mult = /میلیارد/.test(w) ? 1e9 : /میلیون/.test(w) ? 1e6 : /هزار/.test(w) ? 1e3 : 1; const raw = n * mult; const toman = /تومان|تومن/.test(w); return { ...d, rawAmount: raw, unit: toman ? "toman" : "rial", amount: toman ? raw * 10 : raw }; }
     case "unit": return { ...d, unit: value as "toman" | "rial", amount: (d.rawAmount ?? 0) * (value === "toman" ? 10 : 1) };
     case "party": return { ...d, party: value };
     case "bank": return { ...d, bank: value };

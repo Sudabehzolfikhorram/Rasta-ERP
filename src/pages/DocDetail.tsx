@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Orb } from "@/components/ai/Orb";
 import { wordsToDigits } from "@/components/voucher/agent";
-import { Attachments, docNo, docTotal, partyOf } from "@/components/voucher/VoucherEditor";
+import { ReviewDialog } from "@/components/voucher/ReviewForm";
+import { Attachments, periodBlock, docNo, docTotal, partyOf } from "@/components/voucher/VoucherEditor";
 import { Empty, statusTone } from "@/pages/Dashboard";
 
 /* ---------- the document assistant: understands a few edit requests and proposes a change ---------- */
@@ -198,18 +199,23 @@ function Lines({ doc }: { doc: Doc }) {
 export function DocDetail() {
   const { docs, docId, go, setDocStatus, toast, saveDoc, startVoucher, concept, settings, unit } = useApp();
   const doc = docs.find((d) => d.id === docId);
+  const [reviewing, setReviewing] = React.useState(false);
   if (!doc) {
     return <div className="panel"><Empty icon={FileText} title="این سند پیدا نشد" text="ممکن است حذف شده باشد یا نشانی آن اشتباه باشد." action={<Button size="sm" variant="soft" onClick={() => go("documents")}>بازگشت به اسناد</Button>} /></div>;
   }
   const no = docNo(doc.m, doc.seq);
   const total = docTotal(doc);
+  const block = doc.status !== "posted" ? periodBlock(doc.m, settings) : null;
+  const reviewDialog = <ReviewDialog doc={doc} open={reviewing} onOpenChange={setReviewing} approveLabel="تأیید و قطعی کردن" note="پیش از تأیید هر خانه‌ای را که لازم است اصلاح کنید؛ تغییرها در تاریخچه‌ی سند ثبت می‌شود."
+    onApprove={(d) => { saveDoc({ ...d, status: "posted" }, "با فرم بررسی تأیید کرد"); setReviewing(false); toast(`سند ${no} تأیید شد.`); }} />;
   const actions = (
     <div className="flex flex-wrap gap-2">
-      {doc.status === "pending" && <Button variant="success" onClick={() => { setDocStatus([doc.id], "posted"); toast(`سند ${no} تأیید شد.`); }}><CheckCheck /> تأیید سند</Button>}
-      {doc.status === "draft" && <Button onClick={() => { setDocStatus([doc.id], total > settings.approvalLimit ? "pending" : "posted", total > settings.approvalLimit ? "برای تأیید فرستاد" : "ثبت کرد"); toast(total > settings.approvalLimit ? `سند ${no} برای تأیید ارسال شد.` : `سند ${no} ثبت شد.`); }}><Send /> {total > settings.approvalLimit ? "ارسال برای تأیید" : "ثبت سند"}</Button>}
+      {doc.status === "pending" && <Button variant="success" disabled={!!block} title={block ?? undefined} onClick={() => setReviewing(true)}><CheckCheck /> بررسی و تأیید</Button>}
+      {doc.status === "draft" && <Button disabled={!!block} title={block ?? undefined} onClick={() => { setDocStatus([doc.id], total > settings.approvalLimit ? "pending" : "posted", total > settings.approvalLimit ? "برای تأیید فرستاد" : "ثبت کرد"); toast(total > settings.approvalLimit ? `سند ${no} برای تأیید ارسال شد.` : `سند ${no} ثبت شد.`); }}><Send /> {total > settings.approvalLimit ? "ارسال برای تأیید" : "ثبت سند"}</Button>}
       <Button variant="outline" onClick={() => startVoucher({ doc })}><PencilLine /> ویرایش</Button>
       {doc.status === "pending" && <Button variant="ghost" onClick={() => { setDocStatus([doc.id], "draft", "برای اصلاح به پیش‌نویس برگرداند"); toast(`سند ${no} به پیش‌نویس برگشت.`); }}><Undo2 /> برگشت برای اصلاح</Button>}
       <Button variant="outline" size="icon" aria-label="چاپ سند" onClick={() => window.print()}><Printer /></Button>
+      {reviewDialog}
     </div>
   );
   const toolbar = (
@@ -217,6 +223,7 @@ export function DocDetail() {
       <button onClick={() => go("documents")} className="flex items-center gap-1 text-[13px] font-bold text-muted-foreground hover:text-foreground"><ArrowRight className="size-4" /> اسناد</button>
       <span className="num text-[13px] text-muted-foreground" dir="ltr">{no}</span>
       <div className="ms-auto">{actions}</div>
+      {block && <p role="alert" className="num w-full rounded-field border border-warning/50 bg-warning-soft px-3 py-2 text-[12.5px] font-semibold">{block}.</p>}
     </div>
   );
   const header = (

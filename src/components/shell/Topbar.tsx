@@ -17,7 +17,7 @@ export function Segmented<T extends string>({ value, onChange, items, label, cla
           role="radio"
           aria-checked={value === v}
           onClick={() => onChange(v)}
-          className={cn("h-7 whitespace-nowrap rounded-field px-3 font-semibold text-muted-foreground transition-colors hover:text-foreground", value === v && "bg-surface text-foreground shadow-soft")}
+          className={cn("h-7 whitespace-nowrap rounded-field px-3 font-semibold text-muted-foreground transition-colors hover:text-foreground", value === v && "seg-on bg-surface text-foreground shadow-soft")}
         >
           {l}
         </button>

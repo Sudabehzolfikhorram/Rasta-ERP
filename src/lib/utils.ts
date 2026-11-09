@@ -38,3 +38,47 @@ export function words(rial: number) {
   if (r) parts.push(group(r));
   return parts.join(" و ") + " ریال";
 }
+
+/* ---------- Persian number words ---------- */
+const ONES = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"];
+const TEENS = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+const TENS = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+const HUNDREDS = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+function under1000(n: number) {
+  const parts: string[] = [];
+  const h = Math.floor(n / 100), r = n % 100;
+  if (h) parts.push(HUNDREDS[h]);
+  if (r >= 10 && r < 20) parts.push(TEENS[r - 10]);
+  else { if (Math.floor(r / 10)) parts.push(TENS[Math.floor(r / 10)]); if (r % 10) parts.push(ONES[r % 10]); }
+  return parts.join(" و ");
+}
+/** 2_500_000 → «دو میلیون و پانصد هزار» */
+export function numWords(n: number): string {
+  n = Math.floor(Math.abs(n));
+  if (!n) return "صفر";
+  const scales: [number, string][] = [[1e12, "هزار میلیارد"], [1e9, "میلیارد"], [1e6, "میلیون"], [1e3, "هزار"], [1, ""]];
+  const parts: string[] = [];
+  for (const [v, w] of scales) {
+    const k = Math.floor(n / v);
+    if (k) { parts.push(`${k >= 1000 ? numWords(k) : under1000(k)}${w ? ` ${w}` : ""}`); n -= k * v; }
+  }
+  return parts.join(" و ");
+}
+/** A rial amount read out in toman words; a thousand billion toman is «همت». */
+export function tomanWords(rial: number) {
+  const t = Math.floor(rial / 10);
+  if (!t) return "";
+  if (t >= 1e12) {
+    const h = Math.floor(t / 1e12), rest = t % 1e12;
+    return `${numWords(h)} همت${rest ? ` و ${numWords(rest)}` : ""} تومان`;
+  }
+  return `${numWords(t)} تومان`;
+}
+/** Short toman figure for big totals, e.g. 14_000_000_000_000 rial → «۱٫۴ همت» */
+export function shortToman(rial: number) {
+  const t = rial / 10;
+  if (t >= 1e12) return `${toFa((t / 1e12).toFixed(t >= 1e13 ? 0 : 1)).replace(".", "٫")} همت`;
+  if (t >= 1e9) return `${toFa((t / 1e9).toFixed(1)).replace(".0", "").replace(".", "٫")} میلیارد تومان`;
+  if (t >= 1e6) return `${toFa(Math.round(t / 1e6))} میلیون تومان`;
+  return `${group(t)} تومان`;
+}

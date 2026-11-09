@@ -16,6 +16,7 @@ export function VoiceBar({ voice, className }: { voice: Voice; className?: strin
       <span className="flex h-7 shrink-0 items-center gap-[3px]" aria-hidden>
         {voice.levels.map((l, i) => <i key={i} className="block w-[3px] rounded-full bg-current transition-[height] duration-75" style={{ height: `${Math.round(l * 100)}%` }} />)}
       </span>
+      {voice.test && <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground" title="میکروفون یا سرویس گفتار در دسترس نیست؛ یک جمله‌ی نمونه ضبط می‌شود">آزمایشی</span>}
       <span className={cn("min-w-0 flex-1 truncate text-[13.5px]", voice.live ? "font-semibold text-foreground" : "text-muted-foreground")}>{voice.live || "بگویید؛ متن همین‌جا نوشته می‌شود…"}</span>
       <Button type="button" size="sm" variant="ghost" onClick={voice.cancel} aria-label="لغو ضبط"><X /></Button>
       <Button type="button" size="sm" onClick={voice.stop}><Square className="size-3.5" /> پایان</Button>

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { AlertTriangle, CalendarDays, Check, CircleDashed, FileImage, FileText, Info, Lock, Paperclip, Plus, Scale, Sparkles, Trash2, Upload, X } from "@/components/icons";
 import { accountBy, kindLabel, type Doc, type DocKind, type DocLine } from "@/data/demo";
+import type { Settings } from "@/lib/store";
 import { cn, group, toFa } from "@/lib/utils";
 import { fmtNum, MONTHS, monthLength, TODAY, weekday, WD_SHORT } from "@/lib/jalali";
 import { Input } from "@/components/ui/input";
@@ -60,7 +61,16 @@ function DatePick({ m, d, onChange }: { m: number; d: number; onChange: (m: numb
 
 export type Check = { id: string; label: string; state: "ok" | "warn" | "bad" | "idle"; note: string; action?: { label: string; run: () => void } };
 
-export function buildChecks(doc: Doc, docs: Doc[], limit: number, dupOk: boolean, setDupOk: (v: boolean) => void, balance: () => void, toast: (t: string, tone?: "ai") => void): Check[] {
+/** Why a month cannot take postings right now, or null when it can. */
+export function periodBlock(m: number, settings: Pick<Settings, "periods" | "suspended">): string | null {
+  const sus = settings.suspended[m];
+  if (sus) return `${MONTHS[m - 1]} معلق است (${sus.reason})؛ تا رفع تعلیق سندی ثبت نمی‌شود`;
+  if (settings.periods[m - 1] === "closed") return `${MONTHS[m - 1]} بسته شده است`;
+  return null;
+}
+
+export function buildChecks(doc: Doc, docs: Doc[], settings: Pick<Settings, "approvalLimit" | "periods" | "suspended">, dupOk: boolean, setDupOk: (v: boolean) => void, balance: () => void, toast: (t: string, tone?: "ai") => void): Check[] {
+  const limit = settings.approvalLimit;
   const totalD = doc.lines.reduce((a, r) => a + r.debit, 0);
   const totalC = doc.lines.reduce((a, r) => a + r.credit, 0);
   const diff = totalD - totalC;
@@ -69,13 +79,13 @@ export function buildChecks(doc: Doc, docs: Doc[], limit: number, dupOk: boolean
   const missing = doc.lines.some((r) => (r.debit || r.credit) && !r.account);
   const dup = docs.find((x) => x.id !== doc.id && x.lines.some((l) => l.credit > 0 && doc.lines.some((m) => m.credit === l.credit && m.account === l.account)));
   const needsAtt = doc.kind === "receipt" || doc.kind === "cheque";
-  const closed = doc.m < TODAY.m;
+  const block = periodBlock(doc.m, settings);
   return [
     { id: "bal", label: "تراز", state: empty ? "idle" : balanced ? "ok" : "bad", note: empty ? "هنوز مبلغی نیست" : balanced ? "بدهکار و بستانکار برابر است" : `${toFa(group(Math.abs(diff)))} ریال اختلاف`, action: !balanced && !empty ? { label: "تراز کن", run: balance } : undefined },
     { id: "acc", label: "حساب ردیف‌ها", state: empty ? "idle" : missing ? "bad" : "ok", note: missing ? "یک ردیف حساب ندارد" : "همه‌ی ردیف‌ها حساب دارند" },
     { id: "dup", label: "تکراری", state: empty ? "idle" : dup && !dupOk ? "warn" : "ok", note: dup && !dupOk ? `شبیه سند ${docNo(dup.m, dup.seq)} است` : "سند مشابهی نیست", action: dup && !dupOk ? { label: "تکراری نیست", run: () => { setDupOk(true); toast("دلیلش در سابقه‌ی سند می‌ماند.", "ai"); } } : undefined },
     { id: "att", label: "پیوست", state: doc.attachments.length ? "ok" : needsAtt ? "warn" : "idle", note: doc.attachments.length ? `${toFa(doc.attachments.length)} فایل پیوست شده` : needsAtt ? "برای دریافت، تصویر فیش لازم است" : "اختیاری" },
-    { id: "per", label: "دوره", state: closed ? "bad" : "ok", note: closed ? `${MONTHS[doc.m - 1]} بسته شده است` : `${MONTHS[doc.m - 1]} باز است` },
+    { id: "per", label: "دوره", state: block ? "bad" : "ok", note: block ?? `${MONTHS[doc.m - 1]} باز است` },
     { id: "lim", label: "تأیید", state: totalD > limit ? "warn" : "ok", note: totalD > limit ? "بالای سقف؛ مدیر مالی تأیید می‌کند" : "زیر سقف؛ مستقیم ثبت می‌شود" },
   ];
 }

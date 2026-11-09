@@ -1,7 +1,7 @@
 import { Building2, Calendar, DocumentText, Hierarchy, MagicStar, People, TickCircle, type IconType } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { accounts, companies, sourceLabel, statusLabel, users, type DocSource, type DocStatus } from "@/data/demo";
-import { cn, toFa } from "@/lib/utils";
+import { cn, toFa, shortToman } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { Columns, Donut, Heatmap, MiniBars } from "@/components/charts";
@@ -21,7 +21,7 @@ function useOverview() {
     { icon: People, tint: "--ch-1", label: "کاربران فعال", value: `${toFa(users.filter((u) => u.active).length)} از ${toFa(users.length)}`, sub: "۴ نقش تعریف‌شده", trend: [3, 3, 4, 4, 4, 4] },
     { icon: DocumentText, tint: "--ch-2", label: "اسناد آبان", value: toFa(monthDocs), sub: `${toFa(n("pending"))} سند منتظر تأیید`, trend: [52, 61, 58, 66, 70, monthDocs] },
     { icon: Hierarchy, tint: "--ch-3", label: "حساب‌های تفصیلی", value: toFa(accounts.length), sub: "در ۸ گروه حساب", trend: [18, 20, 21, 23, 24, accounts.length] },
-    { icon: Building2, tint: "--ch-4", label: "شرکت‌ها", value: toFa(companies.length), sub: "۲ سال مالی باز", trend: [2, 2, 2, 3, 3, 3] },
+    { icon: Building2, tint: "--ch-4", label: "گردش مالی ۱۴۰۵ تا امروز", value: shortToman(13_800_000_000_000), sub: `${toFa(companies.length)} شرکت · همت = هزار میلیارد تومان`, trend: [0.6, 0.8, 0.9, 1.1, 1.25, 1.38] },
     { icon: Calendar, tint: "--ch-5", label: "یادآوری‌های باز", value: toFa(open), sub: "۳ مورد در این هفته", trend: [9, 12, 11, 14, 13, open] },
     { icon: MagicStar, tint: "--ch-6", label: "گفت‌وگو با دستیار", value: toFa(chats.length + 41), sub: "در این ماه", trend: [12, 19, 24, 30, 36, chats.length + 41] },
   ];

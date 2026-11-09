@@ -502,7 +502,7 @@ function AssistHub() {
   const { startVoucher, docs, chats, events, openAssistant, unit } = useApp();
   const [text, setText] = React.useState("");
   const attach = useAttach();
-  const voice = useVoice(React.useCallback((t: string) => setText(t), []));
+  const voice = useVoice(React.useCallback((t: string) => setText(t), []), { sample: "مانده‌ی بانک‌ها را بگو و نقدینگی تا آخر ماه را پیش‌بینی کن" });
   const pending = docs.filter((d) => d.status === "pending").length;
   const due = events.filter((e) => isToday(e.m, e.d) && !e.done).length;
   // the chips continue the latest conversation instead of repeating the same four openers

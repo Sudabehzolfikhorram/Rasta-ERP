@@ -37,6 +37,7 @@ export {
   Brush2 as Palette, Paperclip2 as Paperclip, Edit2 as PencilLine, Call as Phone, Add as Plus, Printer, RotateLeft as RotateCcw,
   Calculator as Scale, SearchNormal1 as Search, Send2 as Send, Setting2 as Settings2, ShieldTick as ShieldCheck, MagicStar as Sparkles,
   Sun1 as Sun, TimerStart as TimerReset, Trash as Trash2, Back as Undo2, User as UserRound, People as Users, Magicpen as Wand2,
+  PauseCircle, Sort,
   // extra names for v5
   Category2, FolderOpen, Wallet3, MoneyRecive, MoneySend, Bank, EmptyWallet, CardReceive, Receipt1, Messages2, Graph, ChartSquare,
   Chart, Card, MoneyChange, People, Hierarchy, StatusUp, ArrowSwapVertical, ExportCurve, TaskSquare, CalendarAdd, Setting4, Profile2User, ReceiptText, Note1, Archive, Folder2,

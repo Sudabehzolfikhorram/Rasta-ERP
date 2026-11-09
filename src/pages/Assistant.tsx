@@ -7,7 +7,7 @@ import { Orb } from "@/components/ai/Orb";
 import { MicButton, VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
 import { useVoice } from "@/lib/voice";
 import { answerFor } from "@/components/ai/CommandPalette";
-import { followUps } from "@/components/ai/followups";
+import { allSuggestions } from "@/components/ai/followups";
 import { ACCEPT } from "@/components/voucher/analyze";
 import { Empty } from "./Dashboard";
 
@@ -86,13 +86,15 @@ function Thinking() {
 }
 
 export function Assistant() {
-  const { chats, startChat, addMsg, removeChat, unit, startVoucher, chatSeed, openReport } = useApp();
+  const { chats, startChat, addMsg, removeChat, unit, startVoucher, chatSeed, openReport, concept } = useApp();
+  const bento = concept === "bento";
   const fresh = React.useRef<string | null>(null);
   const chatsRef = React.useRef(chats);
   chatsRef.current = chats;
-  const voice = useVoice(React.useCallback((t: string) => setText(t), []));
+  const voice = useVoice(React.useCallback((t: string) => setText(t), []), { sample: "مانده‌ی بانک‌ها را بگو و نقدینگی تا آخر ماه را پیش‌بینی کن" });
   const [active, setActive] = React.useState<string | null>(chatSeed?.id ?? null);
   const [text, setText] = React.useState("");
+  const [showAll, setShowAll] = React.useState(true);
   const [thinking, setThinking] = React.useState(false);
   const [q, setQ] = React.useState("");
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -153,9 +155,39 @@ export function Assistant() {
     </aside>
   );
 
+  // «پیشخوان»: chats as tabs on top, every suggestion in a side panel that follows the conversation
+  const askedNow = chat ? chat.msgs.filter((m) => m.who === "me").map((m) => m.text) : [];
+  const sugg = allSuggestions(chat ? answerFor(askedNow[askedNow.length - 1] ?? "", unit)?.id : null, askedNow);
+  const suggestPanel = (
+    <aside className="panel flex min-h-0 flex-col gap-3 overflow-y-auto p-4" aria-label="همه‌ی پیشنهادها">
+      <div className="flex items-center gap-2"><MagicStar className="size-5 text-ai" variant="Bulk" /><b className="text-[14px]">پیشنهادها</b><span className="num ms-auto text-[11.5px] text-muted-foreground">{toFa(sugg.length)}</span></div>
+      {chat && <p className="text-[12px] text-muted-foreground">بر اساس «{askedNow[askedNow.length - 1]}»</p>}
+      {[[chat ? "مرتبط با این گفت‌وگو" : "برای شروع", sugg.filter((x) => x.related)], ["همه‌ی پرسش‌ها", sugg.filter((x) => !x.related)]].map(([l, xs]) => (xs as typeof sugg).length > 0 && (
+        <div key={l as string} className="flex flex-col gap-1.5">
+          <span className="text-[11.5px] font-bold text-muted-foreground">{l as string}</span>
+          {(xs as typeof sugg).map((x) => (
+            <button key={x.text} onClick={() => send(x.text, chat ? chat.id : null)} disabled={thinking}
+              className={cn("flex items-center gap-2 rounded-field border px-3 py-2 text-start text-[12.5px] font-semibold transition-colors disabled:opacity-50", x.related ? "border-ai/40 bg-ai-soft/60 text-ai-ink hover:bg-ai-soft" : "border-border bg-surface/60 hover:border-primary/40")}>
+              <span className="min-w-0 flex-1">{x.text}</span><ArrowLeft className="size-3.5 shrink-0 opacity-60" />
+            </button>
+          ))}
+        </div>
+      ))}
+    </aside>
+  );
+  const pills = (
+    <nav className="panel flex items-center gap-1.5 overflow-x-auto p-1.5" aria-label="گفت‌وگوها">
+      <Button size="sm" onClick={() => setActive(null)} className="shrink-0"><Add /> گفت‌وگوی جدید</Button>
+      {chats.slice(0, 8).map((c) => (
+        <button key={c.id} onClick={() => setActive(c.id)} aria-current={active === c.id ? "true" : undefined}
+          className={cn("h-8 max-w-[200px] shrink-0 truncate rounded-field px-3 text-[12.5px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground", active === c.id && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary")}>{c.title}</button>
+      ))}
+    </nav>
+  );
+
   return (
-    <div className="grid gap-5 lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[290px_minmax(0,1fr)]">
-      {history}
+    <div className={cn("grid gap-5", bento ? "lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[auto_minmax(0,1fr)]" : "lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[290px_minmax(0,1fr)]")}>
+      {bento ? <div className="min-w-0 lg:col-span-2">{pills}</div> : history}
       <section className="panel edge-run flex min-h-[520px] min-w-0 flex-col overflow-hidden">
         {chat ? (
           <header className="flex items-center gap-3 border-b border-border/70 px-5 py-3">
@@ -177,13 +209,24 @@ export function Assistant() {
                 </li>
               ))}
               {thinking && <Thinking />}
-              {!thinking && chat.msgs[chat.msgs.length - 1]?.who === "ai" && (() => {
+              {!bento && !thinking && chat.msgs[chat.msgs.length - 1]?.who === "ai" && (() => {
                 const asked = chat.msgs.filter((m) => m.who === "me").map((m) => m.text);
-                const next = followUps(answerFor(asked[asked.length - 1] ?? "", unit)?.id, asked);
+                const all = allSuggestions(answerFor(asked[asked.length - 1] ?? "", unit)?.id, asked);
+                const shown = showAll ? all : all.filter((x) => x.related);
                 return (
-                  <li className="flex flex-wrap items-center gap-2 animate-rise" aria-label="پرسش‌های بعدی">
-                    <span className="text-[12px] font-semibold text-muted-foreground">بعدش بپرسید:</span>
-                    {next.map((s) => <button key={s} onClick={() => send(s, chat.id)} className="chip h-8 bg-surface text-[12.5px]">{s}</button>)}
+                  <li className="flex flex-col gap-2 animate-rise" aria-label="پرسش‌های بعدی">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-semibold text-muted-foreground">بعدش بپرسید</span>
+                      <span className="h-px flex-1 bg-border" />
+                      <button onClick={() => setShowAll(!showAll)} aria-pressed={showAll} className="text-[12px] font-bold text-primary hover:underline">{showAll ? "فقط مرتبط‌ها" : `همه‌ی پیشنهادها (${toFa(all.length)})`}</button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {shown.map((x) => (
+                        <button key={x.text} onClick={() => send(x.text, chat.id)} className={cn("chip h-8 text-[12.5px]", x.related ? "border-ai/40 bg-ai-soft/60 text-ai-ink" : "bg-surface")}>
+                          {x.related && <MagicStar className="size-3.5" />}{x.text}
+                        </button>
+                      ))}
+                    </div>
                   </li>
                 );
               })()}
@@ -220,6 +263,7 @@ export function Assistant() {
           <p className="num mt-2 text-center text-[11.5px] text-muted-foreground">{toFa(chats.length)} گفت‌وگو ذخیره شده است</p>
         </form>
       </section>
+      {bento && suggestPanel}
     </div>
   );
 }

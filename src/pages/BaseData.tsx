@@ -1,5 +1,7 @@
 import * as React from "react";
-import { Add, ChevronLeft, Sparkles, X, ArrowLeft2, ArrowSwapVertical, Bank, Call, Category2, ChevronRight, Building2, CalendarCheck2, Card, EmptyWallet, Global, Location, Lock, MoneyChange, PencilLine, People, Receipt1, Search, TaskSquare, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
+import { ChartOfAccounts } from "@/components/coding/ChartOfAccounts";
+import { BankDocs } from "@/components/docs/BankDocs";
+import { Add, ChevronLeft, Hierarchy, Sparkles, X, ArrowLeft2, ArrowSwapVertical, Bank, Call, Category2, ChevronRight, Building2, CalendarCheck2, Card, EmptyWallet, Global, Location, Lock, MoneyChange, PencilLine, People, Receipt1, Search, TaskSquare, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
 import { StatCard, type Tone } from "@/components/ui/stat";
 import { useApp } from "@/lib/store";
 import { users } from "@/data/demo";
@@ -264,6 +266,7 @@ export function BaseData() {
     </div>
   );
 
+  if (baseTab === "coding") return <ChartOfAccounts />;
   if (concept === "assist") {
     return <AssistBase tab={tab} banks={banks} branches={branches} accounts={accounts} boxes={boxes} rates={rates} hub={hub} setHub={setHub}
       setEdit={setEdit} setTab={(t) => { setHub(null); setBaseTab(t); }} addLabel={addLabel[tab]} form={edit && forms[edit.tab]} />;
@@ -340,6 +343,7 @@ export function BaseData() {
               </li>))}</ul> : <Empty icon={Building2} title="شعبه‌ای تعریف نشده" />}
           </section>
         </div>
+        <BankDocs bankName={hubBank.name} variant="table" />
         {edit && forms[edit.tab]}
       </>
     );
@@ -357,6 +361,7 @@ export function BaseData() {
               {{ home: "همه‌ی اطلاعات پایه‌ی خزانه در یک نگاه. روی هر بانک بزنید تا شعبه‌ها، حساب‌ها و دسته‌چک‌هایش را ببینید.", banks: "بانکی که در حساب‌ها استفاده شده باشد، نامش ثابت می‌ماند و حذف نمی‌شود.", branches: "هر حساب بانکی به یک شعبه وصل است.", accounts: "حساب بانکی پس از تعریف بانک و شعبه افتتاح می‌شود؛ دسته‌چک و کد تفصیلی هم همین‌جاست.", boxes: "هر صندوق فیزیکی یک صندوق در سیستم دارد؛ دسته‌چک‌ها و چک‌های دریافتی هم در صندوق نگهداری می‌شوند.", currency: "نرخ هر ارز با تاریخ اثر ثبت می‌شود و در اسناد ارزی، آخرین نرخ پیش از تاریخ سند پیشنهاد می‌شود." }[tab]}
             </p>
           </div>
+          {tab === "home" && <Button variant="outline" onClick={() => setBaseTab("coding")}><Hierarchy /> کدینگ حساب‌ها</Button>}
           <Button onClick={() => setEdit({ tab, id: null })}><Add /> {addLabel[tab]}</Button>
         </div>
         <div className={cn("grid gap-3", stats[tab].length > 3 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3")}>
@@ -527,6 +532,7 @@ type AssistProps = {
 };
 
 function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub, setEdit, setTab, addLabel, form }: AssistProps) {
+  const { setBaseTab } = useApp();
   const [open, setOpen] = React.useState<string[]>(["b1"]);
   const [ask, setAsk] = React.useState("");
   const [answer, setAnswer] = React.useState<{ text: string; ids?: string[] } | null>(null);
@@ -735,6 +741,8 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
               <I className="size-4" variant={tab === k && !hub ? "Bulk" : "Linear"} />{l}<span className="num ms-auto text-[11px] text-muted-foreground">{toFa(n)}</span>
             </button>
           ))}
+          <div className="my-2 border-t border-border/70" />
+          <button onClick={() => setBaseTab("coding")} className="flex h-9 items-center gap-2 rounded-field px-2.5 text-[13px] font-semibold hover:bg-muted"><Hierarchy className="size-4" />کدینگ حساب‌ها<span className="ms-auto text-[11px] text-muted-foreground">کل · معین · تفصیلی</span></button>
         </aside>
 
         <div className="flex min-w-0 flex-col gap-4">
@@ -763,6 +771,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
                   <h3 className="px-1 text-[15px] font-extrabold">حساب‌ها <span className="num text-[12px] font-medium text-muted-foreground">{toFa(acc.length)}</span></h3>
                   {acc.length ? <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{acc.map(accountCard)}</div> : <div className="panel"><Empty icon={Card} title="حسابی در این بانک ندارید" action={<Button size="sm" variant="soft" onClick={() => setEdit({ tab: "accounts", id: null, bank: hubBank.id })}>افتتاح حساب</Button>} /></div>}
                 </section>
+                <BankDocs bankName={hubBank.name} variant="feed" />
                 <section className="flex flex-col gap-3">
                   <h3 className="px-1 text-[15px] font-extrabold">شعبه‌ها <span className="num text-[12px] font-medium text-muted-foreground">{toFa(br.length)}</span></h3>
                   {br.length ? (

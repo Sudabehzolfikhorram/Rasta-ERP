@@ -1,9 +1,10 @@
 import * as React from "react";
-import { Add, Bell, CalendarDays, FileCog, Lock, Palette, AlarmClock, TickCircle } from "@/components/icons";
-import { useApp, type Channel, type NotifKind } from "@/lib/store";
+import { Add, Bell, CalendarDays, FileCog, Lock, Palette, AlarmClock, TickCircle, PauseCircle } from "@/components/icons";
+import { useApp, type Channel, type NotifKind, type PeriodState } from "@/lib/store";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Segmented } from "@/components/shell/Topbar";
 import { cn, toFa } from "@/lib/utils";
-import { MONTHS } from "@/lib/jalali";
+import { fmtDay, MONTHS, TODAY } from "@/lib/jalali";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -144,10 +145,16 @@ export function Settings() {
       </div>
     );
   }
+  // «دستیار»: one long page; the chips jump to a section and the summary says what is set now
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      <nav className="panel sticky top-3 z-20 flex gap-1.5 overflow-x-auto p-2" aria-label="پرش به بخش">
+        {SECTIONS.map(([id, l, I]) => (
+          <button key={id} onClick={() => { setTab(id); document.getElementById(`set-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} aria-pressed={tab === id} className="chip h-8 shrink-0 text-[12.5px]"><I className="size-3.5" />{l}</button>
+        ))}
+      </nav>
       {SECTIONS.map(([id, l, I]) => (
-        <section key={id} className="panel px-5 py-2">
+        <section key={id} id={`set-${id}`} className="panel scroll-mt-20 px-5 py-2">
           <h2 className="flex items-center gap-2 pb-1 pt-3 text-[15px] font-extrabold"><I className="size-4 text-muted-foreground" />{l}</h2>
           {body[id]}
         </section>
@@ -167,7 +174,7 @@ function FiscalYears() {
     { id: "y1404", title: "سال مالی ۱۴۰۴", start: [1404, 1, 1], end: [1404, 12, 29], state: "closed" },
     { id: "y1405", title: "سال مالی ۱۴۰۵", start: [1405, settings.fiscalStart, 1], end: [1405, 12, 29], state: "open" },
   ]);
-  const [periods, setPeriods] = React.useState<("closed" | "open" | "future")[]>(MONTHS.map((_, i) => (i < 7 ? "closed" : i === 7 ? "open" : "future")));
+  const lift = (m: number) => { const { [m]: _gone, ...rest } = settings.suspended; void _gone; setSettings({ suspended: rest }); toast(`تعلیق ${MONTHS[m - 1]} برداشته شد؛ ثبت سند دوباره ممکن است.`, "success"); };
   const [dlg, setDlg] = React.useState(false);
   const cur = years.find((y) => y.state === "open")!;
   return (
@@ -194,33 +201,74 @@ function FiscalYears() {
       <div className="rounded-[calc(var(--r-field)+4px)] border border-border bg-surface/60 p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <b className="text-[13.5px]">دوره‌های {cur.title}</b>
-          <span className="text-[12px] text-muted-foreground">برای بستن یا باز کردن، روی ماه بزنید.</span>
+          <span className="text-[12px] text-muted-foreground">برای بستن، باز کردن یا تعلیق، روی ماه بزنید.</span>
           <label className="ms-auto flex items-center gap-2 text-[12.5px]"><span className="text-muted-foreground">ماه شروع</span>
             <SimpleSelect className="w-[150px]" label="ماه شروع سال مالی" value={settings.fiscalStart} onChange={(v) => { setSettings({ fiscalStart: +v }); setYears((x) => x.map((y) => (y.id === "y1405" ? { ...y, start: [1405, +v, 1] } : y))); }} options={MONTHS.map((m, i) => [i + 1, m])} />
           </label>
         </div>
         <ol className="grid grid-cols-3 gap-1.5 sm:grid-cols-6 xl:grid-cols-12">
-          {MONTHS.map((m, i) => {
-            const st = periods[i];
-            return (
-              <li key={m}>
-                <button disabled={st === "future"} onClick={() => { setPeriods((p) => p.map((x, j) => (j === i ? (x === "closed" ? "open" : "closed") : x))); toast(`دوره‌ی ${m} ${st === "closed" ? "باز" : "بسته"} شد.`); }}
-                  className={cn("flex w-full flex-col items-center gap-1 rounded-field border px-1 py-2 text-[12px] font-bold transition-colors", st === "closed" ? "border-border bg-muted/70 text-muted-foreground" : st === "open" ? "border-success/40 bg-success-soft text-success" : "border-dashed border-border text-muted-foreground/70")}>
-                  {st === "closed" ? <Lock className="size-4" /> : st === "open" ? <TickCircle className="size-4" variant="Bulk" /> : <span className="size-4" />}
-                  {m}
-                </button>
-              </li>
-            );
-          })}
+          {MONTHS.map((m, i) => <li key={m}><PeriodCell i={i} /></li>)}
         </ol>
         <div className="mt-3 flex flex-wrap gap-4 text-[11.5px] text-muted-foreground">
           <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-[3px] bg-muted-foreground/40" />بسته</span>
           <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-[3px] bg-success" />باز</span>
+          <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-[3px] bg-warning" />معلق؛ ثبت سند متوقف است</span>
           <span className="flex items-center gap-1.5"><i className="size-2.5 rounded-[3px] border border-dashed border-muted-foreground" />آینده</span>
         </div>
+        {Object.keys(settings.suspended).length > 0 && (
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {Object.entries(settings.suspended).map(([k, v]) => (
+              <li key={k} className="num flex flex-wrap items-center gap-2 rounded-field border border-warning/40 bg-warning-soft/50 px-3 py-2 text-[12.5px]">
+                <PauseCircle className="size-4 text-warning" variant="Bulk" />
+                <b>{MONTHS[+k - 1]} معلق است</b><span className="text-muted-foreground">از {v.since} · {v.reason}</span>
+                <Button size="sm" variant="outline" className="ms-auto h-7" onClick={() => lift(+k)}>رفع تعلیق</Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {dlg && <NewFiscalYear onClose={() => setDlg(false)} onSave={(y) => { setYears((x) => [...x, y]); setDlg(false); toast(`${y.title} تعریف شد.`, "success"); }} />}
     </div>
+  );
+}
+
+/** One month of the fiscal year: open, close, suspend (تعلیق) or lift a suspension. */
+function PeriodCell({ i }: { i: number }) {
+  const { settings, setSettings, toast } = useApp();
+  const m = MONTHS[i], st = settings.periods[i], sus = settings.suspended[i + 1];
+  const [open, setOpen] = React.useState(false);
+  const [reason, setReason] = React.useState("");
+  const setState = (v: PeriodState) => { setSettings({ periods: settings.periods.map((x, j) => (j === i ? v : x)) }); toast(`دوره‌ی ${m} ${v === "open" ? "باز" : "بسته"} شد.`); setOpen(false); };
+  const suspend = () => { setSettings({ suspended: { ...settings.suspended, [i + 1]: { reason: reason.trim() || "بدون توضیح", since: fmtDay(TODAY.m, TODAY.d) } } }); toast(`${m} معلق شد؛ تا رفع تعلیق هیچ سندی در این ماه ثبت نمی‌شود.`); setOpen(false); setReason(""); };
+  const lift = () => { const { [i + 1]: _gone, ...rest } = settings.suspended; void _gone; setSettings({ suspended: rest }); toast(`تعلیق ${m} برداشته شد؛ ثبت سند دوباره ممکن است.`, "success"); setOpen(false); };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button aria-label={`دوره‌ی ${m}: ${sus ? "معلق" : st === "closed" ? "بسته" : st === "open" ? "باز" : "آینده"}`}
+          className={cn("flex w-full flex-col items-center gap-1 rounded-field border px-1 py-2 text-[12px] font-bold transition-colors focus-visible:ring-4 focus-visible:ring-ring/20",
+            sus ? "border-warning/50 bg-warning-soft text-warning" : st === "closed" ? "border-border bg-muted/70 text-muted-foreground" : st === "open" ? "border-success/40 bg-success-soft text-success" : "border-dashed border-border text-muted-foreground hover:border-primary/40")}>
+          {sus ? <PauseCircle className="size-4" variant="Bulk" /> : st === "closed" ? <Lock className="size-4" /> : st === "open" ? <TickCircle className="size-4" variant="Bulk" /> : <span className="size-4" />}
+          {m}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72">
+        <b className="block text-[14px]">دوره‌ی {m}</b>
+        <p className="num mt-0.5 text-[12px] text-muted-foreground">{sus ? `معلق از ${sus.since} · ${sus.reason}` : st === "closed" ? "بسته؛ سند جدیدی در این ماه ثبت نمی‌شود." : st === "open" ? "باز؛ ثبت سند ممکن است." : "هنوز شروع نشده."}</p>
+        {sus ? (
+          <Button className="mt-3 w-full" onClick={lift}><TickCircle /> رفع تعلیق و ادامه‌ی ثبت</Button>
+        ) : (
+          <div className="mt-3 flex flex-col gap-2">
+            {st !== "future" && <Button variant="outline" onClick={() => setState(st === "closed" ? "open" : "closed")}>{st === "closed" ? "باز کردن دوره" : "بستن دوره"}</Button>}
+            <div className="rounded-field border border-border p-2.5">
+              <label htmlFor={`sus-${i}`} className="text-[12px] font-bold">تعلیق دوره</label>
+              <p className="text-[11.5px] leading-5 text-muted-foreground">همه‌ی ثبت‌ها در این ماه متوقف می‌شود؛ بعد از رفع تعلیق، اسناد معوق ثبت می‌شوند.</p>
+              <Input id={`sus-${i}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="دلیل، مثلاً حسابرسی" className="mt-2 h-9 text-[13px]" />
+              <Button variant="outline" className="mt-2 w-full border-warning/50 text-warning hover:bg-warning-soft" onClick={suspend}><PauseCircle /> معلق کن</Button>
+            </div>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 

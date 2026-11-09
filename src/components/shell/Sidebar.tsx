@@ -1,6 +1,7 @@
-import { Bank, BarChart3, CalendarDays, Files, House, MagicStar, Settings2, type IconType } from "@/components/icons";
+import { Bank, BarChart3, ChevronDown, CalendarDays, Files, House, MagicStar, Settings2, type IconType } from "@/components/icons";
 import { useApp, type Page } from "@/lib/store";
 import { baseSections, docCats } from "@/data/demo";
+import * as React from "react";
 import { cn, toFa } from "@/lib/utils";
 import { TODAY } from "@/lib/jalali";
 import { Logo } from "./Logo";
@@ -20,28 +21,42 @@ export function Sidebar() {
     { id: "calendar", label: "تقویم", icon: CalendarDays, count: todayLeft },
     { id: "basedata", label: "اطلاعات پایه", icon: Bank },
   ];
+  // sub-menus start collapsed; the chevron opens them
+  const [openSub, setOpenSub] = React.useState<Page[]>([]);
+  const hasSub = (id: Page) => id === "documents" || id === "basedata";
+  const toggleSub = (id: Page) => setOpenSub((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
   const isActive = (id: Page) => id === page || (id === "documents" && (page === "doc" || page === "voucher"));
 
   const navBtn = (n: Item) => {
     const active = isActive(n.id);
+    const sub = hasSub(n.id), isOpen = openSub.includes(n.id);
     return (
-      <button
-        onClick={() => (n.id === "assistant" ? openAssistant() : go(n.id))}
-        aria-current={active ? "page" : undefined}
-        aria-label={n.label}
-        className={cn(
-          "relative flex h-11 w-full items-center gap-3 rounded-field px-3 text-[14px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground",
-          active && "bg-primary-soft font-bold text-primary hover:bg-primary-soft hover:text-primary",
+      <div className="relative">
+        <button
+          onClick={() => (n.id === "assistant" ? openAssistant() : go(n.id))}
+          aria-current={active ? "page" : undefined}
+          aria-label={n.label}
+          className={cn(
+            "relative flex h-11 w-full items-center gap-3 rounded-field px-3 text-[14px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground",
+            active && "bg-primary-soft font-bold text-primary hover:bg-primary-soft hover:text-primary",
+            sub && "group-hover/rail:pe-10 group-focus-within/rail:pe-10",
+          )}
+        >
+          <n.icon className="size-[22px] shrink-0" variant={active ? "Bulk" : "Linear"} />
+          <span className={reveal}>{n.label}</span>
+          {n.count ? (
+            <span className="num absolute start-7 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground transition-all group-hover/rail:static group-hover/rail:ms-auto group-hover/rail:h-5 group-hover/rail:min-w-5 group-focus-within/rail:static group-focus-within/rail:ms-auto">
+              {toFa(n.count)}
+            </span>
+          ) : null}
+        </button>
+        {sub && (
+          <button type="button" onClick={() => toggleSub(n.id)} aria-expanded={isOpen} aria-label={isOpen ? `بستن زیرمنوی ${n.label}` : `باز کردن زیرمنوی ${n.label}`}
+            className={cn(reveal, "absolute end-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground", active && "text-primary")}>
+            <ChevronDown className={cn("size-4 transition-transform", isOpen && "rotate-180")} />
+          </button>
         )}
-      >
-        <n.icon className="size-[22px] shrink-0" variant={active ? "Bulk" : "Linear"} />
-        <span className={reveal}>{n.label}</span>
-        {n.count ? (
-          <span className="num absolute start-7 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground transition-all group-hover/rail:static group-hover/rail:ms-auto group-hover/rail:h-5 group-hover/rail:min-w-5 group-focus-within/rail:static group-focus-within/rail:ms-auto">
-            {toFa(n.count)}
-          </span>
-        ) : null}
-      </button>
+      </div>
     );
   };
 
@@ -65,14 +80,14 @@ export function Sidebar() {
           {items.map((n) => (
             <div key={n.id}>
               {navBtn(n)}
-              {n.id === "documents" && (
+              {n.id === "documents" && openSub.includes("documents") && (
                 <ul className="ms-[22px] mt-0.5 hidden flex-col border-s border-border ps-2 group-hover/rail:flex group-focus-within/rail:flex" aria-label="دسته‌های اسناد">
                   {docCats.map((c) => {
                     const on = page === "documents" && docCat === c.id;
                     return (
                       <li key={c.id}>
                         <button onClick={() => setDocCat(c.id)} aria-current={on ? "page" : undefined}
-                          className={cn("flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-start text-[12.5px] text-muted-foreground hover:bg-muted/80 hover:text-foreground", on && "font-bold text-primary")}>
+                          className={cn("flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-start text-[12.5px] text-muted-foreground hover:bg-muted/80 hover:text-foreground", on && "bg-primary-soft font-bold text-primary hover:bg-primary-soft hover:text-primary")}>
                           <span className="truncate">{c.short}</span>
                           <span className="num ms-auto text-[11px]">{toFa(c.id === "acc" ? docs.length : c.count)}</span>
                         </button>
@@ -81,14 +96,14 @@ export function Sidebar() {
                   })}
                 </ul>
               )}
-              {n.id === "basedata" && (
+              {n.id === "basedata" && openSub.includes("basedata") && (
                 <ul className="ms-[22px] mt-0.5 hidden flex-col border-s border-border ps-2 group-hover/rail:flex group-focus-within/rail:flex" aria-label="بخش‌های اطلاعات پایه">
                   {baseSections.map((c) => {
                     const on = page === "basedata" && baseTab === c.id;
                     return (
                       <li key={c.id}>
                         <button onClick={() => setBaseTab(c.id)} aria-current={on ? "page" : undefined}
-                          className={cn("flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-start text-[12.5px] text-muted-foreground hover:bg-muted/80 hover:text-foreground", on && "font-bold text-primary")}>
+                          className={cn("flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-start text-[12.5px] text-muted-foreground hover:bg-muted/80 hover:text-foreground", on && "bg-primary-soft font-bold text-primary hover:bg-primary-soft hover:text-primary")}>
                           <span className="truncate">{c.label}</span>
                         </button>
                       </li>

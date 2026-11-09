@@ -11,12 +11,42 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CashChart, PairBars, RankBars, StackBars, Treemap, Waterfall } from "@/components/charts";
 import { Checkbox } from "@/components/ui/checkbox";
+import { fmtDay, MONTHS, monthLength } from "@/lib/jalali";
 import { Orb } from "@/components/ai/Orb";
 import { SystemOverview, SystemScorecard } from "@/pages/Overview";
 import { Empty } from "@/pages/Dashboard";
 
-type Period = "aban" | "mehr" | "autumn";
-const periods: [Period, string, number][] = [["aban", "آبان", 1], ["mehr", "مهر", 0.92], ["autumn", "پاییز تا امروز", 1.92]];
+type Period = "aban" | "mehr" | "autumn" | "custom";
+const periods: [Period, string, number][] = [["aban", "آبان", 1], ["mehr", "مهر", 0.92], ["autumn", "پاییز تا امروز", 1.92], ["custom", "بازه‌ی دلخواه", 1]];
+
+/* Scope of the data behind a report: any date range, time of day, who recorded it, status and source,
+   plus how rows are ordered. The demo reports are aggregates, so the scope scales them by share. */
+type Scope = { from: [number, number]; to: [number, number]; t0: string; t1: string; people: string[]; status: string[]; source: string[]; sort: "none" | "desc" | "asc" | "name"; byPerson: boolean };
+const PEOPLE: [string, number][] = [["سارا احمدی", 0.42], ["رضا موسوی", 0.27], ["علی رضایی", 0.19], ["مریم کاظمی", 0.12]];
+const STATUS: [string, string, number][] = [["posted", "تأییدشده", 0.82], ["pending", "منتظر تأیید", 0.12], ["draft", "پیش‌نویس", 0.06]];
+const SOURCE: [string, string, number][] = [["ai", "دستیار", 0.46], ["file", "مدرک", 0.21], ["voice", "صدا", 0.08], ["manual", "دستی", 0.25]];
+const HOURS = Array.from({ length: 25 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
+const SORTS: [Scope["sort"], string][] = [["none", "ترتیب گزارش"], ["desc", "بیشترین مبلغ"], ["asc", "کمترین مبلغ"], ["name", "الفبایی"]];
+const blankScope = (): Scope => ({ from: [8, 1], to: [8, 17], t0: "00:00", t1: "24:00", people: [], status: [], source: [], sort: "none", byPerson: false });
+const dayOf = ([m, d]: [number, number]) => { let s = d; for (let i = 1; i < m; i++) s += monthLength(i); return s; };
+const share = (picked: string[], all: [string, ...unknown[]][]) => (picked.length ? all.filter((x) => picked.includes(x[0])).reduce((a, x) => a + (x[x.length - 1] as number), 0) : 1);
+function scopeFactor(sc: Scope) {
+  const days = Math.max(dayOf(sc.to) - dayOf(sc.from) + 1, 0) / 30;
+  const h0 = parseInt(sc.t0, 10), h1 = parseInt(sc.t1, 10);
+  const work = Math.max(0, Math.min(h1, 18) - Math.max(h0, 8)) / 10; // almost all postings happen 8 to 18
+  return days * work * share(sc.people, PEOPLE) * share(sc.status, STATUS) * share(sc.source, SOURCE);
+}
+const scopeChips = (sc: Scope, custom: boolean) => {
+  const out: [string, Partial<Scope>][] = [];
+  if (custom) out.push([`${fmtDay(sc.from[0], sc.from[1])} تا ${fmtDay(sc.to[0], sc.to[1])}`, { from: blankScope().from, to: blankScope().to }]);
+  if (sc.t0 !== "00:00" || sc.t1 !== "24:00") out.push([`ساعت ${toFa(sc.t0)} تا ${toFa(sc.t1)}`, { t0: "00:00", t1: "24:00" }]);
+  if (sc.people.length) out.push([`ثبت‌کننده: ${sc.people.join("، ")}`, { people: [] }]);
+  if (sc.status.length) out.push([`وضعیت: ${STATUS.filter((x) => sc.status.includes(x[0])).map((x) => x[1]).join("، ")}`, { status: [] }]);
+  if (sc.source.length) out.push([`روش ثبت: ${SOURCE.filter((x) => sc.source.includes(x[0])).map((x) => x[1]).join("، ")}`, { source: [] }]);
+  if (sc.sort !== "none") out.push([`مرتب: ${SORTS.find((x) => x[0] === sc.sort)![1]}`, { sort: "none" }]);
+  if (sc.byPerson) out.push(["تفکیک بر اساس پرسنل", { byPerson: false }]);
+  return out;
+};
 type Cond = { id: number; col: string; op: ">" | "<" | "=" | "~"; val: string };
 
 const fa = (v: number) => toFa(String(+v.toFixed(2))).replace(".", "٫");
@@ -228,12 +258,22 @@ function Assistant({ onReport, onExport, onDownload, close }: { onReport: (id: s
 
 const OPS: [Cond["op"], string][] = [[">", "بیشتر از"], ["<", "کمتر از"], ["=", "برابر"], ["~", "شامل"]];
 /** Advanced filter: a roomy sheet with one card per condition, a live row count and quick presets. */
-function AdvancedFilter({ report, rows, conds, setConds }: { report: Report; rows: Row[]; conds: Cond[]; setConds: (c: Cond[]) => void }) {
+function AdvancedFilter({ report, rows, conds, setConds, scope, setScope, custom, setCustom }: { report: Report; rows: Row[]; conds: Cond[]; setConds: (c: Cond[]) => void; scope: Scope; setScope: (s: Scope) => void; custom: boolean; setCustom: (on: boolean) => void }) {
+  const [sc, setSc] = React.useState(scope);
+  const [useRange, setUseRange] = React.useState(custom);
+  const tog = (k: "people" | "status" | "source", v: string) => setSc((x) => ({ ...x, [k]: x[k].includes(v) ? x[k].filter((y) => y !== v) : [...x[k], v] }));
+  const md = (k: "from" | "to") => (
+    <div className="flex gap-1.5">
+      <SimpleSelect label={k === "from" ? "روز شروع" : "روز پایان"} className="h-9 w-[76px]" value={sc[k][1]} onChange={(v) => setSc((x) => ({ ...x, [k]: [x[k][0], +v] }))} options={Array.from({ length: monthLength(sc[k][0]) }, (_, i) => [i + 1, toFa(i + 1)])} />
+      <SimpleSelect label={k === "from" ? "ماه شروع" : "ماه پایان"} className="h-9 w-[104px]" value={sc[k][0]} onChange={(v) => setSc((x) => ({ ...x, [k]: [+v, Math.min(x[k][1], monthLength(+v))] }))} options={MONTHS.map((m, i) => [i + 1, m])} />
+    </div>
+  );
+  const scopeBad = dayOf(sc.to) < dayOf(sc.from) || sc.t1 <= sc.t0;
   const firstNum = report.cols.find((c) => c.num)?.key ?? report.cols[0].key;
   const blank = (): Cond => ({ id: Date.now(), col: firstNum, op: ">", val: "" });
   const [draft, setDraft] = React.useState<Cond[]>(conds.length ? conds : [blank()]);
   const [open, setOpen] = React.useState(false);
-  React.useEffect(() => { if (open) setDraft(conds.length ? conds : [blank()]); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { if (open) { setDraft(conds.length ? conds : [blank()]); setSc(scope); setUseRange(custom); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const live = applyConds(rows, draft.filter((c) => c.val.trim()));
   const upd = (id: number, p: Partial<Cond>) => setDraft(draft.map((x) => (x.id === id ? { ...x, ...p } : x)));
   const numCol = report.cols.filter((c) => c.num && !/٪/.test(c.label));
@@ -244,15 +284,43 @@ function AdvancedFilter({ report, rows, conds, setConds }: { report: Report; row
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button size="sm" variant={conds.length ? "soft" : "outline"}><Filter /> فیلتر پیشرفته{conds.length ? ` · ${toFa(conds.length)}` : ""}</Button>
+        <Button size="sm" variant={conds.length || scopeChips(scope, custom).length ? "soft" : "outline"}><Filter /> فیلتر پیشرفته{conds.length + scopeChips(scope, custom).length ? ` · ${toFa(conds.length + scopeChips(scope, custom).length)}` : ""}</Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[min(520px,calc(100vw-24px))] p-0" align="end">
+      <PopoverContent className="w-[min(560px,calc(100vw-24px))] p-0" align="end">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <Filter className="size-5 text-primary" variant="Bulk" />
           <b className="text-[14px]">فیلتر پیشرفته</b>
           <span className="num ms-auto rounded-full bg-muted px-2.5 py-0.5 text-[12px] font-bold">{toFa(live.length)} از {toFa(rows.length)} ردیف</span>
         </div>
-        <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto p-4">
+        <div className="flex max-h-[62vh] flex-col gap-2 overflow-y-auto p-4">
+          <fieldset className="flex flex-col gap-3 rounded-field border border-border bg-surface-2/70 p-3">
+            <legend className="px-1 text-[12px] font-bold text-muted-foreground">دامنه‌ی داده</legend>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-[12.5px] font-semibold"><Checkbox checked={useRange} onCheckedChange={(v) => setUseRange(!!v)} /> بازه‌ی تاریخ دلخواه</label>
+              {useRange && <div className="flex flex-wrap items-center gap-1.5 text-[12px]"><span className="text-muted-foreground">از</span>{md("from")}<span className="text-muted-foreground">تا</span>{md("to")}</div>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+              <span className="w-[84px] font-semibold">ساعت ثبت</span>
+              <SimpleSelect label="از ساعت" className="h-9 w-[92px]" value={sc.t0} onChange={(v) => setSc((x) => ({ ...x, t0: v }))} options={HOURS.slice(0, 24).map((h) => [h, toFa(h)])} />
+              <span className="text-muted-foreground">تا</span>
+              <SimpleSelect label="تا ساعت" className="h-9 w-[92px]" value={sc.t1} onChange={(v) => setSc((x) => ({ ...x, t1: v }))} options={HOURS.slice(1).map((h) => [h, toFa(h)])} />
+              <button className="chip h-7 text-[11.5px]" onClick={() => setSc((x) => ({ ...x, t0: "08:00", t1: "17:00" }))}>ساعت اداری</button>
+              <button className="chip h-7 text-[11.5px]" onClick={() => setSc((x) => ({ ...x, t0: "17:00", t1: "24:00" }))}>بعد از ساعت اداری</button>
+            </div>
+            {([["people", "ثبت‌کننده", PEOPLE.map((p) => [p[0], p[0]])], ["status", "وضعیت", STATUS.map((x) => [x[0], x[1]])], ["source", "روش ثبت", SOURCE.map((x) => [x[0], x[1]])]] as ["people" | "status" | "source", string, [string, string][]][]).map(([k, l, xs]) => (
+              <div key={k} className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
+                <span className="w-[84px] font-semibold">{l}</span>
+                {xs.map(([v, t]) => <button key={v} aria-pressed={sc[k].includes(v)} onClick={() => tog(k, v)} className="chip h-7 text-[12px]">{t}</button>)}
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+              <span className="w-[84px] font-semibold">مرتب‌سازی</span>
+              <SimpleSelect label="مرتب‌سازی" className="h-9 w-[150px]" value={sc.sort} onChange={(v) => setSc((x) => ({ ...x, sort: v as Scope["sort"] }))} options={SORTS} />
+              <label className="flex items-center gap-2"><Checkbox checked={sc.byPerson} onCheckedChange={(v) => setSc((x) => ({ ...x, byPerson: !!v }))} /> تفکیک بر اساس پرسنل</label>
+            </div>
+            {scopeBad && <p className="text-[12px] font-semibold text-danger">پایان بازه باید بعد از شروع آن باشد.</p>}
+          </fieldset>
+          <p className="mt-1 text-[12px] font-bold text-muted-foreground">شرط روی ستون‌ها</p>
           {presets.length > 0 && (
             <div className="mb-1 flex flex-wrap items-center gap-1.5">
               <span className="text-[11.5px] text-muted-foreground">پیشنهاد:</span>
@@ -273,7 +341,7 @@ function AdvancedFilter({ report, rows, conds, setConds }: { report: Report; row
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <div className="flex rounded-field bg-muted/80 p-0.5" role="radiogroup" aria-label="شرط">
                       {OPS.filter(([o]) => (col?.num ? o !== "~" : o === "~" || o === "=")).map(([o, l]) => (
-                        <button key={o} role="radio" aria-checked={c.op === o} onClick={() => upd(c.id, { op: o })} className={cn("h-8 rounded-[calc(var(--r-field)-2px)] px-3 text-[12px] font-semibold text-muted-foreground", c.op === o && "bg-surface text-foreground shadow-soft")}>{l}</button>
+                        <button key={o} role="radio" aria-checked={c.op === o} onClick={() => upd(c.id, { op: o })} className={cn("h-8 rounded-[calc(var(--r-field)-2px)] px-3 text-[12px] font-semibold text-muted-foreground", c.op === o && "seg-on bg-surface text-foreground shadow-soft")}>{l}</button>
                       ))}
                     </div>
                     <div className="relative min-w-[120px] flex-1">
@@ -288,8 +356,8 @@ function AdvancedFilter({ report, rows, conds, setConds }: { report: Report; row
           <button onClick={() => setDraft([...draft, blank()])} className="mt-1 flex h-10 items-center justify-center gap-1.5 rounded-field border border-dashed border-border text-[12.5px] font-bold text-primary hover:bg-primary-soft/40"><Plus className="size-4" /> افزودن شرط</button>
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
-          <Button size="sm" variant="ghost" onClick={() => { setConds([]); setDraft([blank()]); }}>پاک کردن همه</Button>
-          <Button size="sm" onClick={() => { setConds(draft.filter((c) => c.val.trim())); setOpen(false); }}>نمایش {toFa(live.length)} ردیف</Button>
+          <Button size="sm" variant="ghost" onClick={() => { setConds([]); setDraft([blank()]); setSc(blankScope()); setScope(blankScope()); setUseRange(false); setCustom(false); }}>پاک کردن همه</Button>
+          <Button size="sm" disabled={scopeBad} onClick={() => { setConds(draft.filter((c) => c.val.trim())); setScope(sc); setCustom(useRange); setOpen(false); }}>اعمال فیلترها</Button>
         </div>
       </PopoverContent>
     </Popover>
@@ -359,12 +427,21 @@ export function Reports() {
   const [id, setId] = React.useState(reportSeed ?? "overview");
   const [period, setPeriod] = React.useState<Period>("aban");
   const [conds, setConds] = React.useState<Cond[]>([]);
+  const [scope, setScope] = React.useState<Scope>(blankScope);
   const [chatOpen, setChatOpen] = React.useState(false);
   const r = reports.find((x) => x.id === id) ?? null;
-  const k = periods.find((p) => p[0] === period)![2];
+  const custom = period === "custom";
+  const k = periods.find((p) => p[0] === period)![2] * scopeFactor(custom ? scope : { ...scope, from: [8, 1], to: [8, 30] });
   const u = unitLabel(unit);
   const base = r ? scaleRows(r, k, unit === "toman") : [];
-  const rows = applyConds(base, conds);
+  const sortKey = r ? [...r.cols].reverse().find((c) => c.num && !/٪/.test(c.label))?.key : undefined;
+  const rows = (() => {
+    const xs = applyConds(base, conds);
+    if (scope.sort === "name") return [...xs].sort((a, b) => String(a.item).localeCompare(String(b.item), "fa"));
+    if (scope.sort !== "none" && sortKey) return [...xs].sort((a, b) => (scope.sort === "desc" ? 1 : -1) * ((Number(b[sortKey]) || 0) - (Number(a[sortKey]) || 0)));
+    return xs;
+  })();
+  const chips = scopeChips(scope, custom);
   const pick = React.useCallback((x: string) => { setId(x); setConds([]); }, []);
   const doDownload = React.useCallback((f: Fmt, rid: string, people: string[]) => {
     const rep = reports.find((x) => x.id === rid)!;
@@ -394,12 +471,12 @@ export function Reports() {
       {r && (
         <div className="flex rounded-[calc(var(--r-field)+4px)] bg-muted/80 p-1" role="radiogroup" aria-label="دوره">
           {periods.map(([p, l]) => (
-            <button key={p} role="radio" aria-checked={period === p} onClick={() => setPeriod(p)} className={cn("h-7 rounded-field px-3 text-[12.5px] font-semibold text-muted-foreground", period === p && "bg-surface text-foreground shadow-soft")}>{l}</button>
+            <button key={p} role="radio" aria-checked={period === p} onClick={() => { setPeriod(p); if (p === "custom" && scope.from[0] === 8 && scope.from[1] === 1) setScope({ ...scope, from: [7, 1], to: [8, 17] }); }} className={cn("h-7 rounded-field px-3 text-[12.5px] font-semibold text-muted-foreground", period === p && "seg-on bg-surface text-foreground shadow-soft")}>{l}</button>
           ))}
         </div>
       )}
       <div className="ms-auto flex flex-wrap gap-2">
-        {r && <AdvancedFilter key={r.id} report={r} rows={base} conds={conds} setConds={setConds} />}
+        {r && <AdvancedFilter key={r.id} report={r} rows={base} conds={conds} setConds={setConds} scope={scope} setScope={setScope} custom={custom} setCustom={(on) => setPeriod(on ? "custom" : "aban")} />}
         <Popover>
           <PopoverTrigger asChild><Button size="sm" variant="outline"><Download /> خروجی</Button></PopoverTrigger>
           <PopoverContent className="w-52 p-1.5" align="end">
@@ -410,8 +487,13 @@ export function Reports() {
         </Popover>
         {bento && <Button size="sm" variant="ai" onClick={() => setChatOpen(true)}><MessageSquareText /> دستیار گزارش</Button>}
       </div>
-      {r && conds.length > 0 && (
+      {r && (conds.length > 0 || chips.length > 0) && (
         <div className="flex w-full flex-wrap gap-1.5 px-2">
+          {chips.map(([l, reset]) => (
+            <span key={l} className="num flex items-center gap-1 rounded-field bg-primary-soft px-2.5 py-0.5 text-[12px] text-primary">
+              {l}<button aria-label={`حذف ${l}`} onClick={() => { if ("from" in reset) setPeriod("aban"); else setScope({ ...scope, ...reset }); }}><X className="size-3" /></button>
+            </span>
+          ))}
           {conds.map((c) => (
             <span key={c.id} className="flex items-center gap-1 rounded-field bg-primary-soft px-2.5 py-0.5 text-[12px] text-primary">
               {r.cols.find((x) => x.key === c.col)?.label} {c.op === ">" ? "بیشتر از" : c.op === "<" ? "کمتر از" : c.op === "=" ? "برابر" : "شامل"} {c.val}
@@ -425,6 +507,22 @@ export function Reports() {
 
   const barKey = r ? [...r.cols].reverse().find((c) => c.num && !/٪/.test(c.label))?.key : undefined;
   const barMax = barKey ? Math.max(...rows.map((x) => Math.abs(Number(x[barKey]) || 0)), 1) : 1;
+  const personTotal = sortKey ? rows.reduce((a, x) => a + Math.abs(Number(x[sortKey]) || 0), 0) : 0;
+  const people = PEOPLE.filter((p) => !scope.people.length || scope.people.includes(p[0]));
+  const peopleSum = people.reduce((a, p) => a + p[1], 0);
+  const byPerson = r && scope.byPerson && sortKey && (
+    <section className="panel p-5">
+      <div className="mb-3 flex items-baseline justify-between"><b className="text-[14px]">سهم هر نفر از این گزارش</b><span className="text-[12px] text-muted-foreground">بر اساس اسنادی که ثبت کرده</span></div>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {[...people].sort((a, b) => b[1] - a[1]).map(([n, w]) => (
+          <li key={n} className="num rounded-field border border-border bg-surface/60 p-3">
+            <div className="flex items-center justify-between text-[13px]"><b>{n}</b><span>{fa((personTotal * w) / peopleSum)} <span className="text-[11px] text-muted-foreground">میلیارد {u}</span></span></div>
+            <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-primary/70" style={{ width: `${(w / peopleSum) * 100}%` }} /></span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
   const table = r && rows.length > 0 && (
     <section className="panel-data overflow-hidden">
       <div className="overflow-x-auto">
@@ -469,7 +567,7 @@ export function Reports() {
   const chartCard = r && (
     <section className="panel flex flex-col p-5">
       <div className="mb-3 flex items-baseline justify-between">
-        <b className="text-[14px]">{bento ? "نمودار" : `${periods.find((p) => p[0] === period)![1]} ۱۴۰۵`}</b>
+        <b className="num text-[14px]">{bento ? "نمودار" : custom ? `${fmtDay(scope.from[0], scope.from[1])} تا ${fmtDay(scope.to[0], scope.to[1])} ۱۴۰۵` : `${periods.find((p) => p[0] === period)![1]} ۱۴۰۵`}</b>
         <span className="text-[12px] text-muted-foreground">میلیارد {u}</span>
       </div>
       {rows.length ? chart() : <Empty icon={Filter} title="با این فیلتر ردیفی باقی نمی‌ماند" action={<Button size="sm" variant="soft" onClick={() => setConds([])}>حذف فیلترها</Button>} />}
@@ -482,17 +580,19 @@ export function Reports() {
       <StatCard label="تعداد ردیف" value={toFa(rows.length)} unit={`از ${toFa(base.length)}`} icon={TaskSquare} tone="blue" progress={rows.length / Math.max(base.length, 1)} />
       <StatCard label="جمع" value={barKey ? fa(rows.reduce((a, x) => a + (Number(x[barKey]) || 0), 0)) : "—"} unit={`میلیارد ${u}`} icon={Wallet3} tone="teal" bars={barKey ? rows.slice(0, 8).map((x) => Math.abs(Number(x[barKey]) || 0)) : undefined} />
       <StatCard label="بیشترین" value={<span className="block max-w-[180px] truncate text-[18px]">{top ? String(top.item) : "—"}</span>} icon={TrendUp} tone="violet" sub={top && barKey ? `${fa(Number(top[barKey]))} میلیارد ${u}` : undefined} />
-      <StatCard label="دوره" value={periods.find((p) => p[0] === period)![1]} icon={CalendarDays} tone="sky" sub="۱۴۰۵" />
+      <StatCard label="دوره" value={custom ? <span className="text-[17px]">{fmtDay(scope.from[0], scope.from[1])} تا {fmtDay(scope.to[0], scope.to[1])}</span> : periods.find((p) => p[0] === period)![1]} icon={CalendarDays} tone="sky" sub="۱۴۰۵" />
     </div>
   );
   const body = !r ? (bento ? <SystemScorecard /> : <SystemOverview dense />) : bento ? (
     <>
       {summary}
+      {byPerson}
       <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">{table}{chartCard}</div>
     </>
   ) : (
     <>
       {chartCard}
+      {byPerson}
       {table}
     </>
   );

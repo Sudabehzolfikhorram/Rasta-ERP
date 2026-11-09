@@ -21,3 +21,11 @@ export function followUps(topic: string | null | undefined, asked: string[], n =
   for (const s of OPENERS) if (out.length < n && !seen.has(s) && !out.includes(s)) out.push(s);
   return out.slice(0, n);
 }
+
+/** Every suggestion the assistant knows, the ones that follow from this conversation first. */
+export function allSuggestions(topic: string | null | undefined, asked: string[]): { text: string; related: boolean }[] {
+  const seen = new Set(asked.map((a) => a.trim()));
+  const related = followUps(topic, asked, 3);
+  const rest = [...new Set([...Object.values(NEXT).flat(), ...OPENERS])].filter((s) => !seen.has(s) && !related.includes(s));
+  return [...related.map((text) => ({ text, related: true })), ...rest.map((text) => ({ text, related: false }))];
+}

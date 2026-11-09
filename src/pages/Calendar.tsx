@@ -43,6 +43,7 @@ export function parseReminder(s: string, base: { m: number; d: number }) {
 /* other calendars come from Intl, anchored at 1 Farvardin 1405 = 21 March 2026 */
 const toDate = (m: number, d: number) => new Date(2026, 2, 21 + dayIndex(m, d), 12);
 const greg = (m: number, d: number, withMonth = false) => new Intl.DateTimeFormat("fa-IR-u-ca-gregory", withMonth ? { day: "numeric", month: "short" } : { day: "numeric" }).format(toDate(m, d));
+const gregFull = (m: number, d: number) => new Intl.DateTimeFormat("fa-IR-u-ca-gregory", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(toDate(m, d));
 const hijri = (m: number, d: number) => new Intl.DateTimeFormat("fa-IR-u-ca-islamic-umalqura", { day: "numeric", month: "short" }).format(toDate(m, d));
 const gregRange = (m: number) => `${new Intl.DateTimeFormat("fa-IR-u-ca-gregory", { month: "long" }).format(toDate(m, 1))} تا ${new Intl.DateTimeFormat("fa-IR-u-ca-gregory", { month: "long", year: "numeric" }).format(toDate(m, monthLength(m)))}`;
 const holidayOn = (m: number, d: number) => holidays.find((h) => h.m === m && h.d === d);
@@ -67,11 +68,32 @@ const addDays = (x: Day, n: number): Day => {
 };
 
 /* ---------- create / edit dialog ---------- */
-function NewReminder({ open, onOpenChange, at }: { open: boolean; onOpenChange: (o: boolean) => void; at: Day }) {
-  const { addEvent, toast, cats, addCat } = useApp();
-  const [adding, setAdding] = React.useState(false);
-  const [newCat, setNewCat] = React.useState("");
+/** «+ دسته‌ی جدید»: name and colour; the new category joins every category list. */
+function CatAdder({ onAdded, compact }: { onAdded?: (id: string) => void; compact?: boolean }) {
+  const { addCat, toast } = useApp();
+  const [open, setOpen] = React.useState(false);
+  const [name, setName] = React.useState("");
   const [swatch, setSwatch] = React.useState(CAT_SWATCHES[0]);
+  const create = () => { const l = name.trim(); if (!l) return; const id = addCat(l, swatch); onAdded?.(id); setOpen(false); setName(""); toast(`دسته‌ی «${l}» اضافه شد.`); };
+  if (!open) return <button type="button" className={cn(compact ? "flex items-center gap-2 text-[12.5px] font-bold text-primary hover:underline" : "chip h-8 border-dashed")} onClick={() => setOpen(true)}><Plus className="size-3.5" /> دسته‌ی جدید</button>;
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-field border border-border bg-surface-2/60 p-2">
+      <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="نام دسته، مثلاً «قراردادها»" aria-label="نام دسته‌ی جدید" className="h-9 min-w-[140px] flex-1"
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); create(); } if (e.key === "Escape") { e.stopPropagation(); setOpen(false); } }} />
+      <div role="radiogroup" aria-label="رنگ دسته" className="flex items-center gap-1">
+        {CAT_SWATCHES.map((c) => (
+          <button key={c} type="button" role="radio" aria-checked={swatch === c} aria-label="رنگ" onClick={() => setSwatch(c)}
+            className={cn("size-6 rounded-full ring-offset-2 ring-offset-surface transition", swatch === c && "ring-2 ring-ring")} style={{ background: `hsl(${c})` }} />
+        ))}
+      </div>
+      <Button size="sm" type="button" onClick={create} disabled={!name.trim()}>افزودن</Button>
+      <Button size="sm" type="button" variant="ghost" onClick={() => setOpen(false)}>انصراف</Button>
+    </div>
+  );
+}
+
+function NewReminder({ open, onOpenChange, at }: { open: boolean; onOpenChange: (o: boolean) => void; at: Day }) {
+  const { addEvent, toast, cats } = useApp();
   const [title, setTitle] = React.useState("");
   const [m, setM] = React.useState(at.m);
   const [d, setD] = React.useState(at.d);
@@ -79,8 +101,7 @@ function NewReminder({ open, onOpenChange, at }: { open: boolean; onOpenChange: 
   const [cat, setCat] = React.useState<EventCat>("reminder");
   const [amount, setAmount] = React.useState(0);
   const [sentence, setSentence] = React.useState("");
-  React.useEffect(() => { if (open) { setM(at.m); setD(at.d); setTitle(""); setTime(""); setAmount(0); setSentence(""); setCat("reminder"); setAdding(false); setNewCat(""); } }, [open, at.m, at.d]);
-  const createCat = () => { const l = newCat.trim(); if (!l) return; const id = addCat(l, swatch); setCat(id); setAdding(false); setNewCat(""); toast(`دسته‌ی «${l}» اضافه شد.`); };
+  React.useEffect(() => { if (open) { setM(at.m); setD(at.d); setTitle(""); setTime(""); setAmount(0); setSentence(""); setCat("reminder"); } }, [open, at.m, at.d]);
   const fromSentence = () => { if (!sentence.trim()) return; const p = parseReminder(sentence, { m, d }); setTitle(p.title); setM(p.m); setD(p.d); if (p.time) setTime(toEn(p.time)); };
   const save = () => {
     if (!title.trim()) return;
@@ -117,22 +138,8 @@ function NewReminder({ open, onOpenChange, at }: { open: boolean; onOpenChange: 
               {cats.map((c) => (
                 <button key={c} type="button" className="chip h-8" aria-pressed={cat === c} onClick={() => setCat(c)}><i className="size-2 rounded-full" style={{ background: `hsl(${catMeta[c].color})` }} />{catMeta[c].label}</button>
               ))}
-              {!adding && <button type="button" className="chip h-8 border-dashed" onClick={() => setAdding(true)}><Plus className="size-3.5" /> دسته‌ی جدید</button>}
             </div>
-            {adding && (
-              <div className="mt-1 flex flex-wrap items-center gap-2 rounded-field border border-border bg-surface-2/60 p-2">
-                <Input value={newCat} onChange={(e) => setNewCat(e.target.value)} autoFocus placeholder="نام دسته، مثلاً «قراردادها»" aria-label="نام دسته‌ی جدید" className="h-9 min-w-[160px] flex-1"
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); createCat(); } if (e.key === "Escape") { e.stopPropagation(); setAdding(false); } }} />
-                <div role="radiogroup" aria-label="رنگ دسته" className="flex items-center gap-1">
-                  {CAT_SWATCHES.map((c) => (
-                    <button key={c} type="button" role="radio" aria-checked={swatch === c} aria-label="رنگ" onClick={() => setSwatch(c)}
-                      className={cn("size-6 rounded-full ring-offset-2 ring-offset-surface transition", swatch === c && "ring-2 ring-ring")} style={{ background: `hsl(${c})` }} />
-                  ))}
-                </div>
-                <Button size="sm" type="button" onClick={createCat} disabled={!newCat.trim()}>افزودن</Button>
-                <Button size="sm" type="button" variant="ghost" onClick={() => setAdding(false)}>انصراف</Button>
-              </div>
-            )}
+            <CatAdder onAdded={setCat} />
           </div>
           <div className="flex flex-col gap-1.5"><span className="field-label">مبلغ (اختیاری)</span><AmountInput label="مبلغ یادآوری به ریال" value={amount} onChange={setAmount} /></div>
           <p className="num text-[12px] text-muted-foreground">{fmtFull(m, Math.min(d, monthLength(m)))}{time ? ` · ساعت ${toFa(time)}` : ""} · یک روز قبل اعلان می‌آید</p>
@@ -187,11 +194,13 @@ function EventChip({ e, wide }: { e: CalEvent; wide?: boolean }) {
 
 /* ---------- mini month (side) ---------- */
 function MiniMonth({ month, setMonth, sel, onPick, has }: { month: number; setMonth: (m: number) => void; sel: Day; onPick: (d: Day) => void; has: (d: Day) => boolean }) {
+  const { settings } = useApp();
+  const gp = settings.calendars.primary === "gregory";
   const lead = weekday(month, 1);
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <b className="text-[13.5px]">{MONTHS[month - 1]} ۱۴۰۵</b>
+        <b className="num text-[13.5px]">{gp ? gregRange(month) : `${MONTHS[month - 1]} ۱۴۰۵`}</b>
         <div className="flex">
           <button aria-label="ماه قبل" disabled={month <= 7} onClick={() => setMonth(month - 1)} className="grid size-7 place-items-center rounded-full hover:bg-muted disabled:opacity-30"><ChevronRight className="size-4" /></button>
           <button aria-label="ماه بعد" disabled={month >= 12} onClick={() => setMonth(month + 1)} className="grid size-7 place-items-center rounded-full hover:bg-muted disabled:opacity-30"><ChevronLeft className="size-4" /></button>
@@ -205,7 +214,7 @@ function MiniMonth({ month, setMonth, sel, onPick, has }: { month: number; setMo
           return (
             <button key={d} onClick={() => onPick({ m: month, d })} aria-label={fmtDay(month, d)} aria-pressed={on}
               className={cn("num relative mx-auto grid size-7 place-items-center rounded-full text-[11.5px] transition-colors hover:bg-muted", off && "text-danger", on && !today && "bg-primary-soft font-bold text-primary", today && "bg-primary font-bold text-primary-foreground hover:bg-primary")}>
-              {toFa(d)}
+              {gp ? greg(month, d) : toFa(d)}
               {has({ m: month, d }) && !today && <i className="absolute bottom-0.5 size-1 rounded-full bg-primary/70" />}
             </button>
           );
@@ -216,7 +225,7 @@ function MiniMonth({ month, setMonth, sel, onPick, has }: { month: number; setMo
 }
 
 export function Calendar() {
-  const { events, calDay, concept, settings, setSettings, unit, toggleEvent, addEvent, toast } = useApp();
+  const { events, calDay, concept, settings, setSettings, unit, toggleEvent, addEvent, toast, cats } = useApp();
   const bento = concept === "bento";
   const [month, setMonth] = React.useState(calDay?.m ?? TODAY.m);
   const [mini, setMini] = React.useState(calDay?.m ?? TODAY.m);
@@ -235,6 +244,10 @@ export function Calendar() {
     if (view === "month") { const m = Math.min(Math.max(month + n, 7), 12); setMonth(m); setMini(m); }
     else pick(addDays(sel, n * 7));
   };
+  const gp = settings.calendars.primary === "gregory";
+  const calSwitch = (className?: string) => (
+    <Segmented className={className} label="تقویم اصلی" value={settings.calendars.primary} onChange={(v) => setSettings({ calendars: { ...settings.calendars, primary: v } })} items={[["jalali", "شمسی"], ["gregory", "میلادی"]]} />
+  );
   const title = view === "month" ? `${MONTHS[month - 1]} ۱۴۰۵` : (() => { const s = addDays(sel, -weekday(sel.m, sel.d)), e = addDays(s, 6); return `${fmtDay(s.m, s.d)} تا ${fmtDay(e.m, e.d)}`; })();
   const amt = (r?: number) => { if (!r) return null; const s = short(r, unit); return `${s.n} ${s.s} ${unitLabel(unit)}`; };
   const amtOf = (r: number) => amt(r) ?? "";
@@ -280,8 +293,9 @@ export function Calendar() {
                     onKeyDown={(e) => { if (e.key === "Enter") setSel({ m: month, d }); }}
                     className={cn("group relative flex min-h-[112px] cursor-pointer flex-col gap-1 border-b border-s border-border/60 p-1.5 transition-colors hover:bg-muted/40", (fri || hol) && "bg-danger-soft/25", isSel && "bg-primary-soft/50 ring-2 ring-inset ring-primary/40")}>
                     <div className="flex items-center gap-1">
-                      <span className={cn("num grid size-7 place-items-center rounded-full text-[13px] font-bold", (fri || hol) && "text-danger", isToday(month, d) && "bg-primary text-primary-foreground")}>{toFa(d)}</span>
-                      {settings.calendars.gregorian && <span className="num text-[10.5px] text-muted-foreground">{greg(month, d, d === 1)}</span>}
+                      <span className={cn("num grid size-7 place-items-center rounded-full text-[13px] font-bold", (fri || hol) && "text-danger", isToday(month, d) && "bg-primary text-primary-foreground")}>{gp ? greg(month, d) : toFa(d)}</span>
+                      {gp ? <span className="num text-[10.5px] text-muted-foreground">{d === 1 || greg(month, d) === "۱" ? fmtDay(month, d) : toFa(d)}</span>
+                        : settings.calendars.gregorian && <span className="num text-[10.5px] text-muted-foreground">{greg(month, d, d === 1 || greg(month, d) === "۱")}</span>}
                       <button aria-label={`یادآوری برای ${fmtDay(month, d)}`} onClick={(e) => { e.stopPropagation(); setCreate({ m: month, d }); }}
                         className="ms-auto grid size-6 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-surface hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"><Plus className="size-3.5" /></button>
                     </div>
@@ -396,7 +410,7 @@ export function Calendar() {
     <section className="panel p-4">
       <h3 className="mb-2.5 text-[13px] font-extrabold">تقویم‌ها</h3>
       <ul className="flex flex-col gap-2.5">
-        {(Object.keys(catMeta) as EventCat[]).map((c) => (
+        {cats.map((c) => (
           <li key={c}>
             <label className="flex cursor-pointer items-center gap-2.5 text-[13px]">
               <Checkbox color={catMeta[c].color} checked={!hidden.includes(c)} onCheckedChange={() => setHidden((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))} />
@@ -405,6 +419,7 @@ export function Calendar() {
             </label>
           </li>
         ))}
+        <li><CatAdder compact /></li>
         <li className="mt-1 border-t border-border pt-2.5">
           <label className="flex cursor-pointer items-center gap-2.5 text-[13px]">
             <Checkbox color="var(--danger)" checked={showHol} onCheckedChange={(v) => setSettings({ calendars: { ...settings.calendars, holidays: !!v } })} /> تعطیلات رسمی
@@ -448,7 +463,7 @@ export function Calendar() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex min-w-0 flex-col gap-4">
           {/* day strip */}
-          <section className="panel flex items-center gap-2 p-2">
+          <section className="panel flex flex-wrap items-center gap-2 p-2">
             <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto p-1" role="tablist" aria-label="روزهای پیش رو">
               {strip.map((d) => {
                 const off = weekday(d.m, d.d) === 6 || (showHol && !!holidayOn(d.m, d.d));
@@ -458,12 +473,13 @@ export function Calendar() {
                   <button key={`${d.m}-${d.d}`} role="tab" aria-selected={isSel} onClick={() => setSel(d)}
                     className={cn("flex w-[62px] shrink-0 flex-col items-center gap-0.5 rounded-[calc(var(--r-field)+2px)] py-2 transition-colors hover:bg-muted", isSel && "bg-primary text-primary-foreground hover:bg-primary")}>
                     <span className={cn("text-[11px] font-semibold", isSel ? "text-primary-foreground/80" : off ? "text-danger" : "text-muted-foreground")}>{isToday(d.m, d.d) ? "امروز" : WD_SHORT[weekday(d.m, d.d)]}</span>
-                    <b className={cn("num text-[18px] leading-6", !isSel && off && "text-danger")}>{toFa(d.d)}</b>
+                    <b className={cn("num text-[18px] leading-6", !isSel && off && "text-danger")}>{gp ? greg(d.m, d.d) : toFa(d.d)}</b>
                     <span className="flex h-1.5 gap-0.5">{Array.from({ length: Math.min(n, 3) }).map((_, i) => <i key={i} className={cn("size-1.5 rounded-full", isSel ? "bg-white" : "bg-primary")} />)}</span>
                   </button>
                 );
               })}
             </div>
+            {calSwitch("mx-1 shrink-0")}
           </section>
 
           {/* the selected day */}
@@ -471,8 +487,8 @@ export function Calendar() {
             <div className="flex flex-wrap items-center gap-4">
               <div className="min-w-0 flex-1">
                 <p className="text-[12.5px] font-bold text-muted-foreground">{isToday(sel.m, sel.d) ? "امروز" : relDay(sel.m, sel.d)}</p>
-                <h2 className="num text-[22px] font-extrabold">{dayLabel(sel)}</h2>
-                {subDates(sel) && <p className="num text-[12px] text-muted-foreground">{subDates(sel)}</p>}
+                <h2 className="num text-[22px] font-extrabold">{gp ? gregFull(sel.m, sel.d) : dayLabel(sel)}</h2>
+                {gp ? <p className="num text-[12px] text-muted-foreground">{dayLabel(sel)}</p> : subDates(sel) && <p className="num text-[12px] text-muted-foreground">{subDates(sel)}</p>}
               </div>
               <div className="flex items-center gap-2">
                 {list.length > 0 && (
@@ -566,10 +582,11 @@ export function Calendar() {
               <button aria-label="بعدی" onClick={() => step(1)} className="grid size-8 place-items-center rounded-full hover:bg-muted"><ChevronLeft className="size-4" /></button>
             </div>
             <div>
-              <h2 className="num text-[17px] font-extrabold leading-6">{view === "agenda" ? `از ${fmtDay(sel.m, sel.d)}` : title}</h2>
-              {settings.calendars.gregorian && view === "month" && <p className="num text-[11.5px] text-muted-foreground">{gregRange(month)}</p>}
+              <h2 className="num text-[17px] font-extrabold leading-6">{view === "agenda" ? `از ${fmtDay(sel.m, sel.d)}` : gp && view === "month" ? gregRange(month) : title}</h2>
+              {(gp || settings.calendars.gregorian) && view === "month" && <p className="num text-[11.5px] text-muted-foreground">{gp ? title : gregRange(month)}</p>}
             </div>
-            <Segmented className="ms-auto" label="نما" value={view} onChange={setView} items={[["month", "ماه"], ["week", "هفته"], ["agenda", "فهرست"]]} />
+            {calSwitch("ms-auto")}
+            <Segmented label="نما" value={view} onChange={setView} items={[["month", "ماه"], ["week", "هفته"], ["agenda", "فهرست"]]} />
             <Button size="sm" onClick={() => setCreate(sel)}><Plus /> یادآوری</Button>
           </div>
           <div className="overflow-x-auto">

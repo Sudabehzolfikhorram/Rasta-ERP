@@ -1,10 +1,11 @@
-import { cn, group, toEn, words } from "@/lib/utils";
+import { cn, group, toEn, tomanWords } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
 /** Toman equivalent of a rial amount, as a short Persian line. */
 export const tomanLine = (rial: number) => `معادل ${group(Math.round(rial / 10))} تومان`;
 
-/* Every amount field in the system: typed in rial, with the toman equivalent shown live under it. */
+/* Every amount field in the system: typed and stored in rial. Under it, for reading ease,
+   the same amount in toman, in digits and in Persian words. */
 export function AmountInput({ value, onChange, label, className, inputClassName, autoFocus, hint = true, quiet, placeholder = "۰" }: {
   value: number; onChange: (rial: number) => void; label: string; className?: string; inputClassName?: string; autoFocus?: boolean; hint?: boolean; quiet?: boolean; placeholder?: string;
 }) {
@@ -17,11 +18,12 @@ export function AmountInput({ value, onChange, label, className, inputClassName,
           className={cn("num pr-12 text-left font-bold", inputClassName)} />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11.5px] text-muted-foreground">ریال</span>
       </div>
-      {hint && (
-        <span className={cn("num min-h-[16px] truncate text-[11.5px]", value ? "text-primary" : "text-muted-foreground")} title={value ? `${words(value)} ریال` : undefined}>
-          {value ? tomanLine(value) : quiet ? "" : "معادل تومانی اینجا نمایش داده می‌شود"}
+      {hint && (value ? (
+        <span className="num flex min-w-0 flex-col text-[11.5px] leading-5" aria-live="polite">
+          <span className="font-semibold text-primary">{group(Math.round(value / 10))} تومان</span>
+          <span className="truncate text-muted-foreground" title={tomanWords(value)}>{tomanWords(value)}</span>
         </span>
-      )}
+      ) : !quiet && <span className="min-h-[16px] text-[11.5px] text-muted-foreground">مبلغ به ریال؛ معادل تومانی و به حروف این‌جا می‌آید</span>)}
     </div>
   );
 }

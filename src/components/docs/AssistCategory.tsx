@@ -2,7 +2,7 @@ import * as React from "react";
 import { ArrowDownLeft, ArrowUpLeft, Bank, CheckCheck, ChevronDown, Receipt1, ReceiptText, Search, Sparkles, X, type IconType } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { catFacet, catRows, docCats, type CatRow } from "@/data/demo";
-import { group, short, toEn, toFa } from "@/lib/utils";
+import { group, short, shortToman, toEn, toFa } from "@/lib/utils";
 import { diffDays, fmtDay, relDay, TODAY } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,7 +86,7 @@ export function AssistCategory({ cat }: { cat: string }) {
         <div className="panel"><Empty icon={Search} title="موردی با این پرسش پیدا نشد" text="جمله را کوتاه‌تر کنید یا همه را ببینید." action={<Button size="sm" variant="soft" onClick={clear}>نمایش همه</Button>} /></div>
       ) : cat === "cheque" ? <ChequeLanes rows={rows} />
         : cat === "bank" ? <Statements rows={rows} onOpen={(r) => toast(`تطبیق «${r.title}» در نسخه‌ی بعد فعال می‌شود.`)} />
-        : <Feed rows={rows} cat={cat} onOpen={(r) => toast(`جزئیات «${r.title}» در نسخه‌ی بعد فعال می‌شود.`)} />}
+        : <>{cat === "treasury" && <FlowRiver rows={rows} />}<Feed rows={rows} cat={cat} onOpen={(r) => toast(`جزئیات «${r.title}» در نسخه‌ی بعد فعال می‌شود.`)} /></>}
     </div>
   );
 }
@@ -136,6 +136,31 @@ function Insight({ cat, rows, onAsk, onAct }: { cat: string; rows: CatRow[]; onA
 }
 
 /* treasury + invoices: day-by-day feed, money in and out read by direction */
+/* treasury: money in above the line, money out below it, one column per day */
+function FlowRiver({ rows }: { rows: CatRow[] }) {
+  const days = Array.from({ length: 17 }, (_, i) => i + 1);
+  const isIn = (r: CatRow) => r.kind === "دریافت";
+  const inOf = (d: number) => rows.filter((r) => r.day === d && isIn(r)).reduce((a, r) => a + r.rial, 0);
+  const outOf = (d: number) => rows.filter((r) => r.day === d && !isIn(r)).reduce((a, r) => a + r.rial, 0);
+  const max = Math.max(...days.map((d) => Math.max(inOf(d), outOf(d))), 1);
+  const tin = days.reduce((a, d) => a + inOf(d), 0), tout = days.reduce((a, d) => a + outOf(d), 0);
+  return (
+    <section className="panel p-5" aria-label="جریان دریافت و پرداخت آبان">
+      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+        <b className="text-[15px]">جریان آبان</b>
+        <span className="num text-[12.5px]"><i className="me-1.5 inline-block size-2 rounded-full bg-ch-2" />ورودی {shortToman(tin)}</span>
+        <span className="num text-[12.5px]"><i className="me-1.5 inline-block size-2 rounded-full bg-ch-3" />خروجی {shortToman(tout)}</span>
+        <span className="num ms-auto text-[12.5px] text-muted-foreground">خالص <b className="text-foreground" dir="ltr">{tin >= tout ? "+" : "−"}{shortToman(Math.abs(tin - tout))}</b></span>
+      </div>
+      <div className="mt-4 grid h-[150px] grid-rows-2 gap-px" dir="rtl">
+        <div className="flex items-end gap-1.5 border-b border-border">{days.map((d) => <span key={d} title={`${fmtDay(8, d)}: ${group(inOf(d))} ریال`} className="flex-1 rounded-t-[4px] bg-ch-2/80 transition-[height]" style={{ height: `${(inOf(d) / max) * 100}%` }} />)}</div>
+        <div className="flex items-start gap-1.5">{days.map((d) => <span key={d} title={`${fmtDay(8, d)}: ${group(outOf(d))} ریال`} className="flex-1 rounded-b-[4px] bg-ch-3/80" style={{ height: `${(outOf(d) / max) * 100}%` }} />)}</div>
+      </div>
+      <div className="num mt-1.5 flex justify-between text-[11px] text-muted-foreground"><span>۱ آبان</span><span>امروز، ۱۷ آبان</span></div>
+    </section>
+  );
+}
+
 function Feed({ rows, cat, onOpen }: { rows: CatRow[]; cat: string; onOpen: (r: CatRow) => void }) {
   const [limit, setLimit] = React.useState(8);
   React.useEffect(() => setLimit(8), [rows.length]);
@@ -159,8 +184,8 @@ function Feed({ rows, cat, onOpen }: { rows: CatRow[]; cat: string; onOpen: (r: 
                       <b className="block truncate text-[14px]">{r.title}</b>
                       <span className="num text-[12px] text-muted-foreground">{r.party} · {r.kind} · {r.no}</span>
                     </span>
-                    <span className="num text-end">
-                      <b dir="ltr" className="block text-[15px]" style={{ color: `hsl(var(${c}))` }}>{isIn(r) ? "+" : "−"}{group(r.rial)}</b>
+                    <span className="num flex items-baseline gap-1 text-end">
+                      <b dir="ltr" className="text-[15px]" style={{ color: `hsl(var(${c}))` }}>{isIn(r) ? "+" : "−"}{group(r.rial)}</b>
                       <span className="text-[11px] text-muted-foreground">ریال</span>
                     </span>
                     <Badge tone={r.tone}>{r.state}</Badge>

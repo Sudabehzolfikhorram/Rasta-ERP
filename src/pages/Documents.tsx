@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, Bank, CheckCheck, FileText, Wallet3, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "@/components/icons";
+import { AlertTriangle, ArrowDownLeft, ArrowUpLeft, Bank, CheckCheck, FileText, Wallet3, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { accounts, catFacet, catRows, docCats, kindLabel, sourceLabel, statusLabel, type Doc, type DocKind, type DocStatus } from "@/data/demo";
 import { DataTable, Pager, usePager } from "@/components/ui/data-table";
@@ -324,6 +324,17 @@ function CategoryList({ cat }: { cat: string }) {
   const byFacet = opts.map((o) => all.filter((r) => r.kind === o).reduce((a, r) => a + (r.rial || 1), 0));
   return (
     <div className="flex flex-col gap-4">
+    {cat === "treasury" ? (() => {
+      const tin = all.filter((r) => r.kind === "دریافت").reduce((a, r) => a + r.rial, 0), tout = all.filter((r) => r.kind === "پرداخت").reduce((a, r) => a + r.rial, 0);
+      return (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="دریافت‌ها" value={short(tin, unit).n} unit={`${short(tin, unit).s} ${unitLabel(unit)}`} icon={ArrowDownLeft} tone="teal" sub={`${toFa(all.filter((r) => r.kind === "دریافت").length)} سند`} bars={all.filter((r) => r.kind === "دریافت").map((r) => r.rial)} />
+          <StatCard label="پرداخت‌ها" value={short(tout, unit).n} unit={`${short(tout, unit).s} ${unitLabel(unit)}`} icon={ArrowUpLeft} tone="violet" sub={`${toFa(all.filter((r) => r.kind === "پرداخت").length)} سند`} bars={all.filter((r) => r.kind === "پرداخت").map((r) => r.rial)} />
+          <StatCard label="خالص جریان" value={`${tin >= tout ? "+" : "−"}${short(Math.abs(tin - tout), unit).n}`} unit={`${short(Math.abs(tin - tout), unit).s} ${unitLabel(unit)}`} icon={Wallet3} tone="blue" progress={tin / Math.max(tin + tout, 1)} sub="سهم دریافت از کل گردش" />
+          <StatCard label="در انتظار سند" value={toFa(warnN)} icon={AlertTriangle} tone="amber" sub="بدون سند حسابداری" />
+        </div>
+      );
+    })() : (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <StatCard label={meta.label} value={toFa(all.length)} unit="مورد" icon={FileText} tone="blue" sub={`آبان ۱۴۰۵`} />
       {tot > 0 ? <StatCard label="جمع مبالغ" value={short(tot, unit).n} unit={`${short(tot, unit).s} ${unitLabel(unit)}`} icon={Wallet3} tone="violet" bars={byFacet} sub={opts.join(" / ")} />
@@ -331,6 +342,7 @@ function CategoryList({ cat }: { cat: string }) {
       <StatCard label="انجام‌شده" value={toFa(okN)} unit={`از ${toFa(all.length)}`} icon={CheckCheck} tone="teal" progress={okN / Math.max(all.length, 1)} />
       <StatCard label="نیازمند پیگیری" value={toFa(warnN)} icon={AlertTriangle} tone="amber" sub={[...new Set(all.filter((r) => r.tone === "warning").map((r) => r.state))].join("، ") || "موردی نیست"} />
     </div>
+    )}
     <div className="grid gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
       <aside className="panel flex h-fit flex-col gap-4 p-4 lg:sticky lg:top-4" aria-label={`فیلتر ${meta.label}`}>
         <div>

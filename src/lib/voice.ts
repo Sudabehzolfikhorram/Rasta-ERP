@@ -27,7 +27,15 @@ const ERR: Record<string, string> = {
   network: "تبدیل گفتار به اینترنت نیاز دارد.",
 };
 
-export function useVoice(onDone: (text: string) => void, { maxMs = 60000 } = {}) {
+const DEMO = "دیروز دوازده میلیون تومان کرایه‌ی حمل بار به اصفهان از صندوق دادیم";
+
+/* Test mode: when the browser has no recognizer, the microphone is blocked or the speech service
+   is unreachable, the bar still behaves like a recording. The waveform moves and a sample sentence
+   is written word by word, so the whole flow can be tried. The bar labels it «آزمایشی».
+   For now this test mode is the default; pass { real: true } to use the browser recognizer. */
+export function useVoice(onDone: (text: string) => void, { maxMs = 60000, sample = DEMO, real = false } = {}) {
+  const [test, setTest] = React.useState(false);
+  const sim = React.useRef<number>();
   const [rec, setRec] = React.useState(false);
   const [live, setLive] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -44,6 +52,7 @@ export function useVoice(onDone: (text: string) => void, { maxMs = 60000 } = {})
 
   const cleanup = React.useCallback(() => {
     clearTimeout(timer.current);
+    clearInterval(sim.current);
     if (raf.current) cancelAnimationFrame(raf.current);
     stream.current?.getTracks().forEach((t) => t.stop());
     stream.current = null;
@@ -81,11 +90,30 @@ export function useVoice(onDone: (text: string) => void, { maxMs = 60000 } = {})
     } catch { /* the recognizer reports permission problems itself */ }
   };
 
+  const simulate = () => {
+    cleanup();
+    setTest(true); setRec(true); setError(null);
+    const words = sample.split(" ");
+    let t = 0, phase = 0;
+    lastText.current = ""; setLive("");
+    sim.current = window.setInterval(() => {
+      t += 1; phase += 0.45;
+      // a voice-like envelope: syllable bumps on top of slow breathing, with short pauses between words
+      const pause = t % 9 === 0;
+      setLevels(Array.from({ length: 18 }, (_, i) => pause ? 0.14 : Math.max(0.12, Math.min(1, 0.35 + 0.35 * Math.sin(phase + i * 0.7) * Math.sin(phase * 0.37 + i) + Math.random() * 0.3))));
+      if (t % 4 === 0) {
+        const n = Math.min(words.length, t / 4);
+        lastText.current = words.slice(0, n).join(" "); setLive(lastText.current);
+        if (n >= words.length) { clearInterval(sim.current); timer.current = window.setTimeout(() => finish(), 700); }
+      }
+    }, 90);
+  };
+
   const start = () => {
-    setError(null);
+    setError(null); setTest(false);
     const W = window as unknown as { SpeechRecognition?: Ctor; webkitSpeechRecognition?: Ctor };
     const C = W.SpeechRecognition ?? W.webkitSpeechRecognition;
-    if (!C) { setError("این مرورگر تبدیل گفتار به متن ندارد. Chrome، Edge یا Safari را امتحان کنید."); return; }
+    if (!C || !real) { simulate(); return; } // the prototype runs in test mode unless `real` is asked for
     finalText.current = ""; lastText.current = "";
     try {
       const s = new C();
@@ -100,18 +128,19 @@ export function useVoice(onDone: (text: string) => void, { maxMs = 60000 } = {})
         lastText.current = `${finalText.current}${interim}`;
         setLive(lastText.current);
       };
-      s.onerror = (e) => { if (e.error !== "aborted") setError(ERR[e.error] ?? "تبدیل گفتار انجام نشد."); };
-      s.onend = () => { r.current = null; finish(); };
+      let failed = false;
+      s.onerror = (e) => { if (e.error !== "aborted" && e.error !== "no-speech") failed = true; else if (e.error === "no-speech") setError(ERR["no-speech"]); };
+      s.onend = () => { r.current = null; if (failed) simulate(); else finish(); };
       r.current = s;
       s.start();
       setRec(true);
       meter();
       timer.current = window.setTimeout(() => r.current?.stop(), maxMs);
-    } catch { r.current = null; setError("تبدیل گفتار شروع نشد."); }
+    } catch { r.current = null; simulate(); }
   };
-  const stop = () => { if (r.current) r.current.stop(); else finish(); };
+  const stop = () => { if (r.current) r.current.stop(); else { if (test) lastText.current = sample; finish(); } };
   const cancel = () => { lastText.current = ""; if (r.current) { r.current.onend = null; r.current.abort(); r.current = null; } cleanup(); setRec(false); setLive(""); };
 
   React.useEffect(() => () => { r.current?.abort(); cleanup(); }, [cleanup]);
-  return { rec, live, error, levels, start, stop, cancel, clearError: () => setError(null) };
+  return { rec, live, error, levels, test, start, stop, cancel, clearError: () => setError(null) };
 }

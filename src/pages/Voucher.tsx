@@ -1,9 +1,9 @@
 import * as React from "react";
-import { ArrowLeft, Check, FileImage, FileSpreadsheet, FileText, Keyboard, Mic, Paperclip, PencilLine, RotateCcw, Send, Upload, Wand2, X } from "@/components/icons";
+import { ArrowLeft, Check, PauseCircle, ShieldCheck, FileImage, FileSpreadsheet, FileText, Keyboard, Mic, Paperclip, PencilLine, RotateCcw, Send, Upload, Wand2, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
-import { accountBy, type Doc } from "@/data/demo";
+import { type Doc } from "@/data/demo";
 import { cn, group, toFa } from "@/lib/utils";
-import { fmtDay, TODAY } from "@/lib/jalali";
+import { fmtDay, MONTHS, TODAY } from "@/lib/jalali";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/shell/Topbar";
 import { useVoice } from "@/lib/voice";
@@ -11,6 +11,7 @@ import { VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
 import { Orb } from "@/components/ai/Orb";
 import { answer, facts, linesFor, nextSlot, questionFor, understand, type Draft, type Slot } from "@/components/voucher/agent";
 import { ACCEPT, analyzeFile, sampleReceipt, type Analysis } from "@/components/voucher/analyze";
+import { ReviewDialog, ReviewForm } from "@/components/voucher/ReviewForm";
 import { balanceDoc, blankLine, buildChecks, ChecksList, docBalanced, docNo, docTotal, VoucherEditor } from "@/components/voucher/VoucherEditor";
 
 type Phase = "input" | "reading" | "asking" | "review";
@@ -198,69 +199,16 @@ function Reading({ via, file, onDone, compact }: { via: Via; file: Analysis | nu
 }
 
 /* ---------- asking: one question at a time ---------- */
-/** Above the approval limit: show the whole voucher as it will be saved, then ask for a decision. */
-function LimitReview({ draft, limit, onAnswer, seq }: { draft: Draft; limit: number; onAnswer: (v: string) => void; seq: number }) {
-  const { title, lines } = linesFor(draft);
-  const total = lines.reduce((a, l) => a + l.debit, 0);
-  const kindFa = draft.kind === "receipt" ? "دریافت" : draft.kind === "payment" ? "پرداخت" : "انتقال";
-  const party = accountBy(draft.party)?.name ?? accountBy(draft.expense)?.name ?? "—";
-  const head: [string, string][] = [
-    ["شماره‌ی سند", docNo(draft.day.m, seq)], ["تاریخ", fmtDay(draft.day.m, draft.day.d)], ["نوع سند", kindFa],
-    ["طرف حساب", party], ["منبع", draft.source || "متن"], ["ثبت‌کننده", "سارا احمدی"],
-  ];
+/** Above the approval limit: the whole voucher as an editable approval form, instead of a yes/no question. */
+function LimitForm({ base, onApprove, onEdit }: { base: Doc; onApprove: (d: Doc) => void; onEdit: () => void }) {
+  const [doc, setDoc] = React.useState(base);
   return (
-    <section className="panel overflow-hidden" aria-live="polite">
-      <div className="flex items-start gap-3 border-b border-border/70 p-5">
-        <Orb size={32} />
-        <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-extrabold">سند را بررسی و تأیید کنید</p>
-          <p className="num mt-0.5 text-[12.5px] text-muted-foreground">مبلغ از سقف تأیید ({toFa(group(limit))} ریال) بیشتر است. بعد از ثبت، سند برای تأیید مدیر مالی می‌رود.</p>
-        </div>
-        <span className="rounded-full bg-warning-soft px-2.5 py-1 text-[11.5px] font-bold text-warning">نیاز به تأیید مدیر</span>
-      </div>
-      <div className="flex flex-col gap-4 p-5">
-        <div>
-          <span className="field-label">شرح سند</span>
-          <p className="mt-1 text-[15px] font-bold">{title}</p>
-        </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-field bg-muted/40 p-4 sm:grid-cols-3">
-          {head.map(([k, v]) => <div key={k}><dt className="text-[11.5px] text-muted-foreground">{k}</dt><dd className="num mt-0.5 text-[13.5px] font-semibold">{v}</dd></div>)}
-        </dl>
-        <div className="overflow-hidden rounded-field border border-border">
-          <table className="w-full text-[13px]">
-            <thead><tr className="bg-muted/60 text-[12px] text-muted-foreground">
-              <th className="px-4 py-2.5 text-start font-semibold">کد حساب</th><th className="px-2 py-2.5 text-start font-semibold">حساب</th>
-              <th className="hidden px-2 py-2.5 text-start font-semibold sm:table-cell">شرح ردیف</th><th className="px-2 py-2.5 text-end font-semibold">بدهکار</th><th className="px-4 py-2.5 text-end font-semibold">بستانکار</th>
-            </tr></thead>
-            <tbody>
-              {lines.map((l) => (
-                <tr key={l.id} className="border-t border-border/70">
-                  <td className="num px-4 py-3 text-muted-foreground" dir="ltr" style={{ textAlign: "right" }}>{toFa(l.account ?? "")}</td>
-                  <td className="px-2 py-3 font-semibold">{accountBy(l.account)?.name}</td>
-                  <td className="hidden px-2 py-3 text-muted-foreground sm:table-cell">{l.desc}</td>
-                  <td className="num px-2 py-3 text-end font-bold">{l.debit ? toFa(group(l.debit)) : "—"}</td>
-                  <td className="num px-4 py-3 text-end font-bold">{l.credit ? toFa(group(l.credit)) : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot><tr className="border-t border-border bg-surface-2/70 text-[12.5px]">
-              <td colSpan={3} className="px-4 py-2.5"><span className="flex items-center gap-1.5 font-semibold text-success"><Check className="size-3.5" /> سند تراز است</span></td>
-              <td className="num px-2 py-2.5 text-end font-extrabold">{toFa(group(total))}</td><td className="num px-4 py-2.5 text-end font-extrabold">{toFa(group(total))}</td>
-            </tr></tfoot>
-          </table>
-        </div>
-        <p className="num text-[12px] text-muted-foreground">معادل {toFa(group(total / 10))} تومان · ذخیره و چاپ به ریال</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 border-t border-border/70 bg-surface-2/50 px-5 py-4">
-        <Button onClick={() => onAnswer("ok")}><Check /> تأیید و ادامه</Button>
-        <Button variant="outline" onClick={() => onAnswer("edit")}><PencilLine /> تغییر مبلغ</Button>
-      </div>
-    </section>
+    <ReviewForm doc={doc} setDoc={(fn) => setDoc(fn)} onApprove={() => onApprove(doc)} onCancel={onEdit} cancelLabel="تغییر مبلغ" approveLabel="تأیید و ادامه"
+      note="مبلغ از سقف تأیید بیشتر است. هر خانه را می‌توانید همین‌جا اصلاح کنید؛ بعد از ثبت، سند برای تأیید مدیر مالی می‌رود." />
   );
 }
 
-function Ask({ draft, slot, limit, onAnswer, history, inline, seq = 0 }: { draft: Draft; slot: Slot; limit: number; onAnswer: (v: string) => void; history: string[]; inline?: boolean; seq?: number }) {
-  if (slot === "limit" && !inline) return <LimitReview draft={draft} limit={limit} onAnswer={onAnswer} seq={seq} />;
+function Ask({ draft, slot, limit, onAnswer, history, inline }: { draft: Draft; slot: Slot; limit: number; onAnswer: (v: string) => void; history: string[]; inline?: boolean }) {
   return <AskCard draft={draft} slot={slot} limit={limit} onAnswer={onAnswer} history={history} inline={inline} />;
 }
 function AskCard({ draft, slot, limit, onAnswer, history, inline }: { draft: Draft; slot: Slot; limit: number; onAnswer: (v: string) => void; history: string[]; inline?: boolean }) {
@@ -349,7 +297,7 @@ function SmartFill({ onSubmit, onFile, busy, file, seed }: { onSubmit: (t: strin
 }
 
 export function Voucher() {
-  const { voucherSeed, toast, docs, saveDoc, nextSeq, settings, concept, openDoc } = useApp();
+  const { voucherSeed, toast, docs, saveDoc, nextSeq, settings, concept, openDoc, go } = useApp();
   const bento = concept === "bento";
   const editing = voucherSeed?.doc ?? null;
   const [mode, setMode] = React.useState<"ai" | "manual">(editing || voucherSeed?.manual ? "manual" : "ai");
@@ -373,6 +321,7 @@ export function Voucher() {
     const { title, lines } = linesFor(d);
     setDocState((x) => ({ ...x, title, lines, kind: d.kind ?? "general", m: d.day.m, d: d.day.d, source: v === "file" ? "file" : v === "voice" ? "voice" : "ai", attachments: f ? [...new Set([...x.attachments, f.name])] : x.attachments }));
   }, []);
+  const docFrom = (d: Draft): Doc => { const { title, lines } = linesFor(d); return { ...doc, title, lines, kind: d.kind ?? "general", m: d.day.m, d: d.day.d, source: via === "file" ? "file" : via === "voice" ? "voice" : "ai", attachments: file ? [...new Set([...doc.attachments, file.name])] : doc.attachments }; };
   const toReview = React.useCallback((d: Draft) => { fill(d, via, file); setPhase("review"); }, [fill, via, file]);
 
   const submit = React.useCallback((t: string, v: Via) => {
@@ -425,14 +374,16 @@ export function Voucher() {
   const restart = () => { setPhase(bento ? "review" : "input"); setDraft(null); setFile(null); setHistory([]); setDocState(fresh()); setDupOk(false); pendingText.current = ""; };
 
   const total = docTotal(doc);
-  const checks = buildChecks(doc, docs, settings.approvalLimit, dupOk, setDupOk, () => setDocState(balanceDoc), toast);
+  const checks = buildChecks(doc, docs, settings, dupOk, setDupOk, () => setDocState(balanceDoc), toast);
   const blocking = checks.some((c) => c.state === "bad");
   const ok = docBalanced(doc) && !blocking;
 
-  const save = (asDraft: boolean) => {
-    const status: Doc["status"] = asDraft ? "draft" : total > settings.approvalLimit ? "pending" : "posted";
-    const title = doc.title.trim() || "سند بدون شرح";
-    saveDoc({ ...doc, title, status, source: mode === "manual" && !editing && !draft ? "manual" : doc.source });
+  const [reviewOpen, setReviewOpen] = React.useState(false);
+  const [bentoTab, setBentoTab] = React.useState<"edit" | "review">("edit");
+  const save = (asDraft: boolean, from: Doc = doc) => {
+    const status: Doc["status"] = asDraft ? "draft" : docTotal(from) > settings.approvalLimit ? "pending" : "posted";
+    const title = from.title.trim() || "سند بدون شرح";
+    saveDoc({ ...from, title, status, source: mode === "manual" && !editing && !draft ? "manual" : from.source });
     toast(asDraft ? `پیش‌نویس ${docNo(doc.m, doc.seq)} ذخیره شد.` : status === "pending" ? `سند ${docNo(doc.m, doc.seq)} ثبت شد و برای تأیید مدیر مالی ارسال شد.` : `سند ${docNo(doc.m, doc.seq)} ثبت شد.`);
     openDoc(doc.id);
   };
@@ -455,12 +406,26 @@ export function Voucher() {
       {total > settings.approvalLimit && ok && <p className="num text-center text-[11.5px] text-muted-foreground">مبلغ بالاتر از سقف {group(settings.approvalLimit)} ریال است.</p>}
     </section>
   );
+  const sus = settings.suspended[doc.m];
+  const suspendBanner = sus && (
+    <div role="alert" className="flex flex-wrap items-center gap-3 rounded-[var(--radius)] border border-warning/50 bg-warning-soft px-4 py-3 text-[13.5px]">
+      <PauseCircle className="size-5 shrink-0 text-warning" variant="Bulk" />
+      <span className="min-w-[200px] flex-1"><b>دوره‌ی {MONTHS[doc.m - 1]} معلق است.</b> <span className="text-muted-foreground">{sus.reason}. تا رفع تعلیق فقط می‌توانید پیش‌نویس ذخیره کنید.</span></span>
+      <Button size="sm" variant="outline" onClick={() => go("settings")}>تنظیمات سال مالی</Button>
+    </div>
+  );
+  const okCount = checks.filter((c) => c.state === "ok").length;
   const guard = (
     <section data-tour="guard" className="panel p-5">
-      <h3 className="mb-3 text-[15px] font-extrabold">بررسی سند</h3>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-[15px] font-extrabold">بررسی سند</h3>
+        <span className="num text-[12px] text-muted-foreground">{toFa(okCount)} از {toFa(checks.length)}</span>
+      </div>
       <ChecksList checks={checks} compact />
+      <Button variant="outline" className="mt-3 w-full" disabled={!total} onClick={() => (bento ? setBentoTab("review") : setReviewOpen(true))}><ShieldCheck /> فرم بررسی و تأیید</Button>
     </section>
   );
+  const reviewDialog = <ReviewDialog doc={doc} open={reviewOpen} onOpenChange={setReviewOpen} approveLabel={total > settings.approvalLimit ? "تأیید و ارسال" : "تأیید و ثبت"} onApprove={(d) => { setReviewOpen(false); save(false, d); }} />;
 
   /* ---------- concept 2 «پیشخوان»: smart form ---------- */
   if (bento) {
@@ -470,13 +435,16 @@ export function Voucher() {
           {editing ? <span className="num text-[13px] font-bold">ویرایش سند {docNo(editing.m, editing.seq)}</span> : <span className="text-[13px] text-muted-foreground">فرم را مستقیم پر کنید یا بگذارید دستیار پر کند.</span>}
           {(draft || doc.lines.some((l) => l.debit || l.credit)) && !editing && <Button size="sm" variant="ghost" className="ms-auto" onClick={restart}><RotateCcw /> فرم خالی</Button>}
         </div>
+        {suspendBanner}
         {!editing && <SmartFill onSubmit={(t) => submit(t, "text")} onFile={onFile} busy={busy} file={file} seed={voucherSeed?.text ?? ""} />}
         {!busy && draft && slot && slot !== "limit" && <Ask inline draft={draft} slot={slot} limit={settings.approvalLimit} onAnswer={onAnswer} history={history} />}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <div className={cn("min-w-0 transition-opacity", busy && "pointer-events-none opacity-60")}>
-            <VoucherEditor doc={doc} setDoc={setDoc} />
+          <div className={cn("flex min-w-0 flex-col gap-3 transition-opacity", busy && "pointer-events-none opacity-60")}>
+            <Segmented label="مرحله" value={bentoTab} onChange={setBentoTab} items={[["edit", "۱. ورود اطلاعات"], ["review", "۲. بررسی و تأیید"]]} className="self-start text-[13px]" />
+            {bentoTab === "edit" ? <VoucherEditor doc={doc} setDoc={setDoc} />
+              : <ReviewForm doc={doc} setDoc={setDoc} onCancel={() => setBentoTab("edit")} cancelLabel="برگشت به ورود" onApprove={() => save(false)} approveLabel={total > settings.approvalLimit ? "تأیید و ارسال" : "تأیید و ثبت"} />}
           </div>
-          <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">{sideActions}{guard}</aside>
+          {bentoTab === "edit" && <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">{sideActions}{guard}</aside>}
         </div>
       </div>
     );
@@ -490,13 +458,15 @@ export function Voucher() {
         {mode === "ai" && phase !== "input" && <Button size="sm" variant="ghost" onClick={restart}><RotateCcw /> شروع دوباره</Button>}
         {editing && <span className="num text-[12.5px] text-muted-foreground">ویرایش سند {docNo(editing.m, editing.seq)}</span>}
       </div>
+      {phase === "review" && suspendBanner}
 
       {mode === "ai" && phase !== "review" ? (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex min-w-0 flex-col gap-5">
             {phase === "input" && <Composer onSubmit={submit} onFile={onFile} seed={voucherSeed?.text ?? ""} />}
             {phase === "reading" && (busy ? <Reading key="wait" via="file" file={null} onDone={() => undefined} /> : <Reading key={pendingText.current + via} via={via} file={file} onDone={afterRead} />)}
-            {phase === "asking" && draft && slot && <Ask draft={draft} slot={slot} limit={settings.approvalLimit} onAnswer={onAnswer} history={history} seq={nextSeq()} />}
+            {phase === "asking" && draft && slot === "limit" && <LimitForm key={draft.amount} base={docFrom(draft)} onEdit={() => onAnswer("edit")} onApprove={(d) => { setDraft(answer(draft, "limit", "ok")); setDocState(d); setPhase("review"); }} />}
+            {phase === "asking" && draft && slot && slot !== "limit" && <Ask draft={draft} slot={slot} limit={settings.approvalLimit} onAnswer={onAnswer} history={history} />}
             {phase !== "input" && pendingText.current && (
               <p className="flex items-start gap-2 px-1 text-[13px] text-muted-foreground">
                 {via === "voice" ? <Mic className="mt-1 size-3.5 shrink-0" /> : via === "file" ? <FileImage className="mt-1 size-3.5 shrink-0" /> : <Keyboard className="mt-1 size-3.5 shrink-0" />}
@@ -533,6 +503,7 @@ export function Voucher() {
           <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">{sideActions}{guard}</aside>
         </div>
       )}
+      {reviewDialog}
     </div>
   );
 }
