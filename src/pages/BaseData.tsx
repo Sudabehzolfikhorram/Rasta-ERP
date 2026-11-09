@@ -31,8 +31,8 @@ const seedBanks: BankRec[] = [
   { id: "b1", code: "۰۱۲", name: "بانک ملت", name2: "Bank Mellat", type: "بانک", swift: "BKMTIRTH", desc: "حساب‌های جاری و سپرده‌ی شرکت", used: true },
   { id: "b2", code: "۰۵۴", name: "بانک پارسیان", name2: "Parsian Bank", type: "بانک", swift: "PARSIRTH", desc: "", used: true },
   { id: "b3", code: "۰۱۷", name: "بانک ملی ایران", name2: "Bank Melli Iran", type: "بانک", swift: "MELIIRTH", desc: "", used: false },
-  { id: "b4", code: "۰۷۵", name: "موسسه‌ی اعتباری ملل", name2: "Melal Credit Institution", type: "موسسه مالی و اعتباری", swift: "", desc: "", used: false },
-  { id: "b5", code: "۰۸۰", name: "صندوق قرض‌الحسنه‌ی کارکنان", name2: "", type: "صندوق قرض‌الحسنه", swift: "", desc: "وام‌های کارکنان", used: false },
+  { id: "b4", code: "۰۱۸", name: "بانک تجارت", name2: "Tejarat Bank", type: "بانک", swift: "BTEJIRTH", desc: "صورت‌حساب‌های ماهانه", used: false },
+  { id: "b5", code: "۰۱۹", name: "بانک صادرات ایران", name2: "Bank Saderat Iran", type: "بانک", swift: "BSIRIRTH", desc: "", used: false },
 ];
 const seedBranches: Branch[] = [
   { id: "r1", bank: "b1", name: "شعبه‌ی ونک", code: "۱۰۲۴", city: "تهران", phone: "۰۲۱ ۸۸۶۵ ۴۴۲۰", address: "میدان ونک، خیابان ملاصدرا" },
@@ -186,13 +186,13 @@ export function BaseData() {
   const sheetsAll = tot(accounts.flatMap((a) => a.books.map((b) => b.sheets)));
   const stats: Record<Tab, S[]> = {
     home: [
-      { l: "بانک‌ها و موسسه‌ها", v: toFa(banks.length), i: Bank, t: "blue", sub: `${toFa(usedBanks)} در حال استفاده` },
+      { l: "بانک‌ها", v: toFa(banks.length), i: Bank, t: "blue", sub: `${toFa(usedBanks)} در حال استفاده` },
       { l: "حساب‌های بانکی", v: toFa(accounts.length), i: Card, t: "violet", sub: `در ${toFa(branches.length)} شعبه` },
       { l: "صندوق‌ها", v: toFa(boxes.length), i: EmptyWallet, t: "teal", sub: `${toFa(boxes.filter((x) => x.active).length)} فعال` },
       { l: "ارزهای دارای نرخ", v: toFa(new Set(rates.map((r) => r.cur)).size), i: MoneyChange, t: "sky", sub: `آخرین ثبت ${rates[0]?.date ?? "—"}` },
     ],
     banks: [
-      { l: "بانک‌ها و موسسه‌ها", v: toFa(banks.length), i: Bank, t: "blue", sub: `${toFa(banks.filter((b) => b.type === "بانک").length)} بانک · ${toFa(banks.length - banks.filter((b) => b.type === "بانک").length)} موسسه و صندوق` },
+      { l: "بانک‌ها", v: toFa(banks.length), i: Bank, t: "blue", sub: `${toFa(usedBanks)} بانک در حال استفاده` },
       { l: "در حال استفاده", v: toFa(usedBanks), u: `از ${toFa(banks.length)}`, i: Lock, t: "violet", p: usedBanks / Math.max(banks.length, 1), sub: "نام و حذف قفل است" },
       { l: "شعبه‌ها", v: toFa(branches.length), i: Building2, t: "teal", sub: `در ${toFa(new Set(branches.map((r) => r.city)).size)} شهر` },
       { l: "با کد سوئیفت", v: toFa(banks.filter((b) => b.swift).length), i: Global, t: "sky", sub: "برای حواله‌ی ارزی" },
@@ -245,7 +245,7 @@ export function BaseData() {
   const homeGrid = (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <section className="panel p-5">
-        <h3 className="mb-3 text-[15px] font-extrabold">بانک‌ها و موسسه‌ها</h3>
+        <h3 className="mb-3 text-[15px] font-extrabold">بانک‌ها</h3>
         <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{banks.map(bankCard)}</div>
       </section>
       <div className="flex flex-col gap-4">

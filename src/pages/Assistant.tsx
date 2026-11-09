@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Add, ArrowLeft, Chart, DocumentText, MagicStar, Paperclip, Search, Send, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
 import { useApp, type Chat } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { cn, toFa } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Orb } from "@/components/ai/Orb";
 import { MicButton, VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
@@ -143,7 +143,7 @@ export function Assistant() {
               <button onClick={() => setActive(c.id)} aria-current={active === c.id ? "true" : undefined}
                 className={cn("w-full rounded-field px-3 py-2.5 pe-9 text-start transition-colors hover:bg-muted/80", active === c.id && "bg-primary-soft")}>
                 <span className={cn("block truncate text-[13px] font-semibold", active === c.id && "text-primary")}>{c.title}</span>
-                <span className="num block text-[11.5px] text-muted-foreground">{c.when} · {scopeLabel[c.scope]}</span>
+                <span className="num block text-[11.5px] text-muted-foreground">{c.when}، {scopeLabel[c.scope]}</span>
               </button>
               <button aria-label={`حذف گفت‌وگوی ${c.title}`} onClick={() => { removeChat(c.id); if (active === c.id) setActive(null); }}
                 className="absolute end-1.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"><Trash2 className="size-4" /></button>
@@ -154,35 +154,56 @@ export function Assistant() {
     </aside>
   );
 
-  // «پیشخوان»: chats as tabs on top, every suggestion in a side panel that follows the conversation
-  const askedNow = chat ? chat.msgs.filter((m) => m.who === "me").map((m) => m.text) : [];
-  const sugg = followUps(chat ? answerFor(askedNow[askedNow.length - 1] ?? "", unit)?.id : null, askedNow, 4);
-  const suggestPanel = (
-    <aside className="panel flex min-h-0 flex-col gap-3 overflow-y-auto p-4" aria-label="پیشنهادها">
-      <div className="flex items-center gap-2"><MagicStar className="size-5 text-ai" variant="Bulk" /><b className="text-[14px]">{chat ? "پرسش بعدی" : "از اینجا شروع کنید"}</b></div>
-      <div className="flex flex-col gap-1.5">
-        {sugg.map((x) => (
-          <button key={x} onClick={() => send(x, chat ? chat.id : null)} disabled={thinking}
-            className="flex items-center gap-2 rounded-field border border-ai/30 bg-ai-soft/50 px-3 py-2.5 text-start text-[12.5px] font-semibold text-ai-ink transition-colors hover:bg-ai-soft disabled:opacity-50">
-            <span className="min-w-0 flex-1">{x}</span><ArrowLeft className="size-3.5 shrink-0 opacity-60" />
-          </button>
-        ))}
+  // «پیشخوان»: history as a dated timeline on the right; follow-up questions stay inside the conversation
+  const bucket = (w: string) => (w.startsWith("امروز") ? "امروز" : w.startsWith("دیروز") ? "دیروز" : "قبل‌تر");
+  const scopeIcon: Record<Chat["scope"], IconType> = { home: Wallet3, reports: Chart, doc: DocumentText };
+  const timeline = (
+    <aside className="panel flex min-h-0 flex-col p-4" aria-label="گفت‌وگوهای قبلی">
+      <div className="mb-3 flex items-center gap-2">
+        <b className="text-[14px]">گفت‌وگوها</b><span className="num rounded-full bg-muted px-2 text-[11px] text-muted-foreground">{toFa(chats.length)}</span>
+        <Button size="sm" className="ms-auto" onClick={() => setActive(null)}><Add /> جدید</Button>
       </div>
+      <label className="relative mb-3 block">
+        <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو" aria-label="جست‌وجو در گفت‌وگوها"
+          className="h-9 w-full rounded-full border border-input bg-surface/80 ps-9 pe-3 text-[13px] outline-none focus:border-ring" />
+      </label>
+      {list.length ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {["امروز", "دیروز", "قبل‌تر"].map((g) => {
+            const rows = list.filter((c) => bucket(c.when) === g);
+            if (!rows.length) return null;
+            return (
+              <section key={g} className="mb-3">
+                <h3 className="mb-1.5 text-[11.5px] font-bold text-muted-foreground">{g}</h3>
+                <ol className="relative ms-2 border-s-2 border-border/70 ps-3">
+                  {rows.map((c) => {
+                    const I = scopeIcon[c.scope], on = active === c.id;
+                    return (
+                      <li key={c.id} className="group relative py-1">
+                        <i className={cn("absolute -start-[19px] top-1/2 size-2.5 -translate-y-1/2 rounded-full border-2 border-surface", on ? "bg-primary" : "bg-border")} />
+                        <button onClick={() => setActive(c.id)} aria-current={on ? "true" : undefined}
+                          className={cn("flex w-full items-center gap-2.5 rounded-[12px] border border-transparent p-2 pe-8 text-start transition-colors hover:border-border hover:bg-surface", on && "border-primary/40 bg-primary-soft hover:border-primary/40 hover:bg-primary-soft")}>
+                          <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px] bg-muted text-muted-foreground", on && "bg-primary text-primary-foreground")}><I className="size-4" variant="Bulk" /></span>
+                          <span className="min-w-0 flex-1"><span className={cn("block truncate text-[12.5px] font-semibold", on && "text-primary")}>{c.title}</span><span className="num block text-[11px] text-muted-foreground">{c.when}، {scopeLabel[c.scope]}</span></span>
+                        </button>
+                        <button aria-label={`حذف گفت‌وگوی ${c.title}`} onClick={() => { removeChat(c.id); if (active === c.id) setActive(null); }}
+                          className="absolute end-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"><Trash2 className="size-4" /></button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            );
+          })}
+        </div>
+      ) : <Empty icon={MagicStar} title={q ? "گفت‌وگویی پیدا نشد" : "هنوز گفت‌وگویی ندارید"} text={q ? undefined : "پرسش‌های شما از دستیار اینجا ذخیره می‌شود."} />}
     </aside>
-  );
-  const pills = (
-    <nav className="panel flex items-center gap-1.5 overflow-x-auto p-1.5" aria-label="گفت‌وگوها">
-      <Button size="sm" onClick={() => setActive(null)} className="shrink-0"><Add /> گفت‌وگوی جدید</Button>
-      {chats.slice(0, 8).map((c) => (
-        <button key={c.id} onClick={() => setActive(c.id)} aria-current={active === c.id ? "true" : undefined}
-          className={cn("h-8 max-w-[200px] shrink-0 truncate rounded-field px-3 text-[12.5px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground", active === c.id && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary")}>{c.title}</button>
-      ))}
-    </nav>
   );
 
   return (
-    <div className={cn("grid gap-5", bento ? "lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[auto_minmax(0,1fr)]" : "lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[290px_minmax(0,1fr)]")}>
-      {bento ? <div className="min-w-0 lg:col-span-2">{pills}</div> : history}
+    <div className={cn("grid gap-5", bento ? "lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[300px_minmax(0,1fr)]" : "lg:h-[calc(100vh-112px)] lg:min-h-[560px] lg:grid-cols-[290px_minmax(0,1fr)]")}>
+      {bento ? timeline : history}
       <section className="panel edge-run flex min-h-[520px] min-w-0 flex-col overflow-hidden">
         {chat ? (
           <header className="flex items-center gap-3 border-b border-border/70 px-5 py-3">
@@ -204,7 +225,7 @@ export function Assistant() {
                 </li>
               ))}
               {thinking && <Thinking />}
-              {!bento && !thinking && chat.msgs[chat.msgs.length - 1]?.who === "ai" && (() => {
+              {!thinking && chat.msgs[chat.msgs.length - 1]?.who === "ai" && (() => {
                 const asked = chat.msgs.filter((m) => m.who === "me").map((m) => m.text);
                 const shown = followUps(answerFor(asked[asked.length - 1] ?? "", unit)?.id, asked, 3);
                 return (
@@ -255,7 +276,6 @@ export function Assistant() {
           <div className="mx-auto max-w-3xl"><VoiceError voice={voice} sample="مانده‌ی بانک‌ها چقدر است؟" onSample={setText} /></div>
         </form>
       </section>
-      {bento && suggestPanel}
     </div>
   );
 }

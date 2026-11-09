@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 /* Bank logos from the project's Figma library, on a white tile so they read in both themes.
    Sizes stay between 48 and 56px (size-12 by default, size-14 for page headers).
    A bank without a logo file keeps the generic bank glyph. */
-const FILES: [RegExp, string][] = [[/ملت/, "mellat.png"], [/پارسیان/, "parsian.svg"], [/تجارت/, "tejarat.png"], [/ملی/, "melli.png"]];
+const FILES: [RegExp, string][] = [[/ملت/, "mellat.png"], [/پارسیان/, "parsian.svg"], [/تجارت/, "tejarat.png"], [/صادرات/, "saderat.svg"], [/ملی/, "melli.png"]];
 const base = import.meta.env.BASE_URL;
 
 export function BankLogo({ name, className, icon = "size-1/2" }: { name: string; className?: string; icon?: string }) {
