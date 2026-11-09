@@ -117,7 +117,7 @@ export function Sidebar() {
         <div className="mt-auto flex flex-col gap-1 pt-4">
           {navBtn({ id: "settings", label: "تنظیمات", icon: Settings2 })}
           <button onClick={() => go("profile")} aria-label="حساب کاربری" className={cn("mt-2 flex items-center gap-3 rounded-field px-1.5 py-1 text-start hover:bg-muted/70", page === "profile" && "bg-primary-soft")}>
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface text-[12.5px] font-bold shadow-soft">س</span>
+            <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-primary-soft text-[13px] font-extrabold text-primary">س</span>
             <div className={cn(reveal, "leading-tight")}>
               <div className="text-[13px] font-bold">سودابه زلفی خرم</div>
               <div className="text-[11.5px] text-muted-foreground">مدیر مالی</div>

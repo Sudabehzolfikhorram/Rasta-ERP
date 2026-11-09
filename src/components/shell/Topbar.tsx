@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Orb } from "@/components/ai/Orb";
 import { Logo } from "./Logo";
 import { cn, toFa } from "@/lib/utils";
+import { CompanyAvatar } from "@/components/brand/CompanyMark";
 
 export function Segmented<T extends string>({ value, onChange, items, label, className }: { value: T; onChange: (v: T) => void; items: [T, string][]; label: string; className?: string }) {
   return (
@@ -98,7 +99,7 @@ function ProfileMenu() {
     <Popover>
       <PopoverTrigger asChild>
         <button aria-label="حساب کاربری" className="panel flex h-10 items-center gap-2 rounded-field pe-3 ps-1">
-          <span className="grid size-8 place-items-center rounded-[calc(var(--r-field)-2px)] bg-primary-soft text-[13px] font-extrabold text-primary">س</span>
+          <CompanyAvatar name={c.name} className="size-8 rounded-[calc(var(--r-field)-2px)] bg-primary-soft text-primary" letterClass="text-[13px] font-extrabold" />
           <span className="hidden max-w-[120px] truncate text-[12.5px] font-bold lg:block">{c.name}</span>
         </button>
       </PopoverTrigger>

@@ -3,6 +3,7 @@ import { Building2, Check, KeyRound, Lock, Mail, MagicStar, Phone, Plus, ShieldC
 import { useApp } from "@/lib/store";
 import { companies as seed, users as seedUsers, type Company } from "@/data/demo";
 import { cn, toFa } from "@/lib/utils";
+import { CompanyAvatar } from "@/components/brand/CompanyMark";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -72,7 +73,7 @@ export function Profile() {
     const on = c.id === active.id;
     return (
       <li key={c.id} className={cn("flex min-w-0 items-center gap-3 rounded-field border p-3.5 transition-colors", on ? "border-primary/50 bg-primary-soft/60" : "border-border bg-surface/60")}>
-        <span className="grid size-10 shrink-0 place-items-center rounded-field text-[15px] font-extrabold text-white" style={{ background: `hsl(${c.color})` }}>{c.name[0]}</span>
+        <CompanyAvatar name={c.name} className="size-10 rounded-field text-white" letterClass="text-[15px] font-extrabold" style={{ background: `hsl(${c.color})` }} />
         <div className="min-w-0 flex-1">
           <b className="block truncate text-[14px]">{c.name}</b>
           <span className="num block truncate text-[12px] text-muted-foreground">سال مالی {c.year} · {c.role} · {toFa(c.docs)} سند</span>
@@ -239,7 +240,7 @@ export function Profile() {
     <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
       <nav className="panel flex h-fit flex-col gap-1 p-2.5 lg:sticky lg:top-4" aria-label="بخش‌های حساب کاربری">
         <div className="flex items-center gap-3 px-2 pb-3 pt-1">
-          <span className="grid size-10 place-items-center rounded-full bg-primary-soft font-extrabold text-primary">س</span>
+          <span className="grid size-10 place-items-center rounded-[12px] bg-primary-soft font-extrabold text-primary">س</span>
           <span className="min-w-0"><b className="block text-[13.5px]">سودابه زلفی خرم</b><span className="block truncate text-[11.5px] text-muted-foreground">{active.name}</span></span>
         </div>
         {SECTIONS.map(([k, l, I]) => (
