@@ -42,10 +42,12 @@ export function parseReminder(s: string, base: { m: number; d: number }) {
 
 /* other calendars come from Intl, anchored at 1 Farvardin 1405 = 21 March 2026 */
 const toDate = (m: number, d: number) => new Date(2026, 2, 21 + dayIndex(m, d), 12);
-const greg = (m: number, d: number, withMonth = false) => new Intl.DateTimeFormat("fa-IR-u-ca-gregory", withMonth ? { day: "numeric", month: "short" } : { day: "numeric" }).format(toDate(m, d));
-const gregFull = (m: number, d: number) => new Intl.DateTimeFormat("fa-IR-u-ca-gregory", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(toDate(m, d));
+const greg = (m: number, d: number, withMonth = false) => new Intl.DateTimeFormat("fa-IR-u-ca-gregory-nu-latn", withMonth ? { day: "numeric", month: "short" } : { day: "numeric" }).format(toDate(m, d));
+/** Gregorian dates keep Latin digits, so they render in a font whose digits are not localised. */
+const L = (t: string) => <span className="latn">{t}</span>;
+const gregFull = (m: number, d: number) => new Intl.DateTimeFormat("fa-IR-u-ca-gregory-nu-latn", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(toDate(m, d));
 const hijri = (m: number, d: number) => new Intl.DateTimeFormat("fa-IR-u-ca-islamic-umalqura", { day: "numeric", month: "short" }).format(toDate(m, d));
-const gregRange = (m: number) => `${new Intl.DateTimeFormat("fa-IR-u-ca-gregory", { month: "long" }).format(toDate(m, 1))} تا ${new Intl.DateTimeFormat("fa-IR-u-ca-gregory", { month: "long", year: "numeric" }).format(toDate(m, monthLength(m)))}`;
+const gregRange = (m: number) => `${new Intl.DateTimeFormat("fa-IR-u-ca-gregory-nu-latn", { month: "long" }).format(toDate(m, 1))} تا ${new Intl.DateTimeFormat("fa-IR-u-ca-gregory-nu-latn", { month: "long", year: "numeric" }).format(toDate(m, monthLength(m)))}`;
 const holidayOn = (m: number, d: number) => holidays.find((h) => h.m === m && h.d === d);
 const hourOf = (t?: string) => (t ? parseInt(toEn(t), 10) + (parseInt(toEn(t).split(":")[1] ?? "0", 10) / 60) : null);
 
@@ -200,7 +202,7 @@ function MiniMonth({ month, setMonth, sel, onPick, has }: { month: number; setMo
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <b className="num text-[13.5px]">{gp ? gregRange(month) : `${MONTHS[month - 1]} ۱۴۰۵`}</b>
+        <b className="num text-[13.5px]">{gp ? L(gregRange(month)) : `${MONTHS[month - 1]} ۱۴۰۵`}</b>
         <div className="flex">
           <button aria-label="ماه قبل" disabled={month <= 7} onClick={() => setMonth(month - 1)} className="grid size-7 place-items-center rounded-full hover:bg-muted disabled:opacity-30"><ChevronRight className="size-4" /></button>
           <button aria-label="ماه بعد" disabled={month >= 12} onClick={() => setMonth(month + 1)} className="grid size-7 place-items-center rounded-full hover:bg-muted disabled:opacity-30"><ChevronLeft className="size-4" /></button>
@@ -214,7 +216,7 @@ function MiniMonth({ month, setMonth, sel, onPick, has }: { month: number; setMo
           return (
             <button key={d} onClick={() => onPick({ m: month, d })} aria-label={fmtDay(month, d)} aria-pressed={on}
               className={cn("num relative mx-auto grid size-7 place-items-center rounded-full text-[11.5px] transition-colors hover:bg-muted", off && "text-danger", on && !today && "bg-primary-soft font-bold text-primary", today && "bg-primary font-bold text-primary-foreground hover:bg-primary")}>
-              {gp ? greg(month, d) : toFa(d)}
+              {gp ? L(greg(month, d)) : toFa(d)}
               {has({ m: month, d }) && !today && <i className="absolute bottom-0.5 size-1 rounded-full bg-primary/70" />}
             </button>
           );
@@ -293,9 +295,9 @@ export function Calendar() {
                     onKeyDown={(e) => { if (e.key === "Enter") setSel({ m: month, d }); }}
                     className={cn("group relative flex min-h-[112px] cursor-pointer flex-col gap-1 border-b border-s border-border/60 p-1.5 transition-colors hover:bg-muted/40", (fri || hol) && "bg-danger-soft/25", isSel && "bg-primary-soft/50 ring-2 ring-inset ring-primary/40")}>
                     <div className="flex items-center gap-1">
-                      <span className={cn("num grid size-7 place-items-center rounded-full text-[13px] font-bold", (fri || hol) && "text-danger", isToday(month, d) && "bg-primary text-primary-foreground")}>{gp ? greg(month, d) : toFa(d)}</span>
-                      {gp ? <span className="num text-[10.5px] text-muted-foreground">{d === 1 || greg(month, d) === "۱" ? fmtDay(month, d) : toFa(d)}</span>
-                        : settings.calendars.gregorian && <span className="num text-[10.5px] text-muted-foreground">{greg(month, d, d === 1 || greg(month, d) === "۱")}</span>}
+                      <span className={cn("num grid size-7 place-items-center rounded-full text-[13px] font-bold", (fri || hol) && "text-danger", isToday(month, d) && "bg-primary text-primary-foreground")}>{gp ? L(greg(month, d)) : toFa(d)}</span>
+                      {gp ? <span className="num text-[10.5px] text-muted-foreground">{d === 1 || greg(month, d) === "1" ? fmtDay(month, d) : toFa(d)}</span>
+                        : settings.calendars.gregorian && <span className="num text-[10.5px] text-muted-foreground">{L(greg(month, d, d === 1 || greg(month, d) === "1"))}</span>}
                       <button aria-label={`یادآوری برای ${fmtDay(month, d)}`} onClick={(e) => { e.stopPropagation(); setCreate({ m: month, d }); }}
                         className="ms-auto grid size-6 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-surface hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"><Plus className="size-3.5" /></button>
                     </div>
@@ -473,7 +475,7 @@ export function Calendar() {
                   <button key={`${d.m}-${d.d}`} role="tab" aria-selected={isSel} onClick={() => setSel(d)}
                     className={cn("flex w-[62px] shrink-0 flex-col items-center gap-0.5 rounded-[calc(var(--r-field)+2px)] py-2 transition-colors hover:bg-muted", isSel && "bg-primary text-primary-foreground hover:bg-primary")}>
                     <span className={cn("text-[11px] font-semibold", isSel ? "text-primary-foreground/80" : off ? "text-danger" : "text-muted-foreground")}>{isToday(d.m, d.d) ? "امروز" : WD_SHORT[weekday(d.m, d.d)]}</span>
-                    <b className={cn("num text-[18px] leading-6", !isSel && off && "text-danger")}>{gp ? greg(d.m, d.d) : toFa(d.d)}</b>
+                    <b className={cn("num text-[18px] leading-6", !isSel && off && "text-danger")}>{gp ? L(greg(d.m, d.d)) : toFa(d.d)}</b>
                     <span className="flex h-1.5 gap-0.5">{Array.from({ length: Math.min(n, 3) }).map((_, i) => <i key={i} className={cn("size-1.5 rounded-full", isSel ? "bg-white" : "bg-primary")} />)}</span>
                   </button>
                 );
@@ -483,12 +485,12 @@ export function Calendar() {
           </section>
 
           {/* the selected day */}
-          <section className="panel edge-run flex flex-col p-5">
+          <section className="panel flex flex-col p-5">
             <div className="flex flex-wrap items-center gap-4">
               <div className="min-w-0 flex-1">
                 <p className="text-[12.5px] font-bold text-muted-foreground">{isToday(sel.m, sel.d) ? "امروز" : relDay(sel.m, sel.d)}</p>
-                <h2 className="num text-[22px] font-extrabold">{gp ? gregFull(sel.m, sel.d) : dayLabel(sel)}</h2>
-                {gp ? <p className="num text-[12px] text-muted-foreground">{dayLabel(sel)}</p> : subDates(sel) && <p className="num text-[12px] text-muted-foreground">{subDates(sel)}</p>}
+                <h2 className="num text-[22px] font-extrabold">{gp ? L(gregFull(sel.m, sel.d)) : dayLabel(sel)}</h2>
+                {gp ? <p className="num text-[12px] text-muted-foreground">{dayLabel(sel)}</p> : subDates(sel) && <p className="num latn text-[12px] text-muted-foreground">{subDates(sel)}</p>}
               </div>
               <div className="flex items-center gap-2">
                 {list.length > 0 && (
@@ -574,7 +576,7 @@ export function Calendar() {
           <StatCard label="انجام‌شده" value={`${toFa(doneN)} از ${toFa(monthEv.length)}`} icon={TaskSquare} tone="teal" progress={doneN / Math.max(monthEv.length, 1)} />
           <StatCard label="روز تعطیل" value={toFa(offDays)} unit="روز" icon={Sun} tone="amber" sub="جمعه‌ها و تعطیلات رسمی" />
         </div>
-        <section className="panel-data edge-run flex min-w-0 flex-col overflow-hidden">
+        <section className="panel-data flex min-w-0 flex-col overflow-hidden">
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
             <Button size="sm" variant="outline" onClick={() => pick({ m: TODAY.m, d: TODAY.d })}>امروز</Button>
             <div className="flex">
@@ -582,8 +584,8 @@ export function Calendar() {
               <button aria-label="بعدی" onClick={() => step(1)} className="grid size-8 place-items-center rounded-full hover:bg-muted"><ChevronLeft className="size-4" /></button>
             </div>
             <div>
-              <h2 className="num text-[17px] font-extrabold leading-6">{view === "agenda" ? `از ${fmtDay(sel.m, sel.d)}` : gp && view === "month" ? gregRange(month) : title}</h2>
-              {(gp || settings.calendars.gregorian) && view === "month" && <p className="num text-[11.5px] text-muted-foreground">{gp ? title : gregRange(month)}</p>}
+              <h2 className="num text-[17px] font-extrabold leading-6">{view === "agenda" ? `از ${fmtDay(sel.m, sel.d)}` : gp && view === "month" ? L(gregRange(month)) : title}</h2>
+              {(gp || settings.calendars.gregorian) && view === "month" && <p className="num text-[11.5px] text-muted-foreground">{gp ? title : L(gregRange(month))}</p>}
             </div>
             {calSwitch("ms-auto")}
             <Segmented label="نما" value={view} onChange={setView} items={[["month", "ماه"], ["week", "هفته"], ["agenda", "فهرست"]]} />
@@ -599,7 +601,7 @@ export function Calendar() {
         <section className="panel p-4">
           <p className="text-[12px] font-bold text-muted-foreground">{isToday(sel.m, sel.d) ? "امروز" : relDay(sel.m, sel.d)}</p>
           <h3 className="num text-[17px] font-extrabold">{dayLabel(sel)}</h3>
-          {subDates(sel) && <p className="num text-[11.5px] text-muted-foreground">{subDates(sel)}</p>}
+          {subDates(sel) && <p className="num latn text-[11.5px] text-muted-foreground">{subDates(sel)}</p>}
           {selHol && <p className="mt-2 rounded-field bg-danger-soft/60 px-2.5 py-1.5 text-[12px] font-semibold text-danger">تعطیل: {selHol.title}</p>}
           {selList.length ? (
             <ul className="mt-3 flex flex-col gap-2">

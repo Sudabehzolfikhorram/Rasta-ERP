@@ -1,17 +1,30 @@
 /* Next questions that follow from what was just asked and answered.
-   Keyed by the answer's topic, so the chips under a conversation move with it. */
-const NEXT: Record<string, string[]> = {
-  banks: ["پیش‌بینی نقدینگی تا آخر آبان", "چرا نقدینگی بالا رفت؟", "چک‌های سررسید این هفته"],
-  "why-cash": ["پیش‌بینی نقدینگی تا آخر آبان", "مانده‌ی مشتری‌های بدهکار", "هزینه‌های آبان به تفکیک"],
-  forecast: ["چک‌های سررسید این هفته", "هزینه‌های آبان به تفکیک", "مانده‌ی بانک‌ها"],
-  tb: ["هزینه‌های آبان به تفکیک", "مقایسه‌ی آبان با مهر", "اسناد منتظر تأیید"],
-  expenses: ["مقایسه‌ی آبان با مهر", "تراز آزمایشی آبان", "پیش‌بینی نقدینگی تا آخر آبان"],
-  compare: ["هزینه‌های آبان به تفکیک", "تراز آزمایشی آبان", "مانده‌ی مشتری‌های بدهکار"],
-  statements: ["صورت‌حساب مهر مشتری‌های بدهکار را آماده کن", "پیش‌بینی نقدینگی تا آخر آبان", "مانده‌ی بانک‌ها"],
-  cheque: ["مانده‌ی بانک‌ها", "پیش‌بینی نقدینگی تا آخر آبان", "اسناد منتظر تأیید"],
-  pending: ["تراز آزمایشی آبان", "چک‌های سررسید این هفته", "هزینه‌های آبان به تفکیک"],
+   Keyed by the answer's topic, so the few chips under a conversation move with it.
+   Each one is written the way a finance manager would actually ask it. */
+const Q = {
+  banks: "الان در هر بانک چقدر موجودی داریم؟",
+  why: "چرا نقدینگی این هفته بالا رفت؟",
+  forecast: "تا آخر آبان چقدر پول در حساب‌ها می‌ماند؟",
+  cheques: "چه چک‌هایی این هفته سررسید می‌شوند؟",
+  debtors: "کدام مشتری‌ها هنوز بدهکارند؟",
+  expenses: "هزینه‌های آبان صرف چه چیزهایی شد؟",
+  compare: "آبان را با مهر مقایسه کن",
+  tb: "تراز آزمایشی آبان را نشان بده",
+  pending: "کدام سندها منتظر تأیید من است؟",
+  takin: "چک امروز تکین‌کو را چه کنم؟",
 };
-export const OPENERS = ["مانده‌ی بانک‌ها", "چرا نقدینگی بالا رفت؟", "اسناد منتظر تأیید", "چک تکین‌کو"];
+const NEXT: Record<string, string[]> = {
+  banks: [Q.forecast, Q.why, Q.cheques],
+  "why-cash": [Q.forecast, Q.debtors, Q.expenses],
+  forecast: [Q.cheques, Q.expenses, Q.banks],
+  tb: [Q.expenses, Q.compare, Q.pending],
+  expenses: [Q.compare, Q.tb, Q.forecast],
+  compare: [Q.expenses, Q.tb, Q.debtors],
+  statements: [Q.cheques, Q.forecast, Q.banks],
+  cheque: [Q.banks, Q.forecast, Q.pending],
+  pending: [Q.tb, Q.cheques, Q.expenses],
+};
+export const OPENERS = [Q.banks, Q.pending, Q.why, Q.takin];
 
 /** Up to `n` follow-ups for the last answer's topic, leaving out what was already asked. */
 export function followUps(topic: string | null | undefined, asked: string[], n = 3): string[] {
@@ -20,12 +33,4 @@ export function followUps(topic: string | null | undefined, asked: string[], n =
   const out = pool.filter((s) => !seen.has(s));
   for (const s of OPENERS) if (out.length < n && !seen.has(s) && !out.includes(s)) out.push(s);
   return out.slice(0, n);
-}
-
-/** Every suggestion the assistant knows, the ones that follow from this conversation first. */
-export function allSuggestions(topic: string | null | undefined, asked: string[]): { text: string; related: boolean }[] {
-  const seen = new Set(asked.map((a) => a.trim()));
-  const related = followUps(topic, asked, 3);
-  const rest = [...new Set([...Object.values(NEXT).flat(), ...OPENERS])].filter((s) => !seen.has(s) && !related.includes(s));
-  return [...related.map((text) => ({ text, related: true })), ...rest.map((text) => ({ text, related: false }))];
 }

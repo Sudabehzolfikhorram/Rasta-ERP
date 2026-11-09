@@ -103,8 +103,8 @@ export const kpis = [
 export type InboxItem = { id: string; kind: "draft" | "check" | "approve" | "close"; title: string; detail: string; primary: string; secondary?: string };
 export const inbox: InboxItem[] = [
   { id: "i1", kind: "draft", title: "پیش‌نویس دریافت از پتروشیمی مارون", detail: "از عکس فیش · ۵۰۰ میلیون تومان به پارسیان", primary: "بازبینی" },
-  { id: "i2", kind: "approve", title: "۲ سند منتظر تأیید شما", detail: "هر دو از بررسی‌ها سالم گذشته‌اند", primary: "دیدن و تأیید" },
-  { id: "i3", kind: "check", title: "احتمال ثبت تکراری", detail: "سند ۰۴۱ با سند ۰۳۶ هم‌مبلغ و هم‌تاریخ است", primary: "مقایسه", secondary: "تکراری نیست" },
+  { id: "i2", kind: "approve", title: "۲ سند منتظر تأیید شما", detail: "هر کدام را با فرم بررسی باز و تأیید کنید", primary: "مشاهده‌ی موارد" },
+  { id: "i3", kind: "check", title: "احتمال ثبت تکراری", detail: "سند ۰۴۱ با سند ۰۳۶ هم‌مبلغ و هم‌تاریخ است", primary: "مقایسه" },
   { id: "i4", kind: "close", title: "آبان ۸۰٪ آماده‌ی بستن است", detail: "۳ کار مانده: ۲ پیش‌نویس و ۱ مغایرت بانکی", primary: "کارهای مانده" },
 ];
 
@@ -118,14 +118,14 @@ export type EventCat = string;
 export type CalEvent = { id: string; m: number; d: number; time?: string; title: string; cat: EventCat; amount?: number; done?: boolean; auto?: boolean; note?: string };
 
 export const catMeta: Record<EventCat, { label: string; color: string; custom?: boolean }> = {
-  tax: { label: "مالیات و بیمه", color: "var(--ch-5)" },
-  cheque: { label: "چک", color: "var(--ch-1)" },
-  loan: { label: "وام و قسط", color: "var(--ch-3)" },
-  close: { label: "پایان دوره", color: "var(--ch-2)" },
-  cash: { label: "نقدینگی", color: "var(--ch-4)" },
-  reminder: { label: "یادآوری‌های من", color: "var(--ch-6)" },
+  tax: { label: "مالیات و بیمه", color: "var(--cat-5)" },
+  cheque: { label: "چک", color: "var(--cat-1)" },
+  loan: { label: "وام و قسط", color: "var(--cat-3)" },
+  close: { label: "پایان دوره", color: "var(--cat-2)" },
+  cash: { label: "نقدینگی", color: "var(--cat-6)" },
+  reminder: { label: "یادآوری‌های من", color: "var(--cat-10)" },
 };
-export const CAT_SWATCHES = ["var(--ch-1)", "var(--ch-2)", "var(--ch-3)", "var(--ch-4)", "var(--ch-5)", "var(--ch-6)"];
+export const CAT_SWATCHES = Array.from({ length: 10 }, (_, i) => `var(--cat-${i + 1})`);
 
 export const seedEvents: CalEvent[] = [
   { id: "e1", m: 7, d: 15, title: "اظهارنامه‌ی ارزش افزوده‌ی تابستان", cat: "tax", done: true, auto: true },

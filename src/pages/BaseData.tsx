@@ -1,4 +1,5 @@
 import * as React from "react";
+import { BankLogo } from "@/components/ui/bank-logo";
 import { ChartOfAccounts } from "@/components/coding/ChartOfAccounts";
 import { BankDocs } from "@/components/docs/BankDocs";
 import { Add, ChevronLeft, Hierarchy, Sparkles, X, ArrowLeft2, ArrowSwapVertical, Bank, Call, Category2, ChevronRight, Building2, CalendarCheck2, Card, EmptyWallet, Global, Location, Lock, MoneyChange, PencilLine, People, Receipt1, Search, TaskSquare, TickCircle, Trash2, Wallet3, type IconType } from "@/components/icons";
@@ -116,7 +117,7 @@ export function BaseData() {
         empty={<Empty icon={Bank} title="بانکی پیدا نشد" />}
         columns={[
           { key: "code", label: "کد", className: "w-16", render: (b) => <span className="font-bold text-muted-foreground">{b.code}</span> },
-          { key: "name", label: "نام بانک", render: (b) => <span className="flex items-center gap-2.5"><span className="grid size-8 shrink-0 place-items-center rounded-field bg-primary-soft text-primary"><Bank className="size-4" variant="Bulk" /></span><span><b className="block">{b.name}</b>{b.name2 && <span dir="ltr" className="block text-[11.5px] text-muted-foreground">{b.name2}</span>}</span></span> },
+          { key: "name", label: "نام بانک", render: (b) => <span className="flex items-center gap-2.5"><BankLogo name={b.name} className="size-8 rounded-field" /><span><b className="block">{b.name}</b>{b.name2 && <span dir="ltr" className="block text-[11.5px] text-muted-foreground">{b.name2}</span>}</span></span> },
           { key: "type", label: "نوع", hide: "md", render: (b) => <Badge tone={b.type === "بانک" ? "info" : "neutral"}>{b.type}</Badge> },
           { key: "swift", label: "کد سوئیفت", hide: "md", render: (b) => (b.swift ? <span dir="ltr" className="font-mono text-[12.5px]">{b.swift}</span> : <span className="text-muted-foreground">—</span>) },
           { key: "acc", label: "حساب‌ها", align: "center", hide: "sm", render: (b) => toFa(accounts.filter((a) => a.bank === b.id).length) },
@@ -229,7 +230,7 @@ export function BaseData() {
     return (
       <button key={b.id} onClick={() => setHub(b.id)} className="group flex flex-col gap-3 rounded-[calc(var(--r-field)+6px)] border border-border bg-surface/60 p-4 text-start transition-[border-color,transform] hover:-translate-y-0.5 hover:border-primary/40">
         <span className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-[12px] bg-primary-soft text-primary"><Bank className="size-5" variant="Bulk" /></span>
+          <BankLogo name={b.name} className="size-10" />
           <span className="min-w-0 flex-1"><b className="block truncate text-[14px]">{b.name}</b><span className="num text-[11.5px] text-muted-foreground">کد {b.code} · {b.type}</span></span>
           <ArrowLeft2 className="size-4 text-muted-foreground transition-transform group-hover:-translate-x-0.5" />
         </span>
@@ -281,9 +282,9 @@ export function BaseData() {
     const bal = balOf(acc.map((a) => a.id));
     return (
       <>
-        <section className="panel edge-run flex flex-col gap-5 p-5">
+        <section className="panel flex flex-col gap-5 p-5">
           <div className="flex flex-wrap items-start gap-4">
-            <span className="grid size-14 shrink-0 place-items-center rounded-[16px] bg-primary-soft text-primary"><Bank className="size-7" variant="Bulk" /></span>
+            <BankLogo name={hubBank.name} className="size-14 rounded-[16px]" />
             <div className="min-w-[220px] flex-1">
               <button onClick={() => setHub(null)} className="flex items-center gap-1 text-[12px] font-bold text-muted-foreground hover:text-primary"><ChevronRight className="size-3.5" /> {tab === "home" ? "نمای کلی" : "بانک‌ها"}</button>
               <h2 className="mt-0.5 text-[20px] font-extrabold">{hubBank.name}</h2>
@@ -351,7 +352,7 @@ export function BaseData() {
 
   return (
     <>
-      <section className="panel edge-run flex flex-col gap-5 p-5">
+      <section className="panel flex flex-col gap-5 p-5">
         <div className="flex flex-wrap items-start gap-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-primary-soft text-primary"><TitleIcon className="size-6" variant="Bulk" /></span>
           <div className="min-w-[220px] flex-1">
@@ -574,7 +575,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
         style={{ background: `linear-gradient(135deg, hsl(var(${c})) 0%, hsl(var(${c}) / .78) 55%, hsl(var(${c}) / .6) 100%)` }}>
         <span aria-hidden className="absolute -end-10 -top-12 -z-10 size-40 rounded-full bg-white/10" />
         <span aria-hidden className="absolute -bottom-16 -start-6 -z-10 size-40 rounded-full bg-white/10" />
-        <span className="flex items-center gap-2 text-[12px] font-semibold text-white/85"><Bank className="size-4" variant="Bulk" />{bankName(a.bank)}<span className="ms-auto rounded-full bg-white/20 px-2 py-0.5 text-[11px]">{a.type}</span></span>
+        <span className="flex items-center gap-2 text-[12px] font-semibold text-white/85"><BankLogo name={bankName(a.bank)} className="size-6 rounded-[7px]" icon="size-3.5" />{bankName(a.bank)}<span className="ms-auto rounded-full bg-white/20 px-2 py-0.5 text-[11px]">{a.type}</span></span>
         <b className="mt-2 text-[15px]">{a.name}</b>
         <span dir="ltr" className="num mt-1 text-end font-mono text-[14px] tracking-[0.12em] text-white/90">{a.no.replace(/(.{4})/g, "$1 ").trim()}</span>
         <span className="num mt-auto flex items-end justify-between gap-2 pt-3">
@@ -611,9 +612,9 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
           return (
             <button key={b.id} onClick={() => setHub(b.id)} className="panel group flex flex-col overflow-hidden p-0 text-start transition-shadow hover:shadow-lift">
               <span className="flex items-center gap-3 p-4" style={{ background: `linear-gradient(135deg, hsl(var(${c}) / .18), transparent)` }}>
-                <span className="grid size-11 place-items-center rounded-[14px]" style={{ background: `hsl(var(${c}) / .2)`, color: `hsl(var(${c}))` }}><Bank className="size-6" variant="Bulk" /></span>
+                <BankLogo name={b.name} className="size-11 rounded-[14px]" />
                 <span className="min-w-0 flex-1"><b className="block truncate text-[15px]">{b.name}</b><span className="num text-[11.5px] text-muted-foreground">کد {b.code} · {b.type}</span></span>
-                {b.used && <Lock className="size-4 text-muted-foreground" aria-label="در حال استفاده" />}
+                {b.used && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground" title="در حساب‌ها استفاده شده؛ نامش ثابت می‌ماند و حذف نمی‌شود">در حال استفاده</span>}
               </span>
               <span className="num flex items-center justify-between gap-2 border-t border-border/70 px-4 py-3 text-[12.5px] text-muted-foreground">
                 <span>{toFa(branches.filter((r) => r.bank === b.id).length)} شعبه · {toFa(acc.length)} حساب</span>
@@ -716,7 +717,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
                     {br.length ? <ChevronLeft className={cn("size-3.5 transition-transform", isOpen && "-rotate-90")} /> : <i className="size-1 rounded-full bg-border" />}
                   </button>
                   <button onClick={() => { setAnswer(null); setHub(b.id); }} className="flex min-w-0 flex-1 items-center gap-2 pe-2 text-start text-[13px] font-semibold">
-                    <i className="size-2 shrink-0 rounded-full" style={{ background: `hsl(var(${toneOf(b.id)}))` }} /><span className="truncate">{b.name}</span>
+                    <BankLogo name={b.name} className="size-5 rounded-[5px] p-[8%]" icon="size-3" /><span className="truncate">{b.name}</span>
                     <span className="num ms-auto text-[11px] text-muted-foreground">{toFa(accounts.filter((a) => a.bank === b.id).length)}</span>
                   </button>
                 </div>
@@ -754,7 +755,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
                 <section className="panel relative isolate overflow-hidden p-5">
                   <span aria-hidden className="absolute inset-0 -z-10" style={{ background: `linear-gradient(120deg, hsl(var(${c}) / .2), transparent 60%)` }} />
                   <div className="flex flex-wrap items-center gap-4">
-                    <span className="grid size-14 place-items-center rounded-[16px]" style={{ background: `hsl(var(${c}) / .2)`, color: `hsl(var(${c}))` }}><Bank className="size-7" variant="Bulk" /></span>
+                    <BankLogo name={hubBank.name} className="size-14 rounded-[16px]" />
                     <div className="min-w-[200px] flex-1">
                       <h2 className="text-[20px] font-extrabold">{hubBank.name}</h2>
                       <p className="num text-[12.5px] text-muted-foreground">کد {hubBank.code} · {hubBank.type}{hubBank.swift ? ` · ${hubBank.swift}` : ""}</p>

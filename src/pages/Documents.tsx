@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, ArrowDownLeft, ArrowUpLeft, Bank, CheckCheck, FileText, Wallet3, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "@/components/icons";
+import { AlertTriangle, ArrowDownLeft, ArrowUpLeft, Bank, CheckCheck, ChevronDown, FileText, Wallet3, FileImage, FilePlus2, Keyboard, Mic, Paperclip, Search, Sparkles, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { accounts, catFacet, catRows, docCats, kindLabel, sourceLabel, statusLabel, type Doc, type DocKind, type DocStatus } from "@/data/demo";
 import { DataTable, Pager, usePager } from "@/components/ui/data-table";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SimpleSelect } from "@/components/ui/select";
 import { Orb } from "@/components/ai/Orb";
 import { docNo, docTotal, partyOf } from "@/components/voucher/VoucherEditor";
 import { Empty, statusTone } from "@/pages/Dashboard";
@@ -21,8 +22,56 @@ const SourceIcon = ({ s }: { s: Doc["source"] }) => {
 };
 
 type Tab = "all" | DocStatus;
-type When = "all" | "week" | "today";
+type When = "all" | "week" | "today" | "custom";
 const byDate = (a: Doc, b: Doc) => dayIndex(b.m, b.d) - dayIndex(a.m, a.d) || b.seq - a.seq;
+
+/* ---------- advanced filter building blocks, shared by the register and the category lists ---------- */
+/** A collapsible filter group that shows how many of its options are on and can clear itself. */
+function FilterGroup({ title, on = 0, onClear, open: start = true, children }: { title: string; on?: number; onClear?: () => void; open?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(start);
+  return (
+    <div className="border-t border-border/70 pt-3 first:border-t-0 first:pt-0">
+      <div className="flex items-center gap-2">
+        <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex min-w-0 flex-1 items-center gap-1.5 text-start text-[12.5px] font-bold text-muted-foreground hover:text-foreground">
+          <ChevronDown className={cn("size-3.5 shrink-0 transition-transform", !open && "-rotate-90")} />{title}
+          {on > 0 && <span className="num rounded-full bg-primary px-1.5 text-[10.5px] leading-[16px] text-primary-foreground">{toFa(on)}</span>}
+        </button>
+        {on > 0 && onClear && <button type="button" onClick={onClear} className="text-[11.5px] font-semibold text-primary hover:underline">پاک</button>}
+      </div>
+      {open && <div className="mt-2">{children}</div>}
+    </div>
+  );
+}
+function CheckList({ options, value, onChange, count }: { options: [string, string][]; value: string[]; onChange: (v: string[]) => void; count?: (k: string) => number }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {options.map(([k, l]) => (
+        <label key={k} className="flex cursor-pointer items-center gap-2.5 text-[13px]">
+          <Checkbox checked={value.includes(k)} onCheckedChange={() => onChange(value.includes(k) ? value.filter((y) => y !== k) : [...value, k])} /><span className="min-w-0 flex-1 truncate">{l}</span>
+          {count && <span className="num text-[12px] text-muted-foreground">{toFa(count(k))}</span>}
+        </label>
+      ))}
+    </div>
+  );
+}
+/** Amount range typed in millions of the current unit. */
+function AmountRange({ min, max, onChange, unit }: { min: string; max: string; onChange: (min: string, max: string) => void; unit: string }) {
+  const f = (v: string) => toEn(v).replace(/[^\d.]/g, "");
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
+        <Input value={toFa(min)} onChange={(e) => onChange(f(e.target.value), max)} placeholder="از" aria-label="کمترین مبلغ" inputMode="decimal" className="num h-9 text-[13px]" />
+        <Input value={toFa(max)} onChange={(e) => onChange(min, f(e.target.value))} placeholder="تا" aria-label="بیشترین مبلغ" inputMode="decimal" className="num h-9 text-[13px]" />
+      </div>
+      <span className="text-[11px] text-muted-foreground">به میلیون {unit}</span>
+    </div>
+  );
+}
+const inAmount = (rial: number, min: string, max: string, unit: "rial" | "toman") => {
+  const v = (unit === "toman" ? rial / 10 : rial) / 1e6;
+  return (!min || v >= Number(min)) && (!max || v <= Number(max));
+};
+
 
 /* =====================================================================
    Concept 1 «دستیار»: ask for the documents you need; results are a day-by-day feed
@@ -90,9 +139,9 @@ function AssistDocuments() {
           <span className="grid size-9 place-items-center rounded-field bg-warning-soft text-warning"><CheckCheck className="size-4" /></span>
           <div className="min-w-0 flex-1">
             <b className="num text-[14px]">{toFa(pending.length)} سند منتظر تأیید شماست</b>
-            <p className="text-[12.5px] text-muted-foreground">بررسی‌های خودکار برای هر دو سند بدون ایراد بود.</p>
+            <p className="text-[12.5px] text-muted-foreground">هر سند را جدا باز کنید و با فرم بررسی تأیید کنید.</p>
           </div>
-          <Button size="sm" variant="success" onClick={() => { setDocStatus(pending.map((d) => d.id), "posted"); toast(`${toFa(pending.length)} سند تأیید شد.`); }}><CheckCheck /> تأیید همه</Button>
+          <Button size="sm" variant="outline" onClick={() => run("اسناد منتظر تأیید")}>مشاهده‌ی موارد</Button>
         </section>
       )}
 
@@ -137,12 +186,26 @@ function BentoDocuments() {
   const [when, setWhen] = React.useState<When>("all");
   const [q, setQ] = React.useState("");
   const [sel, setSel] = React.useState<string[]>([]);
+  const [sources, setSources] = React.useState<string[]>([]);
+  const [people, setPeople] = React.useState<string[]>([]);
+  const [acc, setAcc] = React.useState("all");
+  const [amt, setAmt] = React.useState<[string, string]>(["", ""]);
+  const [range, setRange] = React.useState<[string, string]>(["", ""]);
+  const [attach, setAttach] = React.useState<"any" | "yes" | "no">("any");
+  const dates = [...new Set(docs.map((d) => dayIndex(d.m, d.d)))].sort((a, b) => a - b);
+  const dateOf = (i: number) => { const d = docs.find((x) => dayIndex(x.m, x.d) === i)!; return fmtDay(d.m, d.d); };
+  const usedAcc = [...new Set(docs.flatMap((d) => d.lines.map((l) => l.account)))].map((c) => accounts.find((a) => a.code === c)).filter(Boolean) as typeof accounts;
 
   const count = (s: Tab) => docs.filter((d) => s === "all" || d.status === s).length;
   const list = docs
     .filter((d) => tab === "all" || d.status === tab)
     .filter((d) => !kinds.length || kinds.includes(d.kind))
-    .filter((d) => when === "all" || (when === "today" ? diffDays(d.m, d.d) === 0 : diffDays(d.m, d.d) > -7))
+    .filter((d) => when !== "custom" ? when === "all" || (when === "today" ? diffDays(d.m, d.d) === 0 : diffDays(d.m, d.d) > -7) : (!range[0] || dayIndex(d.m, d.d) >= +range[0]) && (!range[1] || dayIndex(d.m, d.d) <= +range[1]))
+    .filter((d) => !sources.length || sources.includes(d.source))
+    .filter((d) => !people.length || people.includes(d.by))
+    .filter((d) => acc === "all" || d.lines.some((l) => l.account === acc))
+    .filter((d) => inAmount(docTotal(d), amt[0], amt[1], unit))
+    .filter((d) => attach === "any" || (attach === "yes") === d.attachments.length > 0)
     .filter((d) => !q || d.title.includes(q) || partyOf(d).includes(q) || docNo(d.m, d.seq).includes(toFa(q)) || String(d.seq).includes(toEn(q)))
     .sort(byDate);
   const pendingSel = sel.filter((id) => docs.find((d) => d.id === id)?.status === "pending");
@@ -151,8 +214,8 @@ function BentoDocuments() {
   const someOn = list.some((d) => sel.includes(d.id));
   const sum = list.reduce((a, d) => a + docTotal(d), 0);
   const u = unitLabel(unit);
-  const filtered = kinds.length > 0 || when !== "all" || !!q;
-  const reset = () => { setTab("all"); setKinds([]); setWhen("all"); setQ(""); };
+  const filtered = kinds.length > 0 || when !== "all" || !!q || sources.length > 0 || people.length > 0 || acc !== "all" || !!amt[0] || !!amt[1] || attach !== "any";
+  const reset = () => { setTab("all"); setKinds([]); setWhen("all"); setQ(""); setSources([]); setPeople([]); setAcc("all"); setAmt(["", ""]); setRange(["", ""]); setAttach("any"); };
   const pg = usePager(list.length, 8);
 
   const tabs: [Tab, string][] = [["all", "همه"], ["pending", "منتظر تأیید"], ["draft", "پیش‌نویس"], ["posted", "تأییدشده"]];
@@ -171,24 +234,39 @@ function BentoDocuments() {
             ))}
           </div>
         </div>
-        <div>
-          <h3 className="mb-1.5 text-[12px] font-bold text-muted-foreground">نوع سند</h3>
-          <div className="flex flex-col gap-2">
-            {(Object.keys(kindLabel) as DocKind[]).map((k) => (
-              <label key={k} className="flex cursor-pointer items-center gap-2.5 text-[13px]">
-                <Checkbox checked={kinds.includes(k)} onCheckedChange={() => setKinds((x) => (x.includes(k) ? x.filter((y) => y !== k) : [...x, k]))} />{kindLabel[k]}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h3 className="mb-1.5 text-[12px] font-bold text-muted-foreground">بازه‌ی زمانی</h3>
+        <FilterGroup title="نوع سند" on={kinds.length} onClear={() => setKinds([])}>
+          <CheckList options={(Object.keys(kindLabel) as DocKind[]).map((k) => [k, kindLabel[k]])} value={kinds} onChange={(v) => setKinds(v as DocKind[])} count={(k) => docs.filter((d) => d.kind === k).length} />
+        </FilterGroup>
+        <FilterGroup title="تاریخ سند" on={when !== "all" ? 1 : 0} onClear={() => { setWhen("all"); setRange(["", ""]); }}>
           <div className="flex flex-wrap gap-1.5">
-            {([["all", "کل آبان"], ["week", "۷ روز اخیر"], ["today", "امروز"]] as [When, string][]).map(([k, l]) => (
+            {([["all", "همه"], ["week", "۷ روز اخیر"], ["today", "امروز"], ["custom", "بازه‌ی دلخواه"]] as [When, string][]).map(([k, l]) => (
               <button key={k} className="chip h-7" aria-pressed={when === k} onClick={() => setWhen(k)}>{l}</button>
             ))}
           </div>
-        </div>
+          {when === "custom" && (
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <SimpleSelect label="از تاریخ" placeholder="از" value={range[0]} onChange={(v) => setRange([v, range[1]])} options={dates.map((i) => [String(i), dateOf(i)])} className="num h-9 text-[12.5px]" />
+              <SimpleSelect label="تا تاریخ" placeholder="تا" value={range[1]} onChange={(v) => setRange([range[0], v])} options={dates.filter((i) => !range[0] || i >= +range[0]).map((i) => [String(i), dateOf(i)])} className="num h-9 text-[12.5px]" />
+            </div>
+          )}
+        </FilterGroup>
+        <FilterGroup title={`مبلغ سند`} on={amt[0] || amt[1] ? 1 : 0} onClear={() => setAmt(["", ""])}>
+          <AmountRange min={amt[0]} max={amt[1]} onChange={(a, b) => setAmt([a, b])} unit={u} />
+        </FilterGroup>
+        <FilterGroup title="حساب یا بانک" on={acc !== "all" ? 1 : 0} onClear={() => setAcc("all")} open={false}>
+          <SimpleSelect label="حساب" value={acc} onChange={setAcc} options={[["all", "همه‌ی حساب‌ها"], ...usedAcc.map((a) => [a.code, a.name] as [string, string])]} className="h-9 w-full text-[12.5px]" />
+        </FilterGroup>
+        <FilterGroup title="روش ثبت" on={sources.length} onClear={() => setSources([])} open={false}>
+          <CheckList options={Object.entries(sourceLabel)} value={sources} onChange={setSources} count={(k) => docs.filter((d) => d.source === k).length} />
+        </FilterGroup>
+        <FilterGroup title="ثبت‌کننده" on={people.length} onClear={() => setPeople([])} open={false}>
+          <CheckList options={[...new Set(docs.map((d) => d.by))].map((p) => [p, p])} value={people} onChange={setPeople} count={(k) => docs.filter((d) => d.by === k).length} />
+        </FilterGroup>
+        <FilterGroup title="پیوست" on={attach !== "any" ? 1 : 0} onClear={() => setAttach("any")} open={false}>
+          <div className="flex flex-wrap gap-1.5">
+            {([["any", "مهم نیست"], ["yes", "دارد"], ["no", "ندارد"]] as const).map(([k, l]) => <button key={k} className="chip h-7" aria-pressed={attach === k} onClick={() => setAttach(k)}>{l}</button>)}
+          </div>
+        </FilterGroup>
         {filtered && <button className="flex items-center gap-1 text-[12.5px] font-semibold text-primary" onClick={reset}><X className="size-3.5" />پاک کردن فیلترها</button>}
       </aside>
 
@@ -286,7 +364,7 @@ function DocHeader() {
   }
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <nav className="panel edge-run flex min-w-0 flex-1 gap-1 overflow-x-auto p-1.5" aria-label="دسته‌های اسناد">
+      <nav className="panel flex min-w-0 flex-1 gap-1 overflow-x-auto p-1.5" aria-label="دسته‌های اسناد">
         {docCats.map((c) => (
           <button key={c.id} onClick={() => setDocCat(c.id)} aria-current={docCat === c.id ? "page" : undefined}
             className={cn("flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", docCat === c.id && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary")}>
@@ -308,14 +386,21 @@ function CategoryList({ cat }: { cat: string }) {
   const [kinds, setKinds] = React.useState<string[]>([]);
   const [when, setWhen] = React.useState<When>("all");
   const [q, setQ] = React.useState("");
+  const [parties, setParties] = React.useState<string[]>([]);
+  const [amt, setAmt] = React.useState<[string, string]>(["", ""]);
+  const [range, setRange] = React.useState<[string, string]>(["", ""]);
   const states = [...new Set(all.map((r) => r.state))];
+  const partyList = [...new Set(all.map((r) => r.party))];
+  const days = [...new Set(all.map((r) => r.day))].sort((a, b) => a - b);
   const rows = all
     .filter((r) => state === "all" || r.state === state)
     .filter((r) => !kinds.length || kinds.includes(r.kind))
-    .filter((r) => when === "all" || (when === "today" ? diffDays(8, r.day) === 0 : Math.abs(diffDays(8, r.day)) < 7))
+    .filter((r) => when !== "custom" ? when === "all" || (when === "today" ? diffDays(8, r.day) === 0 : Math.abs(diffDays(8, r.day)) < 7) : (!range[0] || r.day >= +range[0]) && (!range[1] || r.day <= +range[1]))
+    .filter((r) => !parties.length || parties.includes(r.party))
+    .filter((r) => !r.rial ? !amt[0] && !amt[1] : inAmount(r.rial, amt[0], amt[1], unit))
     .filter((r) => !q || r.title.includes(q) || r.party.includes(q) || r.no.includes(q))
     .sort((x, y) => y.day - x.day);
-  const filtered = state !== "all" || kinds.length > 0 || when !== "all" || !!q;
+  const filtered = state !== "all" || kinds.length > 0 || when !== "all" || !!q || parties.length > 0 || !!amt[0] || !!amt[1];
   const sum = rows.reduce((a, r) => a + r.rial, 0);
   const tot = all.reduce((a, r) => a + r.rial, 0);
   const opts = facet?.options ?? [];
@@ -357,27 +442,34 @@ function CategoryList({ cat }: { cat: string }) {
           </div>
         </div>
         {facet && (
-          <div>
-            <h3 className="mb-1.5 text-[12px] font-bold text-muted-foreground">{facet.label}</h3>
-            <div className="flex flex-col gap-2">
-              {facet.options.map((k) => (
-                <label key={k} className="flex cursor-pointer items-center gap-2.5 text-[13px]">
-                  <Checkbox checked={kinds.includes(k)} onCheckedChange={() => setKinds((x) => (x.includes(k) ? x.filter((y) => y !== k) : [...x, k]))} />{k}
-                  <span className="num ms-auto text-[12px] text-muted-foreground">{toFa(all.filter((r) => r.kind === k).length)}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <FilterGroup title={facet.label} on={kinds.length} onClear={() => setKinds([])}>
+            <CheckList options={facet.options.map((k) => [k, k])} value={kinds} onChange={setKinds} count={(k) => all.filter((r) => r.kind === k).length} />
+          </FilterGroup>
         )}
-        <div>
-          <h3 className="mb-1.5 text-[12px] font-bold text-muted-foreground">{cat === "cheque" ? "سررسید" : "بازه‌ی زمانی"}</h3>
+        <FilterGroup title={cat === "cheque" ? "سررسید" : "تاریخ"} on={when !== "all" ? 1 : 0} onClear={() => { setWhen("all"); setRange(["", ""]); }}>
           <div className="flex flex-wrap gap-1.5">
-            {([["all", "کل آبان"], ["week", cat === "cheque" ? "۷ روز آینده و گذشته" : "۷ روز اخیر"], ["today", "امروز"]] as [When, string][]).map(([k, l]) => (
+            {([["all", "کل آبان"], ["week", cat === "cheque" ? "۷ روز پیش و پس" : "۷ روز اخیر"], ["today", "امروز"], ["custom", "بازه‌ی دلخواه"]] as [When, string][]).map(([k, l]) => (
               <button key={k} className="chip h-7" aria-pressed={when === k} onClick={() => setWhen(k)}>{l}</button>
             ))}
           </div>
-        </div>
-        {filtered && <button className="flex items-center gap-1 text-[12.5px] font-semibold text-primary" onClick={() => { setState("all"); setKinds([]); setWhen("all"); setQ(""); }}><X className="size-3.5" />پاک کردن فیلترها</button>}
+          {when === "custom" && (
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <SimpleSelect label="از تاریخ" placeholder="از" value={range[0]} onChange={(v) => setRange([v, range[1]])} options={days.map((d) => [String(d), fmtDay(8, d)])} className="num h-9 text-[12.5px]" />
+              <SimpleSelect label="تا تاریخ" placeholder="تا" value={range[1]} onChange={(v) => setRange([range[0], v])} options={days.filter((d) => !range[0] || d >= +range[0]).map((d) => [String(d), fmtDay(8, d)])} className="num h-9 text-[12.5px]" />
+            </div>
+          )}
+        </FilterGroup>
+        {tot > 0 && (
+          <FilterGroup title="مبلغ" on={amt[0] || amt[1] ? 1 : 0} onClear={() => setAmt(["", ""])}>
+            <AmountRange min={amt[0]} max={amt[1]} onChange={(a, b) => setAmt([a, b])} unit={unitLabel(unit)} />
+          </FilterGroup>
+        )}
+        {partyList.length > 1 && (
+          <FilterGroup title="طرف حساب" on={parties.length} onClear={() => setParties([])} open={false}>
+            <CheckList options={partyList.map((p) => [p, p])} value={parties} onChange={setParties} count={(k) => all.filter((r) => r.party === k).length} />
+          </FilterGroup>
+        )}
+        {filtered && <button className="flex items-center gap-1 text-[12.5px] font-semibold text-primary" onClick={() => { setState("all"); setKinds([]); setWhen("all"); setQ(""); setParties([]); setAmt(["", ""]); setRange(["", ""]); }}><X className="size-3.5" />پاک کردن فیلترها</button>}
       </aside>
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowDownLeft, ArrowLeft, ArrowUpLeft, CalendarDays, CardReceive, CheckCheck, ChevronDown, ChevronUp, FileImage, GripVertical, History, LayoutGrid, MoneySend, Paperclip, Plus, RotateCcw, Send, ShieldCheck, StatusUp, TimerReset, Trash2, Wallet3, type IconType } from "@/components/icons";
+import { ArrowDownLeft, ArrowLeft, ArrowUpLeft, CalendarDays, CardReceive, Check, CheckCheck, ChevronDown, ChevronUp, FileImage, GripVertical, History, LayoutGrid, MoneySend, Paperclip, Plus, RotateCcw, Send, ShieldCheck, StatusUp, TimerReset, Trash2, Wallet3, type IconType } from "@/components/icons";
 import { DEFAULT_WIDGETS, useApp, WIDGETS } from "@/lib/store";
 import { cashActual, cashForecast, catMeta, inbox, kpis, statusLabel, type DocStatus, type InboxItem } from "@/data/demo";
 import { reports } from "@/data/reports";
@@ -101,7 +101,7 @@ function Kpis() {
 }
 
 function Decisions({ layout = "list" }: { layout?: "list" | "grid" }) {
-  const { items, primary, remove } = useDecisions();
+  const { items, primary } = useDecisions();
   return (
     <section data-tour="inbox" className="panel flex flex-col p-5">
       <Head title="کارهای منتظر اقدام" action={<span className="num rounded-md bg-warning-soft px-2 text-[12px] font-bold text-warning">{toFa(items.length)}</span>} />
@@ -116,8 +116,7 @@ function Decisions({ layout = "list" }: { layout?: "list" | "grid" }) {
                   <div className="truncate text-[13.5px] font-bold">{i.title}</div>
                   <div className="num truncate text-[12px] text-muted-foreground">{i.detail}</div>
                 </div>
-                {i.secondary && <Button size="sm" variant="ghost" onClick={() => remove(i.id, "ثبت شد: این دو سند تکراری نیستند.")}>{i.secondary}</Button>}
-                <Button size="sm" variant="soft" onClick={() => primary(i)}>{i.primary}</Button>
+                                <Button size="sm" variant="soft" onClick={() => primary(i)}>{i.primary}</Button>
               </li>
             );
           })}
@@ -385,32 +384,65 @@ function FlowTile() {
 }
 
 function HeatTile() {
-  const vals = [[3, 4, 2, 5, 3], [4, 6, 3, 4, 2], [2, 3, 5, 6, 4], [5, 4, 4, 3, 6], [3, 5, 6, 4, 5], [1, 2, 1, 0, 2], [0, 0, 0, 0, 1]];
+  const { docs } = useApp();
+  // counted from the documents: one column per week, the current week last
+  const sat = dayIndex(TODAY.m, TODAY.d) - weekday(TODAY.m, TODAY.d);
+  const at = (w: number, col: number) => docs.filter((d) => dayIndex(d.m, d.d) === sat - (4 - col) * 7 + w).length;
+  const vals = Array.from({ length: 7 }, (_, w) => Array.from({ length: 5 }, (_, c) => at(w, c)));
+  const perDay = vals.map((r) => r.reduce((a, v) => a + v, 0));
+  const top = perDay.indexOf(Math.max(...perDay));
+  const total = perDay.reduce((a, v) => a + v, 0);
+  const DAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
   return (
     <section className="panel flex flex-col p-5">
-      <Head title="فعالیت ثبت سند" action={<span className="num text-[12px] text-muted-foreground">۵ هفته‌ی اخیر</span>} />
-      <Heatmap rows={["ش", "ی", "د", "س", "چ", "پ", "ج"]} cols={["مهر ۴", "آبان ۱", "آبان ۲", "آبان ۳", "این هفته"]} values={vals} />
-      <p className="mt-auto pt-3 text-[11.5px] text-muted-foreground">بیشترین ثبت: سه‌شنبه‌ها؛ پنجشنبه و جمعه تقریباً خالی است.</p>
+      <Head title="فعالیت ثبت سند" action={<span className="num text-[12px] text-muted-foreground">{toFa(total)} سند در ۵ هفته‌ی اخیر</span>} />
+      <Heatmap rows={WD_SHORT} cols={["۴ هفته پیش", "۳ هفته پیش", "۲ هفته پیش", "هفته‌ی قبل", "این هفته"]} values={vals} />
+      <p className="mt-auto pt-3 text-[11.5px] text-muted-foreground">{total ? `بیشترین ثبت در ${DAYS[top]}‌ها بوده است؛ ${toFa(perDay[top])} سند.` : "هنوز سندی در این بازه ثبت نشده است."}</p>
     </section>
   );
 }
 
 function CloseTile() {
-  const [steps, setSteps] = React.useState<[string, boolean][]>([["ثبت همه‌ی اسناد آبان", false], ["مغایرت‌گیری بانک پارسیان", true], ["مغایرت‌گیری بانک ملت", false], ["محاسبه‌ی استهلاک آبان", true], ["ثبت حقوق و بیمه", true]]);
-  const done = steps.filter((s) => s[1]).length;
+  const [steps, setSteps] = React.useState<{ l: string; who: string; ok: boolean }[]>([
+    { l: "ثبت همه‌ی اسناد آبان", who: "علی رضایی", ok: false },
+    { l: "مغایرت‌گیری بانک پارسیان", who: "رضا موسوی", ok: true },
+    { l: "مغایرت‌گیری بانک ملت", who: "رضا موسوی", ok: false },
+    { l: "محاسبه‌ی استهلاک آبان", who: "سارا احمدی", ok: true },
+    { l: "ثبت حقوق و بیمه", who: "مریم کاظمی", ok: true },
+  ]);
+  const done = steps.filter((s) => s.ok).length, left = steps.length - done;
+  const pct = done / steps.length, R = 22, C = 2 * Math.PI * R;
+  const daysLeft = monthLength(TODAY.m) - TODAY.d;
   return (
-    <section className="panel flex flex-col p-5">
-      <Head title="چک‌لیست پایان دوره‌ی آبان" action={<span className="num text-[12.5px] text-muted-foreground">{toFa(done)} از {toFa(steps.length)}</span>} />
-      <div className="h-2 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-success transition-[width] duration-500" style={{ width: `${(done / steps.length) * 100}%` }} /></div>
-      <ul className="mt-3 flex flex-col gap-2">
-        {steps.map(([l, ok], i) => (
-          <li key={l}>
-            <label className={cn("flex cursor-pointer items-center gap-2.5 text-[13px]", ok && "text-muted-foreground line-through decoration-1")}>
-              <Checkbox checked={ok} onCheckedChange={(v) => setSteps((x) => x.map((s, j) => (j === i ? [s[0], !!v] : s)))} />{l}
-            </label>
+    <section className="panel flex flex-col gap-4 p-5">
+      <div className="flex items-center gap-4">
+        <span className="relative grid size-[60px] shrink-0 place-items-center">
+          <svg viewBox="0 0 52 52" className="absolute inset-0 -rotate-90" aria-hidden>
+            <circle cx="26" cy="26" r={R} fill="none" strokeWidth="5" className="stroke-muted" />
+            <circle cx="26" cy="26" r={R} fill="none" strokeWidth="5" strokeLinecap="round" className="stroke-primary transition-[stroke-dashoffset] duration-500" strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
+          </svg>
+          <b className="num text-[14px] font-extrabold">{toFa(Math.round(pct * 100))}٪</b>
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-[15px] font-extrabold">بستن دوره‌ی آبان</h3>
+          <p className="num mt-0.5 text-[12.5px] text-muted-foreground">{left ? `${toFa(left)} کار مانده، ${toFa(daysLeft)} روز تا پایان ماه` : "همه‌ی کارها انجام شد. دوره آماده‌ی بستن است."}</p>
+        </div>
+      </div>
+      <ol className="flex flex-col gap-1.5">
+        {steps.map((s, i) => (
+          <li key={s.l}>
+            <button type="button" aria-pressed={s.ok} onClick={() => setSteps((x) => x.map((y, j) => (j === i ? { ...y, ok: !y.ok } : y)))}
+              className={cn("flex w-full items-center gap-3 rounded-field border px-3 py-2.5 text-start transition-colors", s.ok ? "border-transparent bg-muted/50" : "border-border bg-surface/70 hover:border-primary/40")}>
+              <span className={cn("num grid size-6 shrink-0 place-items-center rounded-full text-[11.5px] font-bold transition-colors", s.ok ? "bg-success text-white" : "border-2 border-border text-muted-foreground")}>{s.ok ? <Check className="size-3.5" strokeWidth={3} /> : toFa(i + 1)}</span>
+              <span className="min-w-0 flex-1">
+                <b className={cn("block truncate text-[13px]", s.ok && "font-semibold text-muted-foreground")}>{s.l}</b>
+                <span className="block text-[11.5px] text-muted-foreground">{s.who}</span>
+              </span>
+              <span className={cn("shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold", s.ok ? "text-success" : "bg-warning-soft text-warning")}>{s.ok ? "انجام شد" : "مانده"}</span>
+            </button>
           </li>
         ))}
-      </ul>
+      </ol>
     </section>
   );
 }
@@ -540,7 +572,6 @@ function AssistHub() {
       )}
       <VoiceError voice={voice} sample="۵۰۰ میلیون تومان از پتروشیمی مارون به پارسیان واریز شد" onSample={setText} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {last && <span className="max-w-[260px] truncate text-[12px] font-semibold text-muted-foreground">در ادامه‌ی «{last.title}»:</span>}
         {next.map((s) => (
           <button key={s} onClick={() => send(s)} className="chip h-8 bg-surface">{s}</button>
         ))}

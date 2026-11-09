@@ -7,7 +7,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { useApp } from "@/lib/store";
 import { Orb } from "@/components/ai/Orb";
 import { money, unitLabel } from "@/lib/utils";
-import { followUps } from "@/components/ai/followups";
+import { followUps, OPENERS } from "@/components/ai/followups";
 
 export type Answer = { title: string; line: string; rows: [string, string][]; note: string; id: string; report?: string };
 
@@ -153,7 +153,7 @@ export function CommandPalette() {
               </Command.Group>
             )}
             <Command.Group heading={answer && answer.id !== "none" ? "بعدش بپرسید" : "بپرسید"} className="cmd-group" forceMount={!!answer}>
-              {(answer && answer.id !== "none" ? followUps(answer.id, [q], 4) : ["مانده‌ی بانک‌ها", "مانده‌ی مشتری‌ها", "تراز آزمایشی آبان", "چرا نقدینگی بالا رفت؟", "اسناد منتظر تأیید"]).map((s) => (
+              {(answer && answer.id !== "none" ? followUps(answer.id, [q], 3) : OPENERS).map((s) => (
                 <Command.Item key={s} value={s} forceMount={!!answer} onSelect={() => { setQ(s); ask(s); }} className="cmd-item">
                   <Sparkles className="text-ai" /> {s}
                 </Command.Item>

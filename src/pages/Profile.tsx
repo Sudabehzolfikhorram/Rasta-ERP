@@ -53,7 +53,7 @@ export function Profile() {
   const inactive = users.filter((u) => !u.active);
 
   const me = (
-    <section className={cn("panel flex flex-wrap items-center gap-4 p-5", bento && "edge-run")}>
+    <section className="panel flex flex-wrap items-center gap-4 p-5">
       <span className="grid size-16 shrink-0 place-items-center rounded-[18px] bg-primary-soft text-[24px] font-extrabold text-primary">س</span>
       <div className="min-w-0 flex-1">
         <h2 className="text-[19px] font-extrabold">سارا احمدی</h2>

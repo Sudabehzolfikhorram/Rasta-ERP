@@ -3,7 +3,7 @@ import { StatCard } from "@/components/ui/stat";
 import { ArrowRight, ArrowUp, CalendarDays, Check, ChevronDown, Download, FileSpreadsheet, FileText, Filter, History, LayoutDashboard, MessageSquareText, Plus, Printer, TaskSquare, Trash2, TrendUp, Wallet3, X } from "@/components/icons";
 import { useApp } from "@/lib/store";
 import { reports, reportGroups, type Report, type Row } from "@/data/reports";
-import { cashActual, cashForecast } from "@/data/demo";
+import { cashActual, cashForecast, seedDocs, sourceLabel, statusLabel, type DocSource, type DocStatus } from "@/data/demo";
 import { cn, toFa, toEn, unitLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SimpleSelect } from "@/components/ui/select";
@@ -22,9 +22,13 @@ const periods: [Period, string, number][] = [["aban", "آبان", 1], ["mehr", "
 /* Scope of the data behind a report: any date range, time of day, who recorded it, status and source,
    plus how rows are ordered. The demo reports are aggregates, so the scope scales them by share. */
 type Scope = { from: [number, number]; to: [number, number]; t0: string; t1: string; people: string[]; status: string[]; source: string[]; sort: "none" | "desc" | "asc" | "name"; byPerson: boolean };
-const PEOPLE: [string, number][] = [["سارا احمدی", 0.42], ["رضا موسوی", 0.27], ["علی رضایی", 0.19], ["مریم کاظمی", 0.12]];
-const STATUS: [string, string, number][] = [["posted", "تأییدشده", 0.82], ["pending", "منتظر تأیید", 0.12], ["draft", "پیش‌نویس", 0.06]];
-const SOURCE: [string, string, number][] = [["ai", "دستیار", 0.46], ["file", "مدرک", 0.21], ["voice", "صدا", 0.08], ["manual", "دستی", 0.25]];
+/* Shares come from the recorded documents themselves (sum of debit amounts), never from estimates. */
+const docAmount = (d: (typeof seedDocs)[number]) => d.lines.reduce((a, l) => a + l.debit, 0);
+const ALL_AMOUNT = seedDocs.reduce((a, d) => a + docAmount(d), 0) || 1;
+const shareOf = (f: (d: (typeof seedDocs)[number]) => boolean) => seedDocs.filter(f).reduce((a, d) => a + docAmount(d), 0) / ALL_AMOUNT;
+const PEOPLE: [string, number][] = [...new Set(seedDocs.map((d) => d.by))].map((n) => [n, shareOf((d) => d.by === n)] as [string, number]).sort((a, b) => b[1] - a[1]);
+const STATUS: [string, string, number][] = (["posted", "pending", "draft"] as DocStatus[]).map((k) => [k, statusLabel[k], shareOf((d) => d.status === k)]);
+const SOURCE: [string, string, number][] = (["ai", "file", "voice", "manual"] as DocSource[]).map((k) => [k, sourceLabel[k], shareOf((d) => d.source === k)]);
 const HOURS = Array.from({ length: 25 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
 const SORTS: [Scope["sort"], string][] = [["none", "ترتیب گزارش"], ["desc", "بیشترین مبلغ"], ["asc", "کمترین مبلغ"], ["name", "الفبایی"]];
 const blankScope = (): Scope => ({ from: [8, 1], to: [8, 17], t0: "00:00", t1: "24:00", people: [], status: [], source: [], sort: "none", byPerson: false });
@@ -95,15 +99,23 @@ const NEXT_JOB: Record<string, string[]> = {
   pl: ["هزینه‌های آبان را با مهر مقایسه کن", "تراز آزمایشی آبان را اکسل بگیر", "کدام مشتری‌ها بیش از ۶۰ روز بدهکارند؟"],
 };
 
+const JOB_REPORTS = ["صورت‌حساب مشتریان", "هزینه‌ها: آبان و مهر", "تراز آزمایشی", "سود و زیان", "سنی مطالبات"];
+const JOB_RANGES = ["۱ تا ۱۷ آبان ۱۴۰۵", "کل آبان ۱۴۰۵", "۱ تا ۳۰ مهر ۱۴۰۵", "مهر و آبان ۱۴۰۵", "آبان ۱۴۰۵ در برابر مهر", "تا ۱۷ آبان ۱۴۰۵", "از ابتدای ۱۴۰۵ تا امروز"];
+const JOB_EXTRAS = ["ریز اسناد هر ردیف", "نمودار خلاصه", "مقایسه با ماه قبل"];
+
 function JobCard({ job, onFinish, onDownload }: { job: Job; onFinish: (j: Job) => void; onDownload: (f: Fmt, report: string, people: string[]) => void }) {
   const [phase, setPhase] = React.useState<"confirm" | "run" | "cancel">("confirm");
   const [i, setI] = React.useState(0);
+  const [report, setReport] = React.useState(job.params.report);
+  const [range, setRange] = React.useState(job.params.range);
+  const pool = React.useMemo(() => [...job.params.items, ...JOB_EXTRAS.filter((x) => !job.params.items.includes(x))], [job]);
+  const [items, setItems] = React.useState<string[]>(job.params.items);
   const [people, setPeople] = React.useState<string[]>(job.params.people ?? []);
   const [got, setGot] = React.useState<Fmt | null>(null);
   const done = phase === "run" && i >= job.steps.length;
   React.useEffect(() => {
     if (phase !== "run") return;
-    if (done) { onFinish(job); return; }
+    if (done) { onFinish({ ...job, params: { report, range, items, people: job.params.people && people } }); return; }
     const t = setTimeout(() => setI(i + 1), 750);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,27 +123,42 @@ function JobCard({ job, onFinish, onDownload }: { job: Job; onFinish: (j: Job) =
 
   if (phase === "cancel") return <p className="rounded-field border border-border bg-surface p-3 text-[12.5px] text-muted-foreground">لغو شد. هر وقت خواستید دوباره بپرسید.</p>;
   if (phase === "confirm") {
+    const toggle = (xs: string[], x: string) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
+    const changed = report !== job.params.report || range !== job.params.range || items.join() !== job.params.items.join() || people.join() !== (job.params.people ?? []).join();
+    const row = (label: string, body: React.ReactNode, hint?: string) => (
+      <div className="flex flex-col gap-1.5 border-t border-border/70 py-3 first:border-t-0 first:pt-0">
+        <span className="text-[12px] font-bold text-muted-foreground">{label}{hint && <span className="font-normal"> · {hint}</span>}</span>
+        <div className="min-w-0">{body}</div>
+      </div>
+    );
     return (
-      <div className="rounded-field border border-border bg-surface p-3.5 animate-rise">
-        <p className="text-[13px] font-bold">این کار را با این تنظیمات انجام بدهم؟</p>
-        <dl className="mt-2.5 flex flex-col gap-2 text-[12.5px]">
-          <div className="flex gap-2"><dt className="w-20 shrink-0 text-muted-foreground">گزارش</dt><dd className="font-semibold">{job.params.report}</dd></div>
-          <div className="flex gap-2"><dt className="w-20 shrink-0 text-muted-foreground">بازه‌ی زمانی</dt><dd className="num font-semibold">{job.params.range}</dd></div>
-          <div className="flex gap-2"><dt className="w-20 shrink-0 text-muted-foreground">موارد</dt><dd className="flex flex-wrap gap-1">{job.params.items.map((x) => <span key={x} className="rounded-md bg-muted px-1.5 py-0.5 text-[11.5px]">{x}</span>)}</dd></div>
-          {job.params.people && (
-            <div className="flex gap-2"><dt className="w-20 shrink-0 pt-1 text-muted-foreground">اشخاص</dt>
-              <dd className="flex flex-1 flex-col gap-0.5">
-                {job.params.people.map((c) => (
-                  <label key={c} className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 hover:bg-muted">
-                    <Checkbox checked={people.includes(c)} onCheckedChange={() => setPeople((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))} />{c}
-                  </label>
-                ))}
-              </dd>
+      <div className="rounded-field border border-border bg-surface p-4 animate-rise">
+        <p className="text-[13.5px] font-extrabold">پیش از اجرا، تنظیمات را ببینید</p>
+        <p className="mt-0.5 text-[12px] leading-6 text-muted-foreground">دستیار گزارش را دقیقاً با همین تنظیمات می‌سازد. هر کدام را که بخواهید تغییر دهید.</p>
+        <div className="mt-3 rounded-field bg-muted/40 p-3">
+          {row("گزارش", <SimpleSelect label="گزارش" value={report} onChange={setReport} options={JOB_REPORTS.map((x) => [x, x])} className="h-9 w-full" />)}
+          {row("بازه‌ی زمانی", <SimpleSelect label="بازه‌ی زمانی" value={range} onChange={setRange} options={[...new Set([job.params.range, ...JOB_RANGES])].map((x) => [x, x])} className="num h-9 w-full" />)}
+          {row("ستون‌ها و بخش‌ها", (
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="ستون‌ها و بخش‌ها">
+              {pool.map((x) => <button key={x} type="button" aria-pressed={items.includes(x)} onClick={() => setItems((v) => toggle(v, x))} className="chip h-7 text-[12px]">{items.includes(x) ? <Check className="size-3" /> : <Plus className="size-3" />}{x}</button>)}
             </div>
-          )}
-        </dl>
-        <div className="mt-3 flex gap-2">
-          <Button size="sm" className="flex-1" disabled={!!job.params.people && !people.length} onClick={() => setPhase("run")}><Check /> تأیید و اجرا</Button>
+          ), "روشن یا خاموش کنید")}
+          {job.params.people && row("اشخاص", (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="اشخاص">
+                {job.params.people.map((c) => <button key={c} type="button" aria-pressed={people.includes(c)} onClick={() => setPeople((v) => toggle(v, c))} className="chip h-7 text-[12px]">{people.includes(c) ? <Check className="size-3" /> : <Plus className="size-3" />}{c}</button>)}
+              </div>
+              <span className="num flex gap-3 text-[11.5px] text-muted-foreground">{toFa(people.length)} از {toFa(job.params.people.length)} انتخاب شده
+                <button type="button" className="font-bold text-primary hover:underline" onClick={() => setPeople(job.params.people!)}>همه</button>
+                <button type="button" className="font-bold text-primary hover:underline" onClick={() => setPeople([])}>هیچ‌کدام</button>
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-[11.5px] text-muted-foreground">{toFa(job.steps.length)} مرحله: {job.steps.join("، ")}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" className="flex-1" disabled={!items.length || (!!job.params.people && !people.length)} onClick={() => setPhase("run")}><Check /> اجرا با این تنظیمات</Button>
+          {changed && <Button size="sm" variant="ghost" onClick={() => { setReport(job.params.report); setRange(job.params.range); setItems(job.params.items); setPeople(job.params.people ?? []); }}>برگرداندن پیشنهاد دستیار</Button>}
           <Button size="sm" variant="outline" onClick={() => setPhase("cancel")}>انصراف</Button>
         </div>
       </div>
@@ -157,7 +184,7 @@ function JobCard({ job, onFinish, onDownload }: { job: Job; onFinish: (j: Job) =
           <p className="num text-[13px] leading-7">{job.done}</p>
           {job.kind === "download" && (
             <div className="mt-2">
-              <p className="num mb-1.5 text-[11.5px] text-muted-foreground">{toFa(people.length)} صورت‌حساب · {job.params.range}</p>
+              <p className="num mb-1.5 text-[11.5px] text-muted-foreground">{toFa(people.length)} صورت‌حساب · {range}</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {([["xlsx", "اکسل", FileSpreadsheet], ["pdf", "PDF", FileText], ["print", "چاپ", Printer]] as const).map(([f, l, I]) => (
                   <Button key={f} size="sm" variant={f === "xlsx" ? "default" : "outline"} onClick={() => { setGot(f); onDownload(f, job.report ?? "statements", people); }}><I /> {l}</Button>
@@ -466,7 +493,7 @@ export function Reports() {
   const totals = r ? r.cols.map((c) => (c.num && !/٪/.test(c.label) ? rows.reduce((a, x) => a + (typeof x[c.key] === "number" ? (x[c.key] as number) : 0), 0) : null)) : [];
 
   const toolbar = (
-    <section className="panel edge-run no-print flex flex-wrap items-center gap-2 p-3">
+    <section className="panel no-print flex flex-wrap items-center gap-2 p-3">
       {bento ? <h2 className="px-2 text-[17px] font-extrabold">{r?.title ?? "نمای کلی سیستم"}</h2> : <Picker id={id} pick={pick} />}
       {r && (
         <div className="flex rounded-[calc(var(--r-field)+4px)] bg-muted/80 p-1" role="radiogroup" aria-label="دوره">
@@ -512,7 +539,7 @@ export function Reports() {
   const peopleSum = people.reduce((a, p) => a + p[1], 0);
   const byPerson = r && scope.byPerson && sortKey && (
     <section className="panel p-5">
-      <div className="mb-3 flex items-baseline justify-between"><b className="text-[14px]">سهم هر نفر از این گزارش</b><span className="text-[12px] text-muted-foreground">بر اساس اسنادی که ثبت کرده</span></div>
+      <div className="mb-3 flex items-baseline justify-between"><b className="text-[14px]">سهم هر نفر از این گزارش</b><span className="text-[12px] text-muted-foreground">به نسبت مبلغ اسنادی که هر نفر ثبت کرده</span></div>
       <ul className="grid gap-2 sm:grid-cols-2">
         {[...people].sort((a, b) => b[1] - a[1]).map(([n, w]) => (
           <li key={n} className="num rounded-field border border-border bg-surface/60 p-3">

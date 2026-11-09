@@ -45,7 +45,7 @@ export function Sidebar() {
           <n.icon className="size-[22px] shrink-0" variant={active ? "Bulk" : "Linear"} />
           <span className={reveal}>{n.label}</span>
           {n.count ? (
-            <span className="num absolute start-7 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground transition-all group-hover/rail:static group-hover/rail:ms-auto group-hover/rail:h-5 group-hover/rail:min-w-5 group-focus-within/rail:static group-focus-within/rail:ms-auto">
+            <span className="num absolute start-7 top-2 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-primary/15 px-1 text-[9.5px] font-bold leading-none text-primary transition-all group-hover/rail:static group-hover/rail:ms-auto group-focus-within/rail:static group-focus-within/rail:ms-auto">
               {toFa(n.count)}
             </span>
           ) : null}
