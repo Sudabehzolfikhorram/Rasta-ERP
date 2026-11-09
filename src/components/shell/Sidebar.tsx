@@ -21,10 +21,10 @@ export function Sidebar() {
     { id: "calendar", label: "تقویم", icon: CalendarDays, count: todayLeft },
     { id: "basedata", label: "اطلاعات پایه", icon: Bank },
   ];
-  // sub-menus start collapsed; the chevron opens them
+  // sub-menus start collapsed; the chevron opens one at a time (opening one closes the other)
   const [openSub, setOpenSub] = React.useState<Page[]>([]);
   const hasSub = (id: Page) => id === "documents" || id === "basedata";
-  const toggleSub = (id: Page) => setOpenSub((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
+  const toggleSub = (id: Page) => setOpenSub((x) => (x.includes(id) ? [] : [id]));
   const isActive = (id: Page) => id === page || (id === "documents" && (page === "doc" || page === "voucher"));
 
   const navBtn = (n: Item) => {

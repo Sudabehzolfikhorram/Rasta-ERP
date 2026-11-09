@@ -126,11 +126,10 @@ function readHash(): { concept: Concept; page: Page; theme: Theme; doc: string |
 const now = () => { const d = new Date(); return `امروز ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`.replace(/\d/g, (c) => "۰۱۲۳۴۵۶۷۸۹"[+c]); };
 const stamp = () => `۱۷ آبان · ${now().replace("امروز ", "")}`;
 
+/* Every visit starts from the demo data: nothing the visitor changes is kept across a refresh.
+   Clear the widget layout older builds saved, so returning visitors also see the defaults. */
 function loadWidgets(): Record<Concept, string[]> {
-  try {
-    const raw = JSON.parse(localStorage.getItem("rasta-widgets-v5") ?? "null");
-    if (raw && Array.isArray(raw.assist) && Array.isArray(raw.bento)) return raw;
-  } catch { /* storage blocked */ }
+  try { localStorage.removeItem("rasta-widgets-v5"); } catch { /* storage blocked */ }
   return DEFAULT_WIDGETS;
 }
 
@@ -264,11 +263,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     docCat, setDocCat: (c) => { setDocCat(c); go("documents"); },
     baseTab, setBaseTab: (t) => { setBaseTab(t); go("basedata"); },
     widgets: widgetMap[concept],
-    setWidgets: (w) => setWidgetMap((m) => {
-      const next = { ...m, [concept]: w };
-      try { localStorage.setItem("rasta-widgets-v5", JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    }),
+    setWidgets: (w) => setWidgetMap((m) => ({ ...m, [concept]: w })),
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }
