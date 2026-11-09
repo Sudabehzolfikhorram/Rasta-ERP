@@ -36,6 +36,10 @@
     /* calendar categories: a wider spread of hues, kept apart from the status colours */
     --cat-1: 216 72% 52%; --cat-2: 178 60% 36%; --cat-3: 252 55% 60%; --cat-4: 292 48% 52%; --cat-5: 330 62% 54%; --cat-6: 24 78% 52%; --cat-7: 28 38% 42%; --cat-8: 196 78% 44%; --cat-9: 82 45% 40%; --cat-10: 220 14% 48%;
     --tm-ink: 0 0% 100%;
+    /* composition charts: distinct hues that stay clear of the status colours */
+    --viz-1: 221 78% 54%; --viz-2: 172 62% 36%; --viz-3: 258 62% 60%; --viz-4: 326 62% 54%; --viz-5: 199 84% 44%; --viz-6: 286 40% 52%; --viz-7: 218 16% 58%;
+    /* activity scale: pale aqua to deep indigo */
+    --heat-1: 186 62% 80%; --heat-2: 194 70% 60%; --heat-3: 214 72% 52%; --heat-4: 236 60% 42%;
   }
 
   /* Concept 1 «دستیار»: airy glass, cobalt to teal, one big conversation surface */
@@ -109,6 +113,8 @@
     --ch-1: 214 85% 68%; --ch-2: 170 50% 52%; --ch-3: 240 60% 76%; --ch-4: 194 70% 60%; --ch-5: 266 50% 76%; --ch-6: 214 16% 62%;
     --cat-1: 214 85% 68%; --cat-2: 176 52% 52%; --cat-3: 250 70% 76%; --cat-4: 292 52% 70%; --cat-5: 330 70% 70%; --cat-6: 26 85% 64%; --cat-7: 30 40% 60%; --cat-8: 194 75% 60%; --cat-9: 82 45% 58%; --cat-10: 220 14% 66%;
     --tm-ink: 224 45% 9%;
+    --viz-1: 218 90% 68%; --viz-2: 168 52% 52%; --viz-3: 256 80% 76%; --viz-4: 326 72% 70%; --viz-5: 196 78% 60%; --viz-6: 286 50% 70%; --viz-7: 218 14% 62%;
+    --heat-1: 196 40% 28%; --heat-2: 198 60% 40%; --heat-3: 212 76% 58%; --heat-4: 226 92% 76%;
   }
   [data-concept="assist"][data-theme="dark"] {
     --background: 224 42% 7%;

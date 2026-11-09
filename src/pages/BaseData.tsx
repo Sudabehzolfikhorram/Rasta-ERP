@@ -117,7 +117,7 @@ export function BaseData() {
         empty={<Empty icon={Bank} title="بانکی پیدا نشد" />}
         columns={[
           { key: "code", label: "کد", className: "w-16", render: (b) => <span className="font-bold text-muted-foreground">{b.code}</span> },
-          { key: "name", label: "نام بانک", render: (b) => <span className="flex items-center gap-2.5"><BankLogo name={b.name} className="size-8 rounded-field" /><span><b className="block">{b.name}</b>{b.name2 && <span dir="ltr" className="block text-[11.5px] text-muted-foreground">{b.name2}</span>}</span></span> },
+          { key: "name", label: "نام بانک", render: (b) => <span className="flex items-center gap-2.5"><BankLogo name={b.name} /><span><b className="block">{b.name}</b>{b.name2 && <span dir="ltr" className="block text-[11.5px] text-muted-foreground">{b.name2}</span>}</span></span> },
           { key: "type", label: "نوع", hide: "md", render: (b) => <Badge tone={b.type === "بانک" ? "info" : "neutral"}>{b.type}</Badge> },
           { key: "swift", label: "کد سوئیفت", hide: "md", render: (b) => (b.swift ? <span dir="ltr" className="font-mono text-[12.5px]">{b.swift}</span> : <span className="text-muted-foreground">—</span>) },
           { key: "acc", label: "حساب‌ها", align: "center", hide: "sm", render: (b) => toFa(accounts.filter((a) => a.bank === b.id).length) },
@@ -230,7 +230,7 @@ export function BaseData() {
     return (
       <button key={b.id} onClick={() => setHub(b.id)} className="group flex flex-col gap-3 rounded-[calc(var(--r-field)+6px)] border border-border bg-surface/60 p-4 text-start transition-[border-color,transform] hover:-translate-y-0.5 hover:border-primary/40">
         <span className="flex items-center gap-3">
-          <BankLogo name={b.name} className="size-10" />
+          <BankLogo name={b.name} />
           <span className="min-w-0 flex-1"><b className="block truncate text-[14px]">{b.name}</b><span className="num text-[11.5px] text-muted-foreground">کد {b.code} · {b.type}</span></span>
           <ArrowLeft2 className="size-4 text-muted-foreground transition-transform group-hover:-translate-x-0.5" />
         </span>
@@ -575,7 +575,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
         style={{ background: `linear-gradient(135deg, hsl(var(${c})) 0%, hsl(var(${c}) / .78) 55%, hsl(var(${c}) / .6) 100%)` }}>
         <span aria-hidden className="absolute -end-10 -top-12 -z-10 size-40 rounded-full bg-white/10" />
         <span aria-hidden className="absolute -bottom-16 -start-6 -z-10 size-40 rounded-full bg-white/10" />
-        <span className="flex items-center gap-2 text-[12px] font-semibold text-white/85"><BankLogo name={bankName(a.bank)} className="size-6 rounded-[7px]" icon="size-3.5" />{bankName(a.bank)}<span className="ms-auto rounded-full bg-white/20 px-2 py-0.5 text-[11px]">{a.type}</span></span>
+        <span className="flex items-center gap-2.5 text-[12px] font-semibold text-white/85"><BankLogo name={bankName(a.bank)} className="ring-0 shadow-soft" />{bankName(a.bank)}<span className="ms-auto self-start rounded-full bg-white/20 px-2 py-0.5 text-[11px]">{a.type}</span></span>
         <b className="mt-2 text-[15px]">{a.name}</b>
         <span dir="ltr" className="num mt-1 text-end font-mono text-[14px] tracking-[0.12em] text-white/90">{a.no.replace(/(.{4})/g, "$1 ").trim()}</span>
         <span className="num mt-auto flex items-end justify-between gap-2 pt-3">
@@ -612,7 +612,7 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
           return (
             <button key={b.id} onClick={() => setHub(b.id)} className="panel group flex flex-col overflow-hidden p-0 text-start transition-shadow hover:shadow-lift">
               <span className="flex items-center gap-3 p-4" style={{ background: `linear-gradient(135deg, hsl(var(${c}) / .18), transparent)` }}>
-                <BankLogo name={b.name} className="size-11 rounded-[14px]" />
+                <BankLogo name={b.name} />
                 <span className="min-w-0 flex-1"><b className="block truncate text-[15px]">{b.name}</b><span className="num text-[11.5px] text-muted-foreground">کد {b.code} · {b.type}</span></span>
                 {b.used && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground" title="در حساب‌ها استفاده شده؛ نامش ثابت می‌ماند و حذف نمی‌شود">در حال استفاده</span>}
               </span>
@@ -712,12 +712,12 @@ function AssistBase({ tab, banks, branches, accounts, boxes, rates, hub, setHub,
             const br = branches.filter((r) => r.bank === b.id);
             return (
               <div key={b.id}>
-                <div className={cn("flex h-9 items-center rounded-field hover:bg-muted", hub === b.id && "bg-primary-soft text-primary hover:bg-primary-soft")}>
+                <div className={cn("flex h-14 items-center rounded-field hover:bg-muted", hub === b.id && "bg-primary-soft text-primary hover:bg-primary-soft")}>
                   <button aria-label={isOpen ? `بستن ${b.name}` : `باز کردن ${b.name}`} aria-expanded={isOpen} onClick={() => setOpen((x) => (isOpen ? x.filter((y) => y !== b.id) : [...x, b.id]))} className="grid size-7 place-items-center text-muted-foreground" disabled={!br.length}>
                     {br.length ? <ChevronLeft className={cn("size-3.5 transition-transform", isOpen && "-rotate-90")} /> : <i className="size-1 rounded-full bg-border" />}
                   </button>
                   <button onClick={() => { setAnswer(null); setHub(b.id); }} className="flex min-w-0 flex-1 items-center gap-2 pe-2 text-start text-[13px] font-semibold">
-                    <BankLogo name={b.name} className="size-5 rounded-[5px] p-[8%]" icon="size-3" /><span className="truncate">{b.name}</span>
+                    <BankLogo name={b.name} className="rounded-[12px]" /><span className="truncate">{b.name}</span>
                     <span className="num ms-auto text-[11px] text-muted-foreground">{toFa(accounts.filter((a) => a.bank === b.id).length)}</span>
                   </button>
                 </div>

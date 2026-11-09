@@ -256,7 +256,7 @@ function Statements({ rows, onOpen }: { rows: CatRow[]; onOpen: (r: CatRow) => v
         return (
           <button key={r.no} onClick={() => onOpen(r)} className="panel flex flex-col gap-3 p-4 text-start transition-shadow hover:shadow-lift">
             <span className="flex items-center gap-3">
-              <BankLogo name={r.party} className="size-10" />
+              <BankLogo name={r.party} />
               <span className="min-w-0 flex-1"><b className="block truncate text-[14px]">{r.party}</b><span className="num text-[12px] text-muted-foreground">{r.title.replace(r.party, "").trim()}</span></span>
               <svg viewBox="0 0 36 36" className="size-11 -rotate-90" aria-hidden>
                 <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />

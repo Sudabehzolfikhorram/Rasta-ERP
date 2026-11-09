@@ -527,3 +527,103 @@ export function MiniBars({ data, color = "--ch-1", className }: { data: readonly
     </div>
   );
 }
+
+/** Half-ring composition: the largest share starts on the right (reading start), small shares stay visible as slim arcs.
+    Hovering a segment or a legend row highlights the pair. */
+const VIZ = ["--viz-1", "--viz-2", "--viz-3", "--viz-4", "--viz-5", "--viz-6", "--viz-7"];
+export function ArcMix({ items, unit, total: totalLabel, onPick }: { items: [string, number][]; unit: string; total: React.ReactNode; onPick?: (l: string) => void }) {
+  const [hot, setHot] = React.useState<number | null>(null);
+  const sorted = [...items].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const total = sorted.reduce((s, [, v]) => s + v, 0) || 1;
+  const W = 260, R = 104, cx = W / 2, cy = 116, sw = 26, gap = 0.022;
+  const pt = (t: number, r = R) => [cx + r * Math.cos(t), cy - r * Math.sin(t)].map((n) => n.toFixed(2)).join(" ");
+  let t0 = 0;
+  const segs = sorted.map(([l, v], i) => {
+    const span = (v / total) * Math.PI;
+    const a = t0 + (i ? gap / 2 : 0), b = t0 + span - (i < sorted.length - 1 ? gap / 2 : 0);
+    t0 += span;
+    return { l, v, i, d: `M ${pt(a)} A ${R} ${R} 0 0 0 ${pt(Math.max(b, a + 0.004))}` };
+  });
+  const pc = (v: number) => { const p = (v / total) * 100; return p < 10 ? fa1(p, 1) : toFa(Math.round(p)); };
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="relative mx-auto w-full max-w-[300px]">
+        {/* angle 0 is the right end, so the largest share starts where an RTL reader starts */}
+        <svg viewBox={`0 0 ${W} ${cy + 4}`} className="w-full overflow-visible" role="img" aria-label={sorted.map(([l, v]) => `${l} ${pc(v)}٪`).join("، ")}>
+          <path d={`M ${pt(0)} A ${R} ${R} 0 0 0 ${pt(Math.PI)}`} fill="none" stroke="hsl(var(--muted))" strokeWidth={sw} />
+          {segs.map((s) => (
+            <path key={s.l} d={s.d} fill="none" stroke={`hsl(var(${VIZ[s.i % VIZ.length]}))`} strokeWidth={hot === s.i ? sw + 6 : sw}
+              opacity={hot === null || hot === s.i ? 1 : 0.35} className="cursor-pointer transition-all duration-200"
+              onMouseEnter={() => setHot(s.i)} onMouseLeave={() => setHot(null)} onClick={() => onPick?.(s.l)} />
+          ))}
+        </svg>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 text-center">
+          {hot === null ? totalLabel : (
+            <>
+              <b className="num block text-[22px] leading-none">{pc(sorted[hot][1])}٪</b>
+              <span className="mt-1 block truncate px-12 text-[12px] text-muted-foreground">{sorted[hot][0]}</span>
+            </>
+          )}
+        </div>
+      </div>
+      <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+        {sorted.map(([l, v], i) => (
+          <li key={l}>
+            <button onMouseEnter={() => setHot(i)} onMouseLeave={() => setHot(null)} onFocus={() => setHot(i)} onBlur={() => setHot(null)} onClick={() => onPick?.(l)}
+              className={cn("flex w-full items-center gap-2 rounded-[8px] px-1.5 py-1 text-start text-[12.5px] transition-colors hover:bg-muted", hot === i && "bg-muted")}>
+              <i className="h-3 w-1.5 shrink-0 rounded-full" style={{ background: `hsl(var(${VIZ[i % VIZ.length]}))` }} />
+              <span className="min-w-0 flex-1 truncate">{l}</span>
+              <span className="num text-[11.5px] text-muted-foreground">{fa1(v, 2)}</span>
+              <b className="num w-9 text-end">{pc(v)}٪</b>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <span className="sr-only">{unit}</span>
+    </div>
+  );
+}
+
+/** Weekday × week activity as a dot matrix: dot size and colour both grow with the count, the number sits inside,
+    an empty day is a faint ring, and a slim bar on the end totals each weekday. */
+export function DotMatrix({ rows, cols, values, mark }: { rows: string[]; cols: string[]; values: number[][]; mark?: [number, number] }) {
+  const max = Math.max(...values.flat(), 1);
+  const lvl = (v: number) => (v <= 0 ? 0 : Math.min(4, Math.ceil((v / max) * 4)));
+  const sums = values.map((r) => r.reduce((a, v) => a + v, 0));
+  const top = Math.max(...sums, 1);
+  return (
+    <div>
+      <div className="grid items-center gap-x-1.5 gap-y-1" style={{ gridTemplateColumns: `30px repeat(${cols.length}, minmax(0,1fr)) 52px` }}>
+        <span />
+        {cols.map((c) => <span key={c} className="num truncate text-center text-[10.5px] text-muted-foreground">{c}</span>)}
+        <span className="text-center text-[10.5px] text-muted-foreground">جمع</span>
+        {rows.map((r, i) => (
+          <React.Fragment key={r}>
+            <span className="text-[11px] text-muted-foreground">{r}</span>
+            {values[i].map((v, j) => {
+              const l = lvl(v), size = l ? 12 + l * 3.5 : 7, here = mark && mark[0] === i && mark[1] === j;
+              return (
+                <span key={j} title={`${r}، ${cols[j]}: ${toFa(v)} سند`} className="grid h-7 place-items-center">
+                  <span className={cn("num grid place-items-center rounded-full text-[10px] font-bold transition-transform hover:scale-110", here && "ring-2 ring-foreground/70 ring-offset-2 ring-offset-surface")}
+                    style={{ width: size, height: size, background: l ? `hsl(var(--heat-${l}))` : "transparent", boxShadow: l ? undefined : "inset 0 0 0 1.5px hsl(var(--border))", color: l >= 3 ? "white" : "hsl(var(--foreground))" }}>
+                    {l >= 2 ? toFa(v) : ""}
+                  </span>
+                </span>
+              );
+            })}
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><i className="block h-full rounded-full" style={{ width: `${(sums[i] / top) * 100}%`, background: "hsl(var(--heat-3))" }} /></span>
+              <b className="num w-4 text-end text-[11px]">{toFa(sums[i])}</b>
+            </span>
+          </React.Fragment>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center justify-end gap-1.5 text-[10.5px] text-muted-foreground">
+        کم
+        <i className="size-[7px] rounded-full" style={{ boxShadow: "inset 0 0 0 1.5px hsl(var(--border))" }} />
+        {[1, 2, 3, 4].map((l) => <i key={l} className="rounded-full" style={{ width: 8 + l * 2, height: 8 + l * 2, background: `hsl(var(--heat-${l}))` }} />)}
+        زیاد
+      </div>
+    </div>
+  );
+}

@@ -12,7 +12,7 @@ import { WhyPopover } from "@/components/ai/WhyPopover";
 import { Orb } from "@/components/ai/Orb";
 import { MicButton, VoiceBar, VoiceError } from "@/components/ai/VoiceBar";
 import { useVoice } from "@/lib/voice";
-import { CashChart, Heatmap, MiniBars, StackBars, Treemap, TrendArea, Waterfall } from "@/components/charts";
+import { ArcMix, CashChart, DotMatrix, MiniBars, StackBars, TrendArea, Waterfall } from "@/components/charts";
 import { ACCEPT } from "@/components/voucher/analyze";
 import { answerFor } from "@/components/ai/CommandPalette";
 import { followUps } from "@/components/ai/followups";
@@ -286,34 +286,52 @@ function StatCards() {
   );
 }
 
-/** Document status as a pipeline: draft → pending → posted, one tile per document so each one is clickable. */
+/** Document status: a segmented ring (share of each status) beside the three stages, then the documents still waiting. */
 function ApprovalTile() {
   const { docs, go, openDoc } = useApp();
   const stages: { s: DocStatus; l: string; c: string }[] = [
-    { s: "draft", l: "پیش‌نویس", c: "--ch-6" }, { s: "pending", l: "منتظر تأیید", c: "--warning" }, { s: "posted", l: "تأییدشده", c: "--success" },
+    { s: "posted", l: "تأییدشده", c: "--success" }, { s: "pending", l: "منتظر تأیید", c: "--warning" }, { s: "draft", l: "پیش‌نویس", c: "--viz-7" },
   ];
+  const all = Math.max(docs.length, 1);
   const n = (s: DocStatus) => docs.filter((d) => d.status === s).length;
-  const pct = Math.round((n("posted") / Math.max(docs.length, 1)) * 100);
+  const pct = Math.round((n("posted") / all) * 100);
+  const waiting = docs.filter((d) => d.status === "pending").slice(0, 2);
+  const S = 116, sw = 13, r = (S - sw) / 2, C = 2 * Math.PI * r;
+  let off = 0;
   return (
     <section className="panel flex flex-col p-5">
-      <Head title="وضعیت اسناد آبان" action={<span className="num text-[12px] text-muted-foreground"><b className="text-[15px] text-foreground">{toFa(pct)}٪</b> تأییدشده</span>} />
-      <ol className="grid grid-cols-3 gap-2">
-        {stages.map((st, i) => (
-          <li key={st.s} className="relative flex flex-col gap-2 rounded-field border border-border bg-surface/60 p-2.5">
-            {i < 2 && <ArrowLeft className="absolute -start-[13px] top-1/2 z-10 size-3.5 -translate-y-1/2 rounded-full bg-surface text-muted-foreground" />}
-            <span className="flex items-center justify-between text-[11.5px] font-semibold text-muted-foreground">{st.l}<b className="num text-[15px] text-foreground">{toFa(n(st.s))}</b></span>
-            <span className="flex flex-wrap gap-1">
-              {docs.filter((d) => d.status === st.s).map((d) => (
-                <button key={d.id} onClick={() => openDoc(d.id)} title={d.title} aria-label={d.title}
-                  className="size-3.5 rounded-[4px] transition-transform hover:scale-125" style={{ background: `hsl(var(${st.c}))` }} />
-              ))}
-            </span>
-          </li>
-        ))}
-      </ol>
-      <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted">
-        {stages.map((st) => <span key={st.s} style={{ width: `${(n(st.s) / Math.max(docs.length, 1)) * 100}%`, background: `hsl(var(${st.c}))` }} />)}
+      <Head title="وضعیت اسناد آبان" action={<span className="num text-[12px] text-muted-foreground">{toFa(docs.length)} سند</span>} />
+      <div className="flex items-center gap-5">
+        <div className="relative grid shrink-0 place-items-center" style={{ width: S, height: S }}>
+          <svg width={S} height={S} className="-rotate-90" role="img" aria-label={stages.map((st) => `${st.l} ${toFa(n(st.s))}`).join("، ")}>
+            <circle cx={S / 2} cy={S / 2} r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth={sw} />
+            {stages.map((st) => {
+              const len = (n(st.s) / all) * C;
+              const el = len > 0 && <circle key={st.s} cx={S / 2} cy={S / 2} r={r} fill="none" stroke={`hsl(var(${st.c}))`} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${Math.max(len - sw - 3, 0.1)} ${C}`} strokeDashoffset={-(off + sw / 2 + 1.5)} />;
+              off += len;
+              return el;
+            })}
+          </svg>
+          <span className="absolute inset-0 grid place-content-center text-center"><b className="num text-[22px] leading-none">{toFa(pct)}٪</b><span className="mt-1 text-[11px] text-muted-foreground">تأییدشده</span></span>
+        </div>
+        <ul className="flex min-w-0 flex-1 flex-col gap-2.5">
+          {stages.map((st) => (
+            <li key={st.s} className="text-[12.5px]">
+              <span className="flex items-center gap-2"><i className="size-2.5 rounded-full" style={{ background: `hsl(var(${st.c}))` }} /><span className="flex-1">{st.l}</span><b className="num text-[14px]">{toFa(n(st.s))}</b></span>
+              <span className="mt-1 block h-1 overflow-hidden rounded-full bg-muted"><i className="block h-full rounded-full" style={{ width: `${(n(st.s) / all) * 100}%`, background: `hsl(var(${st.c}))` }} /></span>
+            </li>
+          ))}
+        </ul>
       </div>
+      {waiting.length > 0 && (
+        <ul className="mt-4 flex flex-col gap-1 border-t border-border pt-3">
+          {waiting.map((d) => (
+            <li key={d.id}><button onClick={() => openDoc(d.id)} className="flex w-full items-center gap-2 rounded-[8px] px-1.5 py-1 text-start text-[12.5px] hover:bg-muted">
+              <i className="size-1.5 shrink-0 rounded-full bg-warning" /><span className="min-w-0 flex-1 truncate">{d.title}</span><span className="num text-[11px] text-muted-foreground">سند {toFa(d.seq)}</span>
+            </button></li>
+          ))}
+        </ul>
+      )}
       <Button size="sm" variant="soft" className="mt-4" onClick={() => go("documents")}>بررسی اسناد</Button>
     </section>
   );
@@ -366,8 +384,8 @@ function SpendTile() {
   return (
     <section className="panel flex flex-col p-5">
       <Head title="ترکیب هزینه‌های آبان" action={<LinkBtn onClick={() => openReport("expmix")}>گزارش</LinkBtn>} />
-      <p className="num -mt-2 mb-3 text-[12px] text-muted-foreground">جمع <b className="text-[14px] text-foreground">{toFa(total.toFixed(1)).replace(".", "٫")}</b> میلیارد {unitLabel(unit)}</p>
-      <Treemap items={r.rows.map((x) => [String(x.item), (x.v as number) / k])} unit={`میلیارد ${unitLabel(unit)}`} height={236} legend={false} onPick={() => openReport("expmix")} />
+      <ArcMix items={r.rows.map((x) => [String(x.item), (x.v as number) / k])} unit={`میلیارد ${unitLabel(unit)}`} onPick={() => openReport("expmix")}
+        total={<><b className="num block text-[22px] leading-none">{toFa(total.toFixed(1)).replace(".", "٫")}</b><span className="mt-1 block text-[11.5px] text-muted-foreground">میلیارد {unitLabel(unit)}، جمع آبان</span></>} />
     </section>
   );
 }
@@ -396,7 +414,7 @@ function HeatTile() {
   return (
     <section className="panel flex flex-col p-5">
       <Head title="فعالیت ثبت سند" action={<span className="num text-[12px] text-muted-foreground">{toFa(total)} سند در ۵ هفته‌ی اخیر</span>} />
-      <Heatmap rows={WD_SHORT} cols={["۴ هفته پیش", "۳ هفته پیش", "۲ هفته پیش", "هفته‌ی قبل", "این هفته"]} values={vals} />
+      <DotMatrix rows={WD_SHORT} cols={["۴ هفته پیش", "۳ هفته پیش", "۲ هفته پیش", "هفته‌ی قبل", "این هفته"]} values={vals} mark={[weekday(TODAY.m, TODAY.d), 4]} />
       <p className="mt-auto pt-3 text-[11.5px] text-muted-foreground">{total ? `بیشترین ثبت در ${DAYS[top]}‌ها بوده است؛ ${toFa(perDay[top])} سند.` : "هنوز سندی در این بازه ثبت نشده است."}</p>
     </section>
   );
